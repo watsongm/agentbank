@@ -318,11 +318,6 @@ No backend required. The API console and observability dashboard use in-memory m
 
 ## Roadmap
 
-- [ ] OpenAPI 3.1 spec export for all endpoints  
-- [ ] Postman collection  
-- [ ] Mock Service Worker (MSW) for realistic API simulation  
-- [ ] TypeScript agent SDK with typed tool definitions  
-- [ ] Docker Compose for full local stack  
 - [ ] WebSocket support for real-time event streaming  
 - [ ] Additional BIAN domains (Trade Finance, Correspondent Banking)  
 - [ ] Customer explainability log UI  
@@ -336,6 +331,3 @@ agentBANK is a **reference implementation** for educational and architectural pu
 
 ---
 
-## License
-
-MIT © 2026 agentBANK
