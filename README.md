@@ -43,6 +43,9 @@ Ten BIAN service domains, each with full endpoint listings and agent capability 
 ### API Console
 Full interactive API explorer — browse domains, select endpoints, edit request headers and body, fire requests, and inspect realistic JSON responses.
 
+### Agent Build Recipes
+Five ready-to-adapt code snippets covering common banking agent patterns, with an interactive card picker and dark code viewer.
+
 ### Observability Dashboard
 Three-tab dashboard: LLM metrics (real-time charts), agent trace log (animated reasoning replay), and OpenTelemetry span waterfall.
 
@@ -147,7 +150,7 @@ run_aml_screen        subscribe_events
 
 ```javascript
 const response = await client.messages.create({
-  model: "claude-opus-4-5",
+  model: "claude-sonnet-4-6",
   tools: [
     {
       name: "initiate_payment",
@@ -185,6 +188,32 @@ Step 6  subscribe_events     →  Subscribe to salary credits for monthly automa
 ```
 
 The agent touches five BIAN service domains in a single loop. The full interaction is captured in the observability layer — reasoning trace, span waterfall, and token usage metrics.
+
+---
+
+## Agent Builds
+
+The **Agent Builds** section provides five ready-to-adapt code snippets for common banking agent patterns. Each recipe wires together agentBANK tool functions into a complete, runnable agent using the `AgentBankAgent` class.
+
+| Build | Domains | Description |
+|-------|---------|-------------|
+| **Loan Pre-qualification** | lending, accounts, transactions | Analyses income and obligations to pre-qualify without a hard credit check |
+| **Fraud Sentinel** | transactions, compliance, cards | Webhook-triggered AML screening with autonomous card block on threshold breach |
+| **Portfolio Rebalancer** | investments | Detects allocation drift and places buy/sell orders to rebalance |
+| **Wealth Summary** | accounts, savings, investments, transactions | Parallel balance aggregation with LLM-generated financial health insights |
+| **Bill Pay Automator** | transactions, payments, accounts | Detects recurring bills and schedules forward payments with a configurable buffer |
+
+### Claude Code Skill
+
+A project-level Claude Code skill is included at `.claude/skills/agentbank-build/`. Once Claude Code is running in this project, you can add new agent build recipes directly from the terminal:
+
+```bash
+/agentbank-build KYC onboarding agent
+/agentbank-build FX payment with sanctions check
+/agentbank-build spending insights with nudge to save
+```
+
+The skill knows the `AGENT_BUILDS` data shape, all 14 available tools, and the code style conventions — it reads existing entries, picks a non-duplicate id and colour, and inserts the new snippet directly into `App.jsx`.
 
 ---
 
@@ -285,11 +314,15 @@ npx vercel --prod
 
 ```
 agentbank/
+├── .claude/
+│   └── skills/
+│       └── agentbank-build/
+│           └── SKILL.md      # /agentbank-build Claude Code skill
 ├── public/
 │   └── favicon.svg
 ├── src/
 │   ├── main.jsx              # React entry point
-│   ├── App.jsx               # Main app — landing page, API console, use case
+│   ├── App.jsx               # Main app — landing page, API console, use case, agent builds
 │   └── Observability.jsx     # Observability dashboard (standalone)
 ├── .env.example              # Environment variable template
 ├── .gitignore
