@@ -247,7 +247,7 @@ Distributed trace waterfall showing the full call hierarchy: **agent session →
 
 ```bash
 # 1. Clone or download and unzip the project
-git clone https://github.com/your-username/agentbank.git
+git clone https://github.com/watsongm/agentbank.git
 cd agentbank
 
 # 2. Install dependencies
