@@ -798,6 +798,13 @@ h1 em{font-style:normal;color:var(--gold);}
 .build-viewer-code{background:#07090d;padding:24px;overflow-x:auto;}
 .build-viewer-code pre{font-family:var(--mono);font-size:12px;line-height:1.8;color:#c8d8e8;margin:0;white-space:pre;}
 
+/* TAB BAR */
+.tab-bar{position:sticky;top:60px;z-index:200;background:rgba(248,247,244,.97);backdrop-filter:blur(12px);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:0;padding:0 40px;}
+.tab-btn{font-size:12px;font-weight:600;letter-spacing:.5px;padding:14px 22px;background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;color:var(--mid);transition:color .2s,border-color .2s;white-space:nowrap;}
+.tab-btn:hover{color:var(--ink);}
+.tab-btn.on{color:var(--ink);border-bottom-color:var(--ink);}
+@media(max-width:768px){.tab-bar{padding:0 20px;overflow-x:auto;}.tab-btn{padding:12px 14px;font-size:11px;}}
+
 /* FOOTER */
 footer{padding:56px 40px 36px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;justify-content:space-between;gap:36px;}
 .footer-logo{font-family:var(--display);font-size:20px;font-weight:800;margin-bottom:7px;}
@@ -835,6 +842,7 @@ function CT({active,payload,label,unit=""}) {
 ══════════════════════════════════════════════════════ */
 export default function App() {
   /* — core state — */
+  const [activeTab, setActiveTab] = useState("channel");
   const [modal, setModal]         = useState(null);   // domain id
   const [modalTab, setModalTab]   = useState("ep");
   const [showConsole, setShowConsole] = useState(false);
@@ -945,12 +953,11 @@ export default function App() {
       <nav className="nav">
         <div className="nav-logo">AGENT<span>BANK</span></div>
         <div className="nav-links">
-          <a className="nl" href="#agent">AI Channel</a>
-          <a className="nl" href="#usecase">Use Case</a>
-          <a className="nl" href="#services">Services</a>
-          <a className="nl" href="#tools">Tools</a>
-          <a className="nl" href="#builds">Agent Builds</a>
-          <a className="nl" href="#arch">Architecture</a>
+          <span className="nl" onClick={()=>setActiveTab("channel")}>AI Channel</span>
+          <span className="nl" onClick={()=>setActiveTab("usecase")}>Use Case</span>
+          <span className="nl" onClick={()=>setActiveTab("services")}>Services</span>
+          <span className="nl" onClick={()=>setActiveTab("builds")}>Agent Builds</span>
+          <span className="nl" onClick={()=>setActiveTab("arch")}>Architecture</span>
         </div>
         <div style={{display:"flex",gap:8}}>
           <button className="nav-btn" style={{background:"transparent",color:"var(--ink)",border:"1.5px solid var(--ink)"}} onClick={()=>setShowObs(true)}>Observability</button>
@@ -977,8 +984,21 @@ export default function App() {
         </div>
       </section>
 
+      {/* ── TAB BAR ── */}
+      <div className="tab-bar">
+        {[
+          {id:"channel",  label:"AI Channel"},
+          {id:"usecase",  label:"Use Case"},
+          {id:"services", label:"Services & APIs"},
+          {id:"builds",   label:"Agent Builds"},
+          {id:"arch",     label:"Architecture"},
+        ].map(t=>(
+          <button key={t.id} className={`tab-btn ${activeTab===t.id?"on":""}`} onClick={()=>setActiveTab(t.id)}>{t.label}</button>
+        ))}
+      </div>
+
       {/* ── AI AGENT CHANNEL ── */}
-      <section className="sec dark" id="agent">
+      {activeTab === "channel" && <section className="sec dark" id="agent">
         <span className="sec-tag">PRIMARY CHANNEL</span>
         <h2 className="sec-h">AI Agents as<br/>First-Class Customers</h2>
         <p className="sec-p">agentBANK exposes a structured tool-use layer allowing AI agents to authenticate, reason, and transact autonomously — using the same Open Banking consent framework.</p>
@@ -1015,10 +1035,10 @@ export default function App() {
             </div>
           </div>
         </div>
-      </section>
+      </section>}
 
       {/* ── USE CASE ── */}
-      <section className="uc-sec" id="usecase">
+      {activeTab === "usecase" && <section className="uc-sec" id="usecase">
         <span className="sec-tag">EXAMPLE AGENT</span>
         <h2 className="sec-h">Smart Savings Agent</h2>
         <p className="sec-p">A complete worked example: an AI agent that analyses spending, calculates a safe monthly savings amount, executes the transfer, and automates it on future salary credits. Click each step.</p>
@@ -1047,9 +1067,10 @@ export default function App() {
             <div className="code-scroll"><pre>{AGENT_STEPS[ucStep].code}</pre></div>
           </div>
         </div>
-      </section>
+      </section>}
 
-      {/* ── SERVICES ── */}
+      {/* ── SERVICES & TOOLS ── */}
+      {activeTab === "services" && <>
       <section id="services" style={{padding:"96px 40px 0"}}>
         <span className="sec-tag">BIAN SERVICE DOMAINS</span>
         <h2 className="sec-h">Complete Banking<br/>Capability Model</h2>
@@ -1088,9 +1109,10 @@ export default function App() {
           })}
         </div>
       </section>
+      </>}
 
       {/* ── AGENT BUILDS ── */}
-      {(()=>{
+      {activeTab === "builds" && (()=>{
         const build = AGENT_BUILDS.find(b=>b.id===selBuild);
         return (
           <section className="sec" id="builds">
@@ -1121,7 +1143,7 @@ export default function App() {
       })()}
 
       {/* ── ARCHITECTURE ── */}
-      <section className="sec dark" id="arch">
+      {activeTab === "arch" && <section className="sec dark" id="arch">
         <span className="sec-tag">REFERENCE ARCHITECTURE</span>
         <h2 className="sec-h">Layered Banking Stack</h2>
         <p className="sec-p">agentBANK implements a clean layered architecture from AI agent channels down to core banking — with Open Banking and BIAN as interoperability standards at every tier.</p>
@@ -1142,7 +1164,7 @@ export default function App() {
             </div>
           ))}
         </div>
-      </section>
+      </section>}
 
       {/* ── FOOTER ── */}
       <footer>
