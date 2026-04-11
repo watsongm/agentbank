@@ -605,13 +605,67 @@ h1 em{font-style:normal;color:var(--gold);}
 .code-scroll pre{font-family:var(--mono);font-size:11.5px;line-height:1.75;color:#a5d6a7;white-space:pre;}
 
 /* ARCH */
-.arch-layers{display:flex;flex-direction:column;gap:3px;max-width:800px;}
-.arch-row{display:flex;align-items:center;}
-.arch-lbl{font-family:var(--mono);font-size:10px;letter-spacing:1px;color:rgba(255,255,255,.35);width:170px;flex-shrink:0;text-transform:uppercase;}
-.arch-bar{flex:1;padding:13px 20px;border:1px solid rgba(255,255,255,.06);}
-.arch-comps{display:flex;gap:7px;flex-wrap:wrap;}
-.arch-chip{font-family:var(--mono);font-size:10px;padding:4px 9px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.65);}
-.arch-chip.hi{background:rgba(201,168,76,.15);border-color:var(--gold);color:var(--gold);}
+.arch-full{padding:80px 40px 96px;}
+.arch-section-hdr{font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--gold);text-transform:uppercase;margin-bottom:18px;padding-bottom:10px;border-bottom:1px solid rgba(201,168,76,.2);}
+
+/* stack diagram */
+.arch-stack{display:flex;flex-direction:column;gap:2px;margin-bottom:64px;}
+.arch-row{display:grid;grid-template-columns:150px 1fr;align-items:stretch;}
+.arch-lbl{font-family:var(--mono);font-size:9px;letter-spacing:1px;color:rgba(255,255,255,.28);flex-shrink:0;text-transform:uppercase;display:flex;align-items:center;padding-right:18px;border-right:1px solid rgba(255,255,255,.05);margin-right:0;}
+.arch-band{flex:1;padding:12px 18px;border:1px solid rgba(255,255,255,.06);margin-left:18px;}
+.arch-comps{display:flex;gap:6px;flex-wrap:wrap;}
+.arch-chip{font-family:var(--mono);font-size:10px;padding:4px 9px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);color:rgba(255,255,255,.55);}
+.arch-chip.hi{background:rgba(201,168,76,.12);border-color:rgba(201,168,76,.4);color:var(--gold);}
+.arch-chip.blue{background:rgba(79,195,247,.1);border-color:rgba(79,195,247,.35);color:#4fc3f7;}
+.arch-chip.green{background:rgba(0,230,118,.08);border-color:rgba(0,230,118,.3);color:#00e676;}
+.arch-chip.purple{background:rgba(206,147,216,.08);border-color:rgba(206,147,216,.25);color:#ce93d8;}
+.arch-connect{grid-column:2;height:18px;display:flex;align-items:center;padding-left:18px;}
+.arch-connect-line{width:1px;height:100%;background:rgba(255,255,255,.07);margin-left:22px;}
+
+/* agent channels */
+.arch-channels{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:64px;}
+.arch-chan{border:1px solid rgba(255,255,255,.08);display:flex;flex-direction:column;}
+.arch-chan-hdr{padding:13px 16px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:10px;}
+.arch-chan-icon{font-size:15px;}
+.arch-chan-title{font-size:13px;font-weight:700;color:rgba(255,255,255,.85);}
+.arch-chan-sub{font-family:var(--mono);font-size:9px;letter-spacing:1px;color:rgba(255,255,255,.25);margin-top:1px;}
+.arch-chan-body{padding:14px 16px;flex:1;display:flex;flex-direction:column;gap:10px;}
+.arch-flow-step{display:flex;align-items:flex-start;gap:10px;}
+.arch-flow-dot{width:20px;height:20px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:9px;font-weight:700;margin-top:1px;}
+.arch-flow-text{font-size:12px;color:rgba(255,255,255,.5);line-height:1.55;}
+.arch-flow-text strong{color:rgba(255,255,255,.8);font-weight:600;}
+.arch-flow-arrow{font-family:var(--mono);font-size:10px;color:rgba(255,255,255,.18);padding-left:30px;}
+
+/* BIAN domain cards */
+.arch-domains{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px;margin-bottom:64px;}
+.arch-domain{padding:16px;border:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.015);}
+.arch-domain-top{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.arch-domain-icon{font-size:18px;}
+.arch-domain-name{font-size:13px;font-weight:700;color:rgba(255,255,255,.8);}
+.arch-domain-bian{font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.22);letter-spacing:.5px;}
+.arch-domain-divider{height:1px;background:rgba(255,255,255,.05);margin-bottom:10px;}
+.arch-domain-caps{display:flex;flex-direction:column;gap:4px;}
+.arch-domain-cap{font-size:11px;color:rgba(255,255,255,.38);display:flex;align-items:flex-start;gap:6px;}
+.arch-domain-cap::before{content:'→';color:rgba(255,255,255,.15);flex-shrink:0;font-family:var(--mono);font-size:10px;}
+
+/* OB surface */
+.arch-ob{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:64px;}
+.arch-ob-card{padding:16px;border:1px solid rgba(79,195,247,.15);background:rgba(79,195,247,.03);}
+.arch-ob-name{font-size:13px;font-weight:700;color:#4fc3f7;margin-bottom:10px;}
+.arch-ob-ep{font-family:var(--mono);font-size:10px;color:rgba(255,255,255,.3);padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04);display:flex;justify-content:space-between;align-items:center;}
+.arch-ob-ep:last-child{border-bottom:none;}
+.arch-ob-badge{font-size:9px;font-weight:700;padding:1px 4px;border-radius:1px;}
+.ob-GET{background:#1a3d1a;color:#4caf50;}.ob-POST{background:#1a2a4a;color:#64b5f6;}.ob-PUT{background:#3d2a0a;color:#ffb74d;}
+
+/* standards table */
+.arch-standards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;}
+.arch-std{padding:16px;border:1px solid rgba(255,255,255,.06);}
+.arch-std-name{font-size:13px;font-weight:700;color:rgba(255,255,255,.8);margin-bottom:3px;}
+.arch-std-ver{font-family:var(--mono);font-size:10px;color:var(--gold);margin-bottom:8px;}
+.arch-std-desc{font-size:12px;color:rgba(255,255,255,.35);line-height:1.55;}
+
+@media(max-width:900px){.arch-channels{grid-template-columns:1fr;}.arch-full{padding:56px 20px 72px;}}
+@media(max-width:768px){.arch-row{grid-template-columns:90px 1fr;}.arch-lbl{font-size:8px;}}
 
 /* MODAL */
 .overlay{position:fixed;inset:0;background:rgba(13,15,20,.87);z-index:500;display:flex;align-items:flex-start;justify-content:center;padding:40px 20px;overflow-y:auto;}
@@ -1347,27 +1401,163 @@ export default function App() {
       })()}
 
       {/* ── ARCHITECTURE ── */}
-      {activeTab === "arch" && <section className="sec dark" id="arch">
+      {activeTab === "arch" && <section className="dark arch-full" id="arch">
         <span className="sec-tag">REFERENCE ARCHITECTURE</span>
-        <h2 className="sec-h">Layered Banking Stack</h2>
-        <p className="sec-p">agentBANK implements a clean layered architecture from AI agent channels down to core banking — with Open Banking and BIAN as interoperability standards at every tier.</p>
-        <div className="arch-layers">
+        <h2 className="sec-h" style={{marginBottom:14}}>agentBANK Architecture</h2>
+        <p style={{fontSize:16,color:"rgba(255,255,255,.4)",lineHeight:1.7,maxWidth:640,marginBottom:64}}>A complete view of how AI agents, Open Banking, BIAN service domains, and the MCP server interact — from client to ledger.</p>
+
+        {/* ── 1. FULL STACK DIAGRAM ── */}
+        <div className="arch-section-hdr">Full Stack Overview</div>
+        <div className="arch-stack">
           {[
-            {l:"CHANNELS",    bg:"rgba(255,255,255,.04)", chips:["AI Agent API ★","Mobile App","Web Banking","Partner APIs"],   hi:[0]},
-            {l:"API GATEWAY", bg:"rgba(201,168,76,.07)",  chips:["OAuth 2.0 / FAPI","Consent Manager","Rate Limiting","Audit Logger"], hi:[0,1]},
-            {l:"OPEN BANKING",bg:"rgba(255,255,255,.03)", chips:["Accounts v3.1","Payments v3.1","Confirmation of Funds","Event Notifications"], hi:[]},
-            {l:"BIAN DOMAINS",bg:"rgba(255,255,255,.03)", chips:["CurrentAccount","PaymentExecution","ConsumerLoan","InvestmentPortfolio","+6 more"], hi:[]},
-            {l:"CORE BANKING",bg:"rgba(255,255,255,.03)", chips:["Ledger Engine","Product Engine","Customer MDM","Risk Engine"], hi:[]},
-            {l:"INFRA",       bg:"rgba(255,255,255,.02)", chips:["Event Bus","Immutable Audit","Key Management","Data Warehouse"], hi:[]},
-          ].map(row=>(
-            <div key={row.l} className="arch-row">
-              <div className="arch-lbl">{row.l}</div>
-              <div className="arch-bar" style={{background:row.bg}}>
-                <div className="arch-comps">{row.chips.map((c,i)=><span key={c} className={`arch-chip ${row.hi.includes(i)?"hi":""}`}>{c}</span>)}</div>
+            {l:"AI CLIENTS",   chips:[{t:"Claude Desktop",c:"hi"},{t:"Custom Agent (SDK)",c:"hi"},{t:"MCP Client",c:"hi"},{t:"Mobile / Web App",c:""}]},
+            null,
+            {l:"MCP LAYER",    chips:[{t:"MCP Server (stdio)",c:"hi"},{t:"14 Typed Tools",c:"hi"},{t:"Zod Schema Validation",c:""},{t:"Tool Registry",c:""}]},
+            null,
+            {l:"API GATEWAY",  chips:[{t:"OAuth 2.0 / FAPI 2.0",c:"green"},{t:"Consent Manager",c:"green"},{t:"Rate Limiting",c:""},{t:"Immutable Audit Log",c:""}]},
+            null,
+            {l:"OPEN BANKING", chips:[{t:"Accounts v3.1",c:"blue"},{t:"Payments v3.1",c:"blue"},{t:"Confirmation of Funds",c:"blue"},{t:"Event Notifications",c:"blue"}]},
+            null,
+            {l:"BIAN DOMAINS", chips:[{t:"SD-CurrentAccount",c:"purple"},{t:"SD-PaymentExecution",c:"purple"},{t:"SD-ConsumerLoan",c:"purple"},{t:"SD-InvestmentPortfolio",c:"purple"},{t:"+6 domains",c:""}]},
+            null,
+            {l:"CORE BANKING", chips:[{t:"Ledger Engine",c:""},{t:"Product Engine",c:""},{t:"Customer MDM",c:""},{t:"Risk Engine",c:""}]},
+            null,
+            {l:"INFRA",        chips:[{t:"Event Bus",c:""},{t:"Key Management",c:""},{t:"Immutable Audit",c:""},{t:"Data Warehouse",c:""}]},
+          ].map((row,i)=>
+            row === null
+              ? <div key={i} className="arch-connect"><div className="arch-connect-line"/></div>
+              : (
+                <div key={row.l} className="arch-row">
+                  <div className="arch-lbl">{row.l}</div>
+                  <div className="arch-band">
+                    <div className="arch-comps">
+                      {row.chips.map(ch=><span key={ch.t} className={`arch-chip ${ch.c}`}>{ch.t}</span>)}
+                    </div>
+                  </div>
+                </div>
+              )
+          )}
+        </div>
+
+        {/* ── 2. HOW AGENTS CONNECT ── */}
+        <div className="arch-section-hdr">How Agents Connect</div>
+        <div className="arch-channels">
+          {[
+            {
+              icon:"◈", color:"var(--gold)", title:"MCP Client", sub:"Claude Desktop · Cursor · Any MCP Host",
+              steps:[
+                {dot:"1",dc:"rgba(201,168,76,.15)",bc:"rgba(201,168,76,.4)",tc:"var(--gold)", body:<><strong>Configure</strong> — add agentBANK to <code style={{fontFamily:"var(--mono)",fontSize:10}}>claude_desktop_config.json</code></>},
+                {dot:"2",dc:"rgba(201,168,76,.15)",bc:"rgba(201,168,76,.4)",tc:"var(--gold)", body:<><strong>Handshake</strong> — client sends <code style={{fontFamily:"var(--mono)",fontSize:10}}>initialize</code> + <code style={{fontFamily:"var(--mono)",fontSize:10}}>tools/list</code> over stdio</>},
+                {dot:"3",dc:"rgba(201,168,76,.15)",bc:"rgba(201,168,76,.4)",tc:"var(--gold)", body:<><strong>Tool call</strong> — MCP server validates input with Zod, calls agentBANK API, returns JSON result</>},
+              ],
+              footerColor:"rgba(201,168,76,.2)", footerText:"Transport: stdio · Protocol: JSON-RPC 2.0 · Auth: env AGENTBANK_TOKEN",
+            },
+            {
+              icon:"⟳", color:"#4fc3f7", title:"Anthropic / OpenAI SDK", sub:"Custom agents · Serverless functions · Backends",
+              steps:[
+                {dot:"1",dc:"rgba(79,195,247,.1)",bc:"rgba(79,195,247,.3)",tc:"#4fc3f7", body:<><strong>Authenticate</strong> — FAPI PAR flow returns scoped consent token</>},
+                {dot:"2",dc:"rgba(79,195,247,.1)",bc:"rgba(79,195,247,.3)",tc:"#4fc3f7", body:<><strong>Define tools</strong> — pass agentBANK tool schemas as <code style={{fontFamily:"var(--mono)",fontSize:10}}>tools</code> array in <code style={{fontFamily:"var(--mono)",fontSize:10}}>messages.create</code></>},
+                {dot:"3",dc:"rgba(79,195,247,.1)",bc:"rgba(79,195,247,.3)",tc:"#4fc3f7", body:<><strong>Execute</strong> — model emits <code style={{fontFamily:"var(--mono)",fontSize:10}}>tool_use</code> block, agent calls API, feeds <code style={{fontFamily:"var(--mono)",fontSize:10}}>tool_result</code> back</>},
+              ],
+              footerColor:"rgba(79,195,247,.12)", footerText:"Transport: HTTPS · Auth: FAPI 2.0 + DPoP · Consent: OAuth 2.0 scopes",
+            },
+            {
+              icon:"⬡", color:"#81c784", title:"Open Banking App", sub:"Third-party apps · Regulated PISPs / AISPs",
+              steps:[
+                {dot:"1",dc:"rgba(129,199,132,.1)",bc:"rgba(129,199,132,.3)",tc:"#81c784", body:<><strong>Consent</strong> — customer authorises scopes via standard Open Banking consent flow</>},
+                {dot:"2",dc:"rgba(129,199,132,.1)",bc:"rgba(129,199,132,.3)",tc:"#81c784", body:<><strong>Access token</strong> — app exchanges code for bearer token scoped to authorised resources</>},
+                {dot:"3",dc:"rgba(129,199,132,.1)",bc:"rgba(129,199,132,.3)",tc:"#81c784", body:<><strong>Call APIs</strong> — standard Open Banking v3.1 REST endpoints: accounts, payments, transactions</>},
+              ],
+              footerColor:"rgba(129,199,132,.1)", footerText:"Standard: Open Banking v3.1 · Auth: OAuth 2.0 + PKCE · Format: ISO 20022",
+            },
+          ].map(ch=>(
+            <div key={ch.title} className="arch-chan">
+              <div className="arch-chan-hdr">
+                <span className="arch-chan-icon" style={{color:ch.color}}>{ch.icon}</span>
+                <div><div className="arch-chan-title">{ch.title}</div><div className="arch-chan-sub">{ch.sub}</div></div>
+              </div>
+              <div className="arch-chan-body">
+                {ch.steps.map((s,i)=>(
+                  <div key={i}>
+                    <div className="arch-flow-step">
+                      <div className="arch-flow-dot" style={{background:s.dc,border:`1px solid ${s.bc}`,color:s.tc}}>{s.dot}</div>
+                      <div className="arch-flow-text">{s.body}</div>
+                    </div>
+                    {i < ch.steps.length-1 && <div className="arch-flow-arrow">↓</div>}
+                  </div>
+                ))}
+              </div>
+              <div style={{padding:"10px 16px",borderTop:"1px solid rgba(255,255,255,.05)",background:ch.footerColor}}>
+                <div style={{fontFamily:"var(--mono)",fontSize:9,color:"rgba(255,255,255,.3)",letterSpacing:.5,lineHeight:1.7}}>{ch.footerText}</div>
               </div>
             </div>
           ))}
         </div>
+
+        {/* ── 3. BIAN SERVICE DOMAIN CAPABILITY MAP ── */}
+        <div className="arch-section-hdr">BIAN Service Domain Capability Map</div>
+        <div className="arch-domains">
+          {DOMAINS.map(d=>(
+            <div key={d.id} className="arch-domain">
+              <div className="arch-domain-top">
+                <span className="arch-domain-icon" style={{color:d.color}}>{d.icon}</span>
+                <div>
+                  <div className="arch-domain-name">{d.name}</div>
+                  <div className="arch-domain-bian">{d.bian}</div>
+                </div>
+              </div>
+              <div className="arch-domain-divider"/>
+              <div className="arch-domain-caps">
+                {d.caps.map(c=><div key={c} className="arch-domain-cap">{c}</div>)}
+              </div>
+              <div style={{marginTop:10,display:"flex",gap:6,flexWrap:"wrap"}}>
+                <span style={{fontFamily:"var(--mono)",fontSize:9,padding:"2px 6px",background:"rgba(255,255,255,.05)",border:"1px solid rgba(255,255,255,.08)",color:"rgba(255,255,255,.3)"}}>{d.endpoints.length} endpoints</span>
+                <span style={{fontFamily:"var(--mono)",fontSize:9,padding:"2px 6px",background:"rgba(201,168,76,.08)",border:"1px solid rgba(201,168,76,.2)",color:"rgba(201,168,76,.7)"}}>{d.caps.length} agent tools</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* ── 4. OPEN BANKING API SURFACE ── */}
+        <div className="arch-section-hdr">Open Banking v3.1 API Surface</div>
+        <div className="arch-ob">
+          {[
+            {name:"Accounts & Balances", eps:[{m:"GET",p:"/accounts"},{m:"GET",p:"/accounts/{id}"},{m:"GET",p:"/accounts/{id}/balances"},{m:"GET",p:"/accounts/{id}/transactions"}]},
+            {name:"Payment Initiation",  eps:[{m:"POST",p:"/domestic-payments"},{m:"GET",p:"/domestic-payments/{id}"},{m:"POST",p:"/international-payments"},{m:"GET",p:"/international-payments/{id}"}]},
+            {name:"Confirmation of Funds",eps:[{m:"GET",p:"/funds-confirmation"},{m:"POST",p:"/funds-confirmations"}]},
+            {name:"Event Notifications", eps:[{m:"POST",p:"/event-subscriptions"},{m:"GET",p:"/event-subscriptions"},{m:"DELETE",p:"/event-subscriptions/{id}"}]},
+          ].map(card=>(
+            <div key={card.name} className="arch-ob-card">
+              <div className="arch-ob-name">{card.name}</div>
+              {card.eps.map(ep=>(
+                <div key={ep.p} className="arch-ob-ep">
+                  <span style={{color:"rgba(255,255,255,.4)",fontSize:10}}>{ep.p}</span>
+                  <span className={`arch-ob-badge ob-${ep.m}`}>{ep.m}</span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+
+        {/* ── 5. STANDARDS COMPLIANCE ── */}
+        <div className="arch-section-hdr">Standards Compliance</div>
+        <div className="arch-standards">
+          {[
+            {name:"Open Banking (OBIE)",       ver:"v3.1.11",  desc:"UK Open Banking standard covering Accounts, Payments, CoF, and Event Notification resource types."},
+            {name:"BIAN Service Domain Model", ver:"v12",      desc:"10 BIAN service domains providing a structured banking capability model mapped to every API endpoint."},
+            {name:"Model Context Protocol",    ver:"MCP 1.0",  desc:"Stdio-transport MCP server exposing all 14 agentBANK tools to Claude Desktop, Cursor, and any MCP host."},
+            {name:"Financial-grade API",       ver:"FAPI 2.0", desc:"Security profile for agent authentication: PAR, DPoP, consent scopes, and step-up auth for high-value operations."},
+            {name:"ISO 20022",                 ver:"2019",     desc:"Payment message format for domestic and international payment instruction payloads."},
+            {name:"OAuth 2.0 / OIDC",          ver:"RFC 6749", desc:"Authorisation framework and identity layer underpinning the FAPI consent and token flows."},
+          ].map(s=>(
+            <div key={s.name} className="arch-std">
+              <div className="arch-std-name">{s.name}</div>
+              <div className="arch-std-ver">{s.ver}</div>
+              <div className="arch-std-desc">{s.desc}</div>
+            </div>
+          ))}
+        </div>
+
       </section>}
 
       {/* ── MCP SERVER ── */}
