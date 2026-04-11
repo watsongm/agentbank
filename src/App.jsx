@@ -1039,6 +1039,11 @@ function McpTab({ tools, domains }) {
 export default function App() {
   /* — core state — */
   const [activeTab, setActiveTab] = useState("channel");
+  const tabBarRef                  = useRef(null);
+  function switchTab(id) {
+    setActiveTab(id);
+    window.scrollTo({ top: (tabBarRef.current?.offsetTop ?? 0) - 60, behavior: "smooth" });
+  }
   const [modal, setModal]         = useState(null);   // domain id
   const [modalTab, setModalTab]   = useState("ep");
   const [showConsole, setShowConsole] = useState(false);
@@ -1149,12 +1154,13 @@ export default function App() {
       <nav className="nav">
         <div className="nav-logo">AGENT<span>BANK</span></div>
         <div className="nav-links">
-          <span className="nl" onClick={()=>setActiveTab("channel")}>AI Channel</span>
-          <span className="nl" onClick={()=>setActiveTab("usecase")}>Use Case</span>
-          <span className="nl" onClick={()=>setActiveTab("services")}>Services</span>
-          <span className="nl" onClick={()=>setActiveTab("builds")}>Agent Builds</span>
-          <span className="nl" onClick={()=>setActiveTab("arch")}>Architecture</span>
-          <span className="nl" onClick={()=>setActiveTab("mcp")}>MCP Server</span>
+          <span className="nl" onClick={()=>switchTab("channel")}>AI Channel</span>
+          <span className="nl" onClick={()=>switchTab("usecase")}>Use Case</span>
+          <span className="nl" onClick={()=>switchTab("services")}>Services</span>
+          <span className="nl" onClick={()=>switchTab("builds")}>Agent Builds</span>
+          <span className="nl" onClick={()=>switchTab("arch")}>Architecture</span>
+          <span className="nl" onClick={()=>switchTab("mcp")}>MCP Server</span>
+          <a className="nl" href="https://github.com/watsongm/agentbank" target="_blank" rel="noreferrer">GitHub ↗</a>
         </div>
         <div style={{display:"flex",gap:8}}>
           <button className="nav-btn" style={{background:"transparent",color:"var(--ink)",border:"1.5px solid var(--ink)"}} onClick={()=>setShowObs(true)}>Observability</button>
@@ -1170,8 +1176,8 @@ export default function App() {
           <h1>The Bank<br/>Built for<br/><em>AI Agents</em></h1>
           <p className="hero-p">agentBANK is a fully-featured reference bank combining the Open Banking API standard with the BIAN Service Domain capability model — with AI agents as a first-class customer channel.</p>
           <div className="btn-row">
-            <button className="btn-dark" onClick={()=>document.getElementById("usecase").scrollIntoView({behavior:"smooth"})}>See Agent Use Case</button>
-            <button className="btn-light" onClick={()=>document.getElementById("services").scrollIntoView({behavior:"smooth"})}>View All Services</button>
+            <button className="btn-dark" onClick={()=>switchTab("usecase")}>See Agent Use Case</button>
+            <button className="btn-light" onClick={()=>switchTab("services")}>View All Services</button>
           </div>
           <div className="hero-stats">
             {[["10+","BIAN Service Domains"],["45+","API Endpoints"],["14","Agent Tool Functions"],["v3.1","Open Banking Spec"]].map(([n,l])=>(
@@ -1182,7 +1188,7 @@ export default function App() {
       </section>
 
       {/* ── TAB BAR ── */}
-      <div className="tab-bar">
+      <div className="tab-bar" ref={tabBarRef}>
         {[
           {id:"channel",  label:"AI Channel"},
           {id:"usecase",  label:"Use Case"},
@@ -1191,7 +1197,7 @@ export default function App() {
           {id:"arch",     label:"Architecture"},
           {id:"mcp",      label:"MCP Server"},
         ].map(t=>(
-          <button key={t.id} className={`tab-btn ${activeTab===t.id?"on":""}`} onClick={()=>setActiveTab(t.id)}>{t.label}</button>
+          <button key={t.id} className={`tab-btn ${activeTab===t.id?"on":""}`} onClick={()=>switchTab(t.id)}>{t.label}</button>
         ))}
       </div>
 
@@ -1373,6 +1379,14 @@ export default function App() {
         {[{h:"API Standards",ls:["Open Banking v3.1","BIAN v12","FAPI 2.0","ISO 20022"]},{h:"Service Domains",ls:["Current Account","Payments","Consumer Lending","Investments"]},{h:"Developer",ls:["API Console","Observability","Agent SDK","OpenAPI Spec"]}].map(col=>(
           <div key={col.h}><div className="footer-col-hdr">{col.h}</div><div className="footer-links">{col.ls.map(l=><span key={l} className="fl">{l}</span>)}</div></div>
         ))}
+        <div>
+          <div className="footer-col-hdr">Project</div>
+          <div className="footer-links">
+            <a className="fl" href="https://github.com/watsongm/agentbank" target="_blank" rel="noreferrer">GitHub ↗</a>
+            <span className="fl" onClick={()=>switchTab("mcp")}>MCP Server</span>
+            <span className="fl" onClick={()=>switchTab("arch")}>Architecture</span>
+          </div>
+        </div>
       </footer>
       <div className="footer-bar">
         <span>© 2026 agentBANK Reference Implementation. Not a real bank.</span>
