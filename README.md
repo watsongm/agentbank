@@ -3,6 +3,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Open%20Banking-v3.1-C9A84C?style=for-the-badge" alt="Open Banking v3.1"/>
   <img src="https://img.shields.io/badge/BIAN-v12-0d0f14?style=for-the-badge" alt="BIAN v12"/>
+  <img src="https://img.shields.io/badge/MCP-1.0-4fc3f7?style=for-the-badge" alt="MCP 1.0"/>
   <img src="https://img.shields.io/badge/React-18-61dafb?style=for-the-badge&logo=react" alt="React 18"/>
   <img src="https://img.shields.io/badge/FAPI-2.0-4fc3f7?style=for-the-badge" alt="FAPI 2.0"/>
   <img src="https://img.shields.io/badge/License-MIT-00e676?style=for-the-badge" alt="MIT"/>
@@ -22,65 +23,98 @@ agentBANK is a fully-featured reference bank implementation that answers a singl
 
 Most banks have not built for AI agents. Their APIs were designed for human-facing mobile apps and data aggregators — not for autonomous agents that call dozens of endpoints in a single session, require structured tool interfaces, and need auditable reasoning trails for regulatory compliance.
 
-agentBANK combines two proven open standards — the **UK Open Banking API v3.1** and the **BIAN Service Domain Model v12** — with a native agent interface layer providing structured tool functions, FAPI-grade authentication, consent-scoped operations, real-time webhook subscriptions, and a full observability stack.
+agentBANK combines two proven open standards — the **UK Open Banking API v3.1** and the **BIAN Service Domain Model v12** — with a native agent interface layer providing structured tool functions, FAPI-grade authentication, consent-scoped operations, real-time webhook subscriptions, a full observability stack, and a **Model Context Protocol (MCP) server** that exposes all banking tools directly to MCP-compatible AI clients.
 
 ---
 
 ## Live Demo
 
-> Open the app in your browser and explore the interactive API console, service domain explorer, agent use case walkthrough, and live observability dashboard.
+> Open the app in your browser and explore all six tabs: AI Channel, Use Case, Services & APIs, Agent Builds, Architecture, and MCP Server.
 
 ---
 
-## Screenshots
+## App Layout
 
-### Landing Page — AI Agent Channel
-The hero section and animated agent terminal replaying a live session from authentication through payment completion.
+The app uses a **tab-based layout** — a sticky tab bar below the hero keeps each topic focused without requiring long vertical scrolling.
 
-### Service Domain Explorer
-Ten BIAN service domains, each with full endpoint listings and agent capability modals.
+| Tab | Contents |
+| --- | --- |
+| **AI Channel** | Agent authentication model, FAPI flow, and animated live agent terminal |
+| **Use Case** | Smart Savings Agent — six-step interactive walkthrough with code at each step |
+| **Services & APIs** | Ten BIAN service domain cards + full agent tool registry |
+| **Agent Builds** | Five ready-to-adapt agent code recipes with interactive card picker |
+| **Architecture** | Layered banking stack diagram |
+| **MCP Server** | MCP tool manifest, Claude Desktop config, protocol trace, and quick-start guide |
 
-### API Console
-Full interactive API explorer — browse domains, select endpoints, edit request headers and body, fire requests, and inspect realistic JSON responses.
+Two full-screen overlays are accessible from the nav at any time:
 
-### Agent Build Recipes
-Five ready-to-adapt code snippets covering common banking agent patterns, with an interactive card picker and dark code viewer.
-
-### Observability Dashboard
-Three-tab dashboard: LLM metrics (real-time charts), agent trace log (animated reasoning replay), and OpenTelemetry span waterfall.
+- **API Console** — browse domains, select endpoints, edit headers and body, fire requests, inspect JSON responses
+- **Observability** — live LLM metrics, agent trace log, and OpenTelemetry span waterfall
 
 ---
 
-## Background — The Case for Agent-First Banking
+## MCP Server
 
-*Summarised from the agentBANK White Paper, April 2026*
+The `mcp-server/` directory contains a standalone **Model Context Protocol server** that exposes all 14 agentBANK tools to any MCP-compatible AI client — Claude Desktop, Cursor, or any other client that supports the MCP stdio transport.
 
-### The Structural Shift
+### Quick start
 
-The financial services industry is undergoing a fundamental change. AI agents — autonomous software systems capable of reasoning, planning, and executing multi-step tasks — are creating a new class of banking customer that sits between the human account holder and the traditional API consumer.
+```bash
+cd mcp-server
+npm install
+AGENTBANK_BASE_URL=http://localhost:3000 AGENTBANK_TOKEN="Bearer eyJhbGci..." node index.js
+```
 
-These agents do not just query data. They initiate payments, apply for credit, monitor portfolios, and respond to market events in real time, all on behalf of customers who have granted explicit consent. A single well-designed agent can serve tens of thousands of customers through a single API integration, scaling the bank's reach without proportional growth in customer acquisition cost.
+### Connect Claude Desktop
 
-### The Business Model
+Add this to `~/.claude/claude_desktop_config.json` and restart Claude Desktop:
 
-agentBANK is designed around a **developer-first, agent-builder revenue model**. The primary commercial relationship is with developers and organisations building AI-powered financial applications — not with retail account holders.
+```json
+{
+  "mcpServers": {
+    "agentbank": {
+      "command": "node",
+      "args": ["/absolute/path/to/agentbank/mcp-server/index.js"],
+      "env": {
+        "AGENTBANK_BASE_URL": "https://your-agentbank-instance.example.com",
+        "AGENTBANK_TOKEN": "Bearer eyJhbGci..."
+      }
+    }
+  }
+}
+```
 
-| Revenue Stream | Customer | Mechanism |
-|---------------|----------|-----------|
-| **API Access Tiers** | Agent builders | Starter / Growth / Enterprise monthly subscription |
-| **Per-Call Metering** | Agent builders | Billed per 1,000 API calls above tier limit |
-| **Premium Tool Access** | Regulated builders | AML screening, credit scoring, FX locking add-ons |
-| **Marketplace Listing** | ISVs | Revenue share on agent template sales |
-| **Compliance-as-a-Service** | Regulated builders | Managed regulatory reporting bundle |
-| **White-Label Platform** | Financial institutions | Full platform licence and co-branding |
-| Account Fees *(secondary)* | Account holders | Optional premium account tier |
-| Payment Rails Margin *(secondary)* | Account holders | FX spread and faster payment surcharge |
+Once connected, Claude Desktop can call agentBANK tools directly:
 
-Account holder revenue is deliberately secondary. The account base serves primarily as a live environment for agent builders to develop and test against real banking data.
+> *"What is the balance on account ACC-1829?"*  
+> *"Run an AML screen on transaction TXN-48291."*  
+> *"Apply for a £10,000 home improvement loan over 36 months."*
 
-### The Strategic Rationale
+### How it works
 
-A single Growth tier agent builder whose application manages savings for 50,000 customers generates substantially more revenue per relationship than 50,000 individual retail account holders — at a fraction of the acquisition and servicing cost. The unit economics of developer-first banking invert the traditional retail model in agentBANK's favour.
+The server uses `@modelcontextprotocol/sdk` with stdio transport. Each of the 14 agentBANK tool functions is registered as a typed MCP tool with full Zod input schema validation:
+
+```javascript
+server.tool(
+  "get_balance",
+  "Retrieve the real-time available balance for a specific account.",
+  { account_id: z.string().describe("The account identifier, e.g. ACC-1829") },
+  async ({ account_id }) => {
+    const data = await apiCall("GET", `/bian/current-account/${account_id}/balance`);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+```
+
+### MCP tools exposed
+
+```
+get_accounts          get_balance           get_transactions
+initiate_payment      get_payment_status    get_party
+get_loan_details      apply_for_loan        get_card_details
+block_card            get_portfolio         place_order
+run_aml_screen        subscribe_events
+```
 
 ---
 
@@ -89,7 +123,8 @@ A single Growth tier agent builder whose application manages savings for 50,000 
 ```
 ┌─────────────────────────────────────────────────────────┐
 │  CHANNELS                                               │
-│  [ AI Agent API ★ ]  [ Mobile ]  [ Web ]  [ Partner ]  │
+│  [ AI Agent API ★ ]  [ MCP Server ★ ]  [ Mobile ]      │
+│  [ Web Banking ]      [ Partner APIs ]                  │
 ├─────────────────────────────────────────────────────────┤
 │  API GATEWAY                                            │
 │  [ OAuth 2.0 / FAPI 2.0 ]  [ Consent Manager ]         │
@@ -130,21 +165,17 @@ A single Growth tier agent builder whose application manages savings for 50,000 
 
 **Total: 44 endpoints · 14 agent tool functions**
 
-Each domain is accessible via both its Open Banking v3.1 endpoint and its BIAN service domain interface, providing dual-standard interoperability.
+Each domain is accessible via both its Open Banking v3.1 endpoint and its BIAN service domain interface, and is exposed as a typed MCP tool via the reference MCP server.
 
 ---
 
 ## Agent Tool Registry
 
-All 14 tools are typed, consent-scoped, and callable by AI agents via structured tool-use (Anthropic Claude, OpenAI function calling, or any compatible LLM framework).
+All 14 tools are typed, consent-scoped, and callable by AI agents via:
 
-```
-get_accounts          get_balance           get_transactions
-initiate_payment      get_payment_status    get_party
-get_loan_details      apply_for_loan        get_card_details
-block_card            get_portfolio         place_order
-run_aml_screen        subscribe_events
-```
+- **Anthropic tool use** (Claude)
+- **OpenAI function calling**
+- **MCP stdio** (Claude Desktop, Cursor, or any MCP client) — via `mcp-server/`
 
 ### Example: Invoking a tool with the Anthropic SDK
 
@@ -193,7 +224,7 @@ The agent touches five BIAN service domains in a single loop. The full interacti
 
 ## Agent Builds
 
-The **Agent Builds** section provides five ready-to-adapt code snippets for common banking agent patterns. Each recipe wires together agentBANK tool functions into a complete, runnable agent using the `AgentBankAgent` class.
+The **Agent Builds** tab provides five ready-to-adapt code snippets for common banking agent patterns. Each recipe wires together agentBANK tool functions into a complete, runnable agent using the `AgentBankAgent` class.
 
 | Build | Domains | Description |
 |-------|---------|-------------|
@@ -219,7 +250,7 @@ The skill knows the `AGENT_BUILDS` data shape, all 14 available tools, and the c
 
 ## Observability
 
-The built-in observability dashboard (`Observability.jsx`) covers three dimensions required for production agent deployments:
+The built-in observability dashboard covers three dimensions required for production agent deployments:
 
 ### LLM Metrics
 Real-time monitoring of agent session latency, token consumption (input and output separately), tool call frequency per session, error rates, and model utilisation. Displayed as live-updating time-series charts with a 2.4-second refresh cycle.
@@ -229,13 +260,13 @@ Structured, timestamped replay of every agent reasoning step within a session. E
 
 | Colour | Step Type |
 |--------|-----------|
-| 🔵 Blue | Authentication |
-| 🟡 Amber | Tool call |
-| 🟢 Green | Tool result / Completion |
+| Blue | Authentication |
+| Amber | Tool call |
+| Green | Tool result / Completion |
 | Grey | System / Reasoning |
 
 ### OpenTelemetry Spans
-Distributed trace waterfall showing the full call hierarchy: **agent session → BIAN service domain → core banking**. Spans are annotated with FAPI interaction IDs, HTTP status codes, service names, and durations. Enables latency bottleneck identification and service dependency mapping.
+Distributed trace waterfall showing the full call hierarchy: **agent session → BIAN service domain → core banking**. Spans are annotated with FAPI interaction IDs, HTTP status codes, service names, and durations.
 
 ---
 
@@ -258,6 +289,7 @@ Distributed trace waterfall showing the full call hierarchy: **agent session →
 |----------|---------|----------|
 | Open Banking (OBIE) | v3.1.11 | Accounts, Payments, Party, CoF, Event Notifications |
 | BIAN Service Domain Model | v12 | 10 Service Domains |
+| Model Context Protocol (MCP) | 1.0 | All 14 agent tools via `mcp-server/` |
 | Financial-grade API (FAPI) | 2.0 | Agent authentication security profile |
 | ISO 20022 | 2019 | Payment message format |
 | OAuth 2.0 | RFC 6749 | Authorisation framework |
@@ -272,10 +304,10 @@ Distributed trace waterfall showing the full call hierarchy: **agent session →
 - **Node.js 18+** — [nodejs.org](https://nodejs.org)
 - **npm 9+** — included with Node.js
 
-### Install and Run
+### Run the app
 
 ```bash
-# 1. Clone or download and unzip the project
+# 1. Clone the repository
 git clone https://github.com/watsongm/agentbank.git
 cd agentbank
 
@@ -288,7 +320,19 @@ npm run dev
 
 Open [http://localhost:5173](http://localhost:5173) — you should see the agentBANK landing page.
 
-### Build for Production
+### Run the MCP server
+
+```bash
+cd mcp-server
+npm install
+
+# Point at your agentBANK API instance
+AGENTBANK_BASE_URL=http://localhost:3000 \
+AGENTBANK_TOKEN="Bearer eyJhbGci..." \
+node index.js
+```
+
+### Build the app for production
 
 ```bash
 npm run build      # outputs to dist/
@@ -317,14 +361,15 @@ agentbank/
 ├── .claude/
 │   └── skills/
 │       └── agentbank-build/
-│           └── SKILL.md      # /agentbank-build Claude Code skill
+│           └── SKILL.md          # /agentbank-build Claude Code skill
+├── mcp-server/                   # Standalone MCP server (separate deployable)
+│   ├── index.js                  # All 14 agentBANK tools as MCP tools (stdio transport)
+│   └── package.json              # @modelcontextprotocol/sdk + zod
 ├── public/
 │   └── favicon.svg
 ├── src/
-│   ├── main.jsx              # React entry point
-│   ├── App.jsx               # Main app — landing page, API console, use case, agent builds
-│   └── Observability.jsx     # Observability dashboard (standalone)
-├── .env.example              # Environment variable template
+│   ├── main.jsx                  # React entry point
+│   └── App.jsx                   # Full app — tab layout, all sections, overlays
 ├── .gitignore
 ├── index.html
 ├── package.json
@@ -343,18 +388,48 @@ agentbank/
 | Charts | Recharts 2.x | Used in Observability dashboard |
 | Styling | Plain CSS | CSS variables, no framework |
 | Fonts | Google Fonts | IBM Plex Sans, Fira Code, Syne |
-| API | In-memory mock | Replace with real fetch calls for production |
+| MCP Server | @modelcontextprotocol/sdk | Stdio transport, Zod schema validation |
+| API | In-memory mock | Replace `mockApi()` in `App.jsx` with real `fetch()` for production |
 
-No backend required. The API console and observability dashboard use in-memory mock responses and simulated data. To connect to a real API gateway, replace the `mockApi()` function in `App.jsx` with actual `fetch()` calls.
+No backend required for the frontend app. The API console and observability dashboard use in-memory mock responses. The MCP server makes real HTTP calls — point `AGENTBANK_BASE_URL` at a live agentBANK API instance.
+
+---
+
+## Background — The Case for Agent-First Banking
+
+Summarised from the agentBANK White Paper, April 2026.
+
+### The Structural Shift
+
+The financial services industry is undergoing a fundamental change. AI agents — autonomous software systems capable of reasoning, planning, and executing multi-step tasks — are creating a new class of banking customer that sits between the human account holder and the traditional API consumer.
+
+These agents do not just query data. They initiate payments, apply for credit, monitor portfolios, and respond to market events in real time, all on behalf of customers who have granted explicit consent. A single well-designed agent can serve tens of thousands of customers through a single API integration, scaling the bank's reach without proportional growth in customer acquisition cost.
+
+### The Business Model
+
+agentBANK is designed around a **developer-first, agent-builder revenue model**. The primary commercial relationship is with developers and organisations building AI-powered financial applications — not with retail account holders.
+
+| Revenue Stream | Customer | Mechanism |
+| --- | --- | --- |
+| **API Access Tiers** | Agent builders | Starter / Growth / Enterprise monthly subscription |
+| **Per-Call Metering** | Agent builders | Billed per 1,000 API calls above tier limit |
+| **Premium Tool Access** | Regulated builders | AML screening, credit scoring, FX locking add-ons |
+| **Marketplace Listing** | ISVs | Revenue share on agent template sales |
+| **Compliance-as-a-Service** | Regulated builders | Managed regulatory reporting bundle |
+| **White-Label Platform** | Financial institutions | Full platform licence and co-branding |
+| Account Fees *(secondary)* | Account holders | Optional premium account tier |
+| Payment Rails Margin *(secondary)* | Account holders | FX spread and faster payment surcharge |
 
 ---
 
 ## Roadmap
 
-- [ ] WebSocket support for real-time event streaming  
-- [ ] Additional BIAN domains (Trade Finance, Correspondent Banking)  
-- [ ] Customer explainability log UI  
-- [ ] Consent management flow  
+- [x] Tab-based layout — six focused sections replacing single-page scroll
+- [x] MCP Server — all 14 tools via `@modelcontextprotocol/sdk` stdio transport
+- [ ] WebSocket support for real-time event streaming
+- [ ] Additional BIAN domains (Trade Finance, Correspondent Banking)
+- [ ] Customer explainability log UI
+- [ ] Consent management flow
 
 ---
 
@@ -363,4 +438,3 @@ No backend required. The API console and observability dashboard use in-memory m
 agentBANK is a **reference implementation** for educational and architectural purposes. It is not a regulated bank, does not hold real funds, and should not be used in production without appropriate regulatory authorisation, security audit, and compliance sign-off.
 
 ---
-
