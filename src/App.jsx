@@ -9,6 +9,7 @@ import { CONVERSATION } from "./data/conversation.js";
 import { mockApi, defaultBody } from "./mock/api.js";
 import { OBS_TOOLS, OBS_MODELS, rnd, makeSession, makeHistory, makeSpans, makeTraceSteps } from "./mock/sessions.js";
 import McpTab from "./components/McpTab.jsx";
+import SdkTab from "./components/SdkTab.jsx";
 
 /* ══════════════════════════════════════════════════════
    STYLES
@@ -541,6 +542,7 @@ export default function App() {
           <span className="nl" onClick={()=>switchTab("builds")}>Agent Builds</span>
           <span className="nl" onClick={()=>switchTab("arch")}>Architecture</span>
           <span className="nl" onClick={()=>switchTab("mcp")}>MCP Server</span>
+          <span className="nl" onClick={()=>switchTab("sdk")}>SDK</span>
           <a className="nl" href="https://github.com/watsongm/agentbank" target="_blank" rel="noreferrer">GitHub ↗</a>
         </div>
         <div style={{display:"flex",gap:8}}>
@@ -568,7 +570,7 @@ export default function App() {
       </section>
 
       <div className="tab-bar" ref={tabBarRef}>
-        {[{id:"channel",label:"AI Channel"},{id:"usecase",label:"Use Case"},{id:"services",label:"Services & APIs"},{id:"builds",label:"Agent Builds"},{id:"arch",label:"Architecture"},{id:"mcp",label:"MCP Server"}].map(t=>(
+        {[{id:"channel",label:"AI Channel"},{id:"usecase",label:"Use Case"},{id:"services",label:"Services & APIs"},{id:"builds",label:"Agent Builds"},{id:"arch",label:"Architecture"},{id:"mcp",label:"MCP Server"},{id:"sdk",label:"SDK"}].map(t=>(
           <button key={t.id} className={`tab-btn ${activeTab===t.id?"on":""}`} onClick={()=>switchTab(t.id)}>{t.label}</button>
         ))}
       </div>
@@ -768,12 +770,37 @@ export default function App() {
       </section>}
 
       {activeTab==="mcp" && <McpTab tools={TOOLS} domains={DOMAINS}/>}
+      {activeTab==="sdk" && <SdkTab/>}
 
       <footer>
         <div><div className="footer-logo">AGENT<span>BANK</span></div><div className="footer-tag">BIAN v12 · Open Banking v3.1 · AI-Native Reference Implementation</div></div>
-        {[{h:"API Standards",ls:["Open Banking v3.1","BIAN v12","FAPI 2.0","ISO 20022"]},{h:"Service Domains",ls:["Current Account","Payments","Consumer Lending","Investments"]},{h:"Developer",ls:["API Console","Observability","Agent SDK","OpenAPI Spec"]}].map(col=>(
-          <div key={col.h}><div className="footer-col-hdr">{col.h}</div><div className="footer-links">{col.ls.map(l=><span key={l} className="fl">{l}</span>)}</div></div>
-        ))}
+        <div>
+          <div className="footer-col-hdr">API Standards</div>
+          <div className="footer-links">
+            <a className="fl" href="https://standards.openbanking.org.uk/api-specifications/" target="_blank" rel="noreferrer">Open Banking v3.1 ↗</a>
+            <a className="fl" href="https://bian.org/servicelandscape/" target="_blank" rel="noreferrer">BIAN v12 ↗</a>
+            <a className="fl" href="https://openid.net/specs/fapi-2_0-baseline.html" target="_blank" rel="noreferrer">FAPI 2.0 ↗</a>
+            <a className="fl" href="https://www.iso20022.org/" target="_blank" rel="noreferrer">ISO 20022 ↗</a>
+          </div>
+        </div>
+        <div>
+          <div className="footer-col-hdr">Service Domains</div>
+          <div className="footer-links">
+            <span className="fl" onClick={()=>switchTab("services")}>Current Account</span>
+            <span className="fl" onClick={()=>switchTab("services")}>Payments</span>
+            <span className="fl" onClick={()=>switchTab("services")}>Consumer Lending</span>
+            <span className="fl" onClick={()=>switchTab("services")}>Investments</span>
+          </div>
+        </div>
+        <div>
+          <div className="footer-col-hdr">Developer</div>
+          <div className="footer-links">
+            <span className="fl" onClick={()=>{ setShowConsole(true); setCBody(defaultBody(DOMAINS[0].endpoints[0].m, DOMAINS[0].endpoints[0].p)); }}>API Console</span>
+            <span className="fl" onClick={()=>setShowObs(true)}>Observability</span>
+            <span className="fl" onClick={()=>switchTab("sdk")}>Agent SDK</span>
+            <a className="fl" href="https://github.com/watsongm/agentbank/blob/main/openapi.yaml" target="_blank" rel="noreferrer">OpenAPI Spec ↗</a>
+          </div>
+        </div>
         <div>
           <div className="footer-col-hdr">Project</div>
           <div className="footer-links">
