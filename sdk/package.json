@@ -1,0 +1,11 @@
+{
+  "name": "@agentbank/sdk",
+  "version": "1.0.0",
+  "description": "AgentBankAgent SDK — build AI agents on agentBANK in minutes",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js"
+  },
+  "keywords": ["agentbank", "open-banking", "bian", "ai-agent", "sdk"]
+}

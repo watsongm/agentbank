@@ -1,0 +1,1266 @@
+openapi: 3.1.0
+info:
+  title: agentBANK API
+  version: 1.0.0
+  description: >
+    agentBANK reference banking API — Open Banking v3.1 and BIAN Service Domain Model v12.
+    Designed as a first-class channel for AI agents via 14 typed tool functions.
+  contact:
+    url: https://github.com/watsongm/agentbank
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:3000
+    description: Local development
+  - url: https://your-agentbank.example.com
+    description: Production
+
+security:
+  - BearerAuth: []
+  - FAPIConsent: []
+
+tags:
+  - name: Party
+    description: Customer identity, KYC, and relationship profiles (SD-PartyReferenceDataManagement)
+  - name: Accounts
+    description: Current and savings account lifecycle (SD-CurrentAccount)
+  - name: Payments
+    description: Domestic and international payment execution (SD-PaymentExecution)
+  - name: Transactions
+    description: Transaction retrieval, search, and enrichment (SD-AccountingTransactions)
+  - name: Lending
+    description: Loan origination, servicing, and closure (SD-ConsumerLoan)
+  - name: Cards
+    description: Card issuance, authorisation, and dispute management (SD-CreditCard)
+  - name: Savings
+    description: Savings accounts, term deposits, and interest (SD-SavingsAccount)
+  - name: Investments
+    description: Portfolio management and order execution (SD-InvestmentPortfolioManagement)
+  - name: Compliance
+    description: AML screening and regulatory reporting (SD-RegulatoryReporting)
+  - name: Notifications
+    description: Event subscriptions and notification history (SD-CustomerEventHistory)
+
+paths:
+
+  # ── PARTY ──────────────────────────────────────────────────────────────────
+
+  /open-banking/v3.1/party:
+    get:
+      tags: [Party]
+      summary: get_party — Retrieve authenticated party details
+      operationId: getParty
+      parameters:
+        - $ref: '#/components/parameters/FAPIInteractionId'
+      responses:
+        '200':
+          description: Party profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Party'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /bian/party-reference/{partyId}:
+    get:
+      tags: [Party]
+      summary: Full BIAN party reference record
+      operationId: getBIANParty
+      parameters:
+        - $ref: '#/components/parameters/PartyId'
+        - $ref: '#/components/parameters/FAPIInteractionId'
+      responses:
+        '200':
+          description: BIAN party reference retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Party'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /bian/party-reference/register:
+    post:
+      tags: [Party]
+      summary: Onboard new party with KYC initiation
+      operationId: registerParty
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, dateOfBirth, nationality]
+              properties:
+                name:
+                  type: string
+                  example: Aria Chen
+                dateOfBirth:
+                  type: string
+                  format: date
+                  example: "1990-04-15"
+                nationality:
+                  type: string
+                  example: GBR
+      responses:
+        '201':
+          description: Party registered, KYC initiated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Party'
+
+  /bian/party-reference/{partyId}/update:
+    put:
+      tags: [Party]
+      summary: Update party profile attributes
+      operationId: updateParty
+      parameters:
+        - $ref: '#/components/parameters/PartyId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                address:
+                  type: string
+                contactEmail:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          description: Party updated successfully
+
+  # ── ACCOUNTS ───────────────────────────────────────────────────────────────
+
+  /open-banking/v3.1/accounts:
+    get:
+      tags: [Accounts]
+      summary: get_accounts — List all accounts in consent scope
+      operationId: getAccounts
+      parameters:
+        - $ref: '#/components/parameters/FAPIInteractionId'
+      responses:
+        '200':
+          description: Accounts listed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accounts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Account'
+
+  /open-banking/v3.1/accounts/{accountId}:
+    get:
+      tags: [Accounts]
+      summary: Retrieve account details
+      operationId: getAccount
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      responses:
+        '200':
+          description: Account details retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+
+  /bian/current-account/{accountId}/balance:
+    get:
+      tags: [Accounts]
+      summary: get_balance — Real-time balance with BIAN structure
+      operationId: getBalance
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      responses:
+        '200':
+          description: Balance retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Balance'
+
+  /bian/current-account/initiate:
+    post:
+      tags: [Accounts]
+      summary: Open new current account
+      operationId: initiateCurrentAccount
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [partyId, currency]
+              properties:
+                partyId:
+                  type: string
+                currency:
+                  type: string
+                  example: GBP
+      responses:
+        '201':
+          description: Account opened
+
+  /bian/current-account/{accountId}/update:
+    put:
+      tags: [Accounts]
+      summary: Update account terms and features
+      operationId: updateAccount
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Account updated
+
+  # ── PAYMENTS ───────────────────────────────────────────────────────────────
+
+  /open-banking/v3.1/domestic-payments:
+    post:
+      tags: [Payments]
+      summary: initiate_payment — Initiate domestic payment
+      operationId: initiateDomesticPayment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DomesticPaymentRequest'
+      responses:
+        '201':
+          description: Payment accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+
+  /open-banking/v3.1/domestic-payments/{paymentId}:
+    get:
+      tags: [Payments]
+      summary: get_payment_status — Payment status retrieval
+      operationId: getDomesticPayment
+      parameters:
+        - $ref: '#/components/parameters/PaymentId'
+      responses:
+        '200':
+          description: Payment status retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+
+  /open-banking/v3.1/international-payments:
+    post:
+      tags: [Payments]
+      summary: Initiate international payment
+      operationId: initiateInternationalPayment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, risk]
+              properties:
+                data:
+                  type: object
+                risk:
+                  type: object
+      responses:
+        '201':
+          description: International payment accepted
+
+  /bian/payment-execution/initiate:
+    post:
+      tags: [Payments]
+      summary: BIAN-structured payment initiation
+      operationId: initiateBIANPayment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [paymentType, amount, debtorAccountId, creditorIBAN]
+              properties:
+                paymentType:
+                  type: string
+                  example: DomesticCredit
+                amount:
+                  type: object
+                  properties:
+                    value:
+                      type: number
+                    currency:
+                      type: string
+                debtorAccountId:
+                  type: string
+                creditorIBAN:
+                  type: string
+      responses:
+        '201':
+          description: BIAN payment initiated
+
+  /bian/payment-execution/{execId}/retrieve:
+    get:
+      tags: [Payments]
+      summary: Full BIAN execution record
+      operationId: getBIANPaymentExecution
+      parameters:
+        - name: execId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: BIAN execution record retrieved
+
+  /bian/payment-execution/{execId}/update:
+    put:
+      tags: [Payments]
+      summary: Amend pending payment instruction
+      operationId: updateBIANPayment
+      parameters:
+        - name: execId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Payment amended
+
+  # ── TRANSACTIONS ───────────────────────────────────────────────────────────
+
+  /open-banking/v3.1/accounts/{accountId}/transactions:
+    get:
+      tags: [Transactions]
+      summary: get_transactions — Paginated transaction history
+      operationId: getTransactions
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - name: fromBookingDateTime
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+            example: "2026-01-01"
+        - name: toBookingDateTime
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+            example: "2026-04-01"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+            default: 100
+        - name: cursor
+          in: query
+          description: Pagination cursor from previous response's next_cursor field
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Transactions retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transactions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Transaction'
+                  next_cursor:
+                    type: string
+                    description: Cursor for the next page; absent when no more pages
+
+  /bian/accounting-transactions/{accountId}/list:
+    get:
+      tags: [Transactions]
+      summary: BIAN-structured transaction ledger
+      operationId: getBIANTransactions
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: BIAN transaction ledger retrieved
+
+  /bian/accounting-transactions/search:
+    post:
+      tags: [Transactions]
+      summary: Search and filter transactions
+      operationId: searchTransactions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                accountId:
+                  type: string
+                category:
+                  type: string
+                minAmount:
+                  type: number
+                maxAmount:
+                  type: number
+      responses:
+        '200':
+          description: Search results
+
+  /bian/accounting-transactions/{txId}/retrieve:
+    get:
+      tags: [Transactions]
+      summary: Single transaction detail
+      operationId: getTransaction
+      parameters:
+        - name: txId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Transaction detail retrieved
+
+  # ── LENDING ────────────────────────────────────────────────────────────────
+
+  /bian/consumer-loan/initiate:
+    post:
+      tags: [Lending]
+      summary: apply_for_loan — Originate new loan application
+      operationId: initiateConsumerLoan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [partyId, requestedAmount, currency, termMonths, purpose]
+              properties:
+                partyId:
+                  type: string
+                requestedAmount:
+                  type: number
+                  example: 10000
+                currency:
+                  type: string
+                  example: GBP
+                termMonths:
+                  type: integer
+                  minimum: 1
+                  maximum: 360
+                purpose:
+                  type: string
+                  example: HomeImprovement
+                verificationToken:
+                  type: string
+                  description: Webhook ownership verification token (for subscribe_events)
+      responses:
+        '201':
+          description: Loan application accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Loan'
+
+  /bian/consumer-loan/{loanId}/retrieve:
+    get:
+      tags: [Lending]
+      summary: get_loan_details — Loan account details
+      operationId: getLoan
+      parameters:
+        - $ref: '#/components/parameters/LoanId'
+      responses:
+        '200':
+          description: Loan details retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Loan'
+
+  /bian/consumer-loan/{loanId}/repayment-schedule:
+    get:
+      tags: [Lending]
+      summary: Full amortisation schedule
+      operationId: getLoanRepaymentSchedule
+      parameters:
+        - $ref: '#/components/parameters/LoanId'
+      responses:
+        '200':
+          description: Repayment schedule retrieved
+
+  /bian/consumer-loan/{loanId}/update:
+    put:
+      tags: [Lending]
+      summary: Modify loan terms
+      operationId: updateLoan
+      parameters:
+        - $ref: '#/components/parameters/LoanId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Loan updated
+
+  /bian/consumer-loan/{loanId}/request:
+    post:
+      tags: [Lending]
+      summary: Request early repayment or refinance
+      operationId: requestLoanAction
+      parameters:
+        - $ref: '#/components/parameters/LoanId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action:
+                  type: string
+                  enum: [early_repayment, refinance]
+      responses:
+        '200':
+          description: Request processed
+
+  # ── CARDS ──────────────────────────────────────────────────────────────────
+
+  /open-banking/v3.1/accounts/{accountId}/statements:
+    get:
+      tags: [Cards]
+      summary: Card statements
+      operationId: getStatements
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      responses:
+        '200':
+          description: Statements retrieved
+
+  /bian/credit-card/initiate:
+    post:
+      tags: [Cards]
+      summary: Apply for new card
+      operationId: initiateCard
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [partyId, cardType]
+              properties:
+                partyId:
+                  type: string
+                cardType:
+                  type: string
+                  example: "Visa Platinum"
+      responses:
+        '201':
+          description: Card application received
+
+  /bian/credit-card/{cardId}/retrieve:
+    get:
+      tags: [Cards]
+      summary: get_card_details — Card details and limits
+      operationId: getCard
+      parameters:
+        - $ref: '#/components/parameters/CardId'
+      responses:
+        '200':
+          description: Card details retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Card'
+
+  /bian/credit-card/{cardId}/update:
+    put:
+      tags: [Cards]
+      summary: Update card preferences and limits
+      operationId: updateCard
+      parameters:
+        - $ref: '#/components/parameters/CardId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Card updated
+
+  /bian/credit-card/{cardId}/request:
+    post:
+      tags: [Cards]
+      summary: block_card — Request card block or unblock
+      operationId: requestCardAction
+      parameters:
+        - $ref: '#/components/parameters/CardId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action:
+                  type: string
+                  enum: [block, unblock]
+      responses:
+        '200':
+          description: Card action completed
+
+  # ── SAVINGS ────────────────────────────────────────────────────────────────
+
+  /bian/savings-account/initiate:
+    post:
+      tags: [Savings]
+      summary: Open savings account or term deposit
+      operationId: initiateSavingsAccount
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [partyId, currency]
+              properties:
+                partyId:
+                  type: string
+                currency:
+                  type: string
+                termMonths:
+                  type: integer
+      responses:
+        '201':
+          description: Savings account opened
+
+  /bian/savings-account/{accountId}/retrieve:
+    get:
+      tags: [Savings]
+      summary: Savings account details
+      operationId: getSavingsAccount
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      responses:
+        '200':
+          description: Savings account details retrieved
+
+  /bian/savings-account/{accountId}/interest:
+    get:
+      tags: [Savings]
+      summary: Interest accrual and projections
+      operationId: getSavingsInterest
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      responses:
+        '200':
+          description: Interest details retrieved
+
+  /bian/savings-account/{accountId}/update:
+    put:
+      tags: [Savings]
+      summary: Update savings goals and instructions
+      operationId: updateSavingsAccount
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Savings account updated
+
+  # ── INVESTMENTS ────────────────────────────────────────────────────────────
+
+  /bian/investment-portfolio/{portfolioId}/retrieve:
+    get:
+      tags: [Investments]
+      summary: get_portfolio — Portfolio holdings and valuation
+      operationId: getPortfolio
+      parameters:
+        - $ref: '#/components/parameters/PortfolioId'
+      responses:
+        '200':
+          description: Portfolio retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Portfolio'
+
+  /bian/investment-portfolio/initiate:
+    post:
+      tags: [Investments]
+      summary: Create new investment portfolio
+      operationId: initiatePortfolio
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [partyId, currency]
+              properties:
+                partyId:
+                  type: string
+                currency:
+                  type: string
+      responses:
+        '201':
+          description: Portfolio created
+
+  /bian/investment-portfolio/{portfolioId}/request:
+    post:
+      tags: [Investments]
+      summary: place_order — Place buy or sell order
+      operationId: placeOrder
+      parameters:
+        - $ref: '#/components/parameters/PortfolioId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [instrument, quantity, direction]
+              properties:
+                instrument:
+                  type: string
+                  description: Ticker or ISIN
+                  example: AAPL
+                quantity:
+                  type: number
+                  description: Units to trade (fractional quantities supported)
+                  example: 2.5
+                direction:
+                  type: string
+                  enum: [buy, sell]
+      responses:
+        '201':
+          description: Order placed
+
+  /bian/investment-portfolio/{portfolioId}/performance:
+    get:
+      tags: [Investments]
+      summary: Performance attribution report
+      operationId: getPortfolioPerformance
+      parameters:
+        - $ref: '#/components/parameters/PortfolioId'
+      responses:
+        '200':
+          description: Performance report retrieved
+
+  # ── COMPLIANCE ─────────────────────────────────────────────────────────────
+
+  /bian/regulatory-reporting/initiate:
+    post:
+      tags: [Compliance]
+      summary: Initiate regulatory report
+      operationId: initiateRegulatoryReport
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reportType, partyId]
+              properties:
+                reportType:
+                  type: string
+                  example: SARReport
+                partyId:
+                  type: string
+      responses:
+        '201':
+          description: Report initiated
+
+  /bian/regulatory-reporting/{reportId}/retrieve:
+    get:
+      tags: [Compliance]
+      summary: Retrieve report status
+      operationId: getRegulatoryReport
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Report status retrieved
+
+  /bian/aml-screening/evaluate:
+    post:
+      tags: [Compliance]
+      summary: run_aml_screen — Run AML and sanctions screening
+      operationId: runAMLScreen
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [subjectType, subjectId]
+              properties:
+                subjectType:
+                  type: string
+                  enum: [party, transaction]
+                subjectId:
+                  type: string
+      responses:
+        '200':
+          description: Screening result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AMLResult'
+
+  /bian/aml-screening/{caseId}/retrieve:
+    get:
+      tags: [Compliance]
+      summary: Retrieve screening result
+      operationId: getAMLResult
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Screening result retrieved
+
+  # ── NOTIFICATIONS ──────────────────────────────────────────────────────────
+
+  /bian/customer-event-history/initiate:
+    post:
+      tags: [Notifications]
+      summary: Register notification preference
+      operationId: initiateNotificationPreference
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [partyId, eventTypes]
+              properties:
+                partyId:
+                  type: string
+                eventTypes:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '201':
+          description: Preference registered
+
+  /bian/customer-event-history/{partyId}/list:
+    get:
+      tags: [Notifications]
+      summary: Retrieve event and notification history
+      operationId: getEventHistory
+      parameters:
+        - $ref: '#/components/parameters/PartyId'
+      responses:
+        '200':
+          description: Event history retrieved
+
+  /bian/customer-event-history/webhook:
+    post:
+      tags: [Notifications]
+      summary: subscribe_events — Subscribe to real-time event webhooks
+      description: >
+        Subscribes a webhook endpoint to real-time account events. A `verificationToken`
+        is generated and included in the request; the server will POST it to `webhookUrl`
+        to verify endpoint ownership before activating the subscription.
+      operationId: subscribeEvents
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [partyId, eventTypes, webhookUrl]
+              properties:
+                partyId:
+                  type: string
+                eventTypes:
+                  type: array
+                  items:
+                    type: string
+                  example: ["transaction.credit", "balance.threshold"]
+                webhookUrl:
+                  type: string
+                  format: uri
+                  example: "https://your-agent.example.com/events"
+                verificationToken:
+                  type: string
+                  description: UUID generated by the caller; server echoes it to verify webhook ownership
+      responses:
+        '201':
+          description: Subscription created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subscriptionId:
+                    type: string
+                    example: SUB-88291
+                  status:
+                    type: string
+                    example: Active
+                  eventTypes:
+                    type: array
+                    items:
+                      type: string
+
+# ── COMPONENTS ───────────────────────────────────────────────────────────────
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Default API bearer token (from AGENTBANK_TOKEN env var)
+    FAPIConsent:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: FAPI 2.0 scoped consent token obtained via OAuth 2.0 PAR flow
+
+  parameters:
+    AccountId:
+      name: accountId
+      in: path
+      required: true
+      schema:
+        type: string
+      example: ACC-1829
+    PartyId:
+      name: partyId
+      in: path
+      required: true
+      schema:
+        type: string
+      example: P-00291847
+    PaymentId:
+      name: paymentId
+      in: path
+      required: true
+      schema:
+        type: string
+      example: PAY-7741920
+    LoanId:
+      name: loanId
+      in: path
+      required: true
+      schema:
+        type: string
+      example: LN-48291
+    CardId:
+      name: cardId
+      in: path
+      required: true
+      schema:
+        type: string
+      example: CRD-88421
+    PortfolioId:
+      name: portfolioId
+      in: path
+      required: true
+      schema:
+        type: string
+      example: PRT-29183
+    FAPIInteractionId:
+      name: x-fapi-interaction-id
+      in: header
+      required: false
+      schema:
+        type: string
+        format: uuid
+      description: FAPI interaction ID for request correlation
+
+  schemas:
+    Party:
+      type: object
+      properties:
+        partyId:
+          type: string
+          example: P-00291847
+        name:
+          type: string
+          example: Aria Chen
+        kycStatus:
+          type: string
+          enum: [VERIFIED, PENDING, REJECTED]
+        riskRating:
+          type: string
+          enum: [LOW, MEDIUM, HIGH]
+        nationality:
+          type: string
+          example: GBR
+
+    Account:
+      type: object
+      properties:
+        accountId:
+          type: string
+          example: ACC-1829
+        accountSubType:
+          type: string
+          enum: [CurrentAccount, Savings, CreditCard, Loan]
+        currency:
+          type: string
+          example: GBP
+        status:
+          type: string
+          example: Active
+
+    Balance:
+      type: object
+      properties:
+        accountId:
+          type: string
+          example: ACC-1829
+        available:
+          type: number
+          example: 4821.50
+        currency:
+          type: string
+          example: GBP
+        dateTime:
+          type: string
+          format: date-time
+
+    Transaction:
+      type: object
+      properties:
+        id:
+          type: string
+          example: TXN-001
+        amount:
+          type: number
+          example: -42.50
+        currency:
+          type: string
+          example: GBP
+        description:
+          type: string
+          example: TESCO STORES
+        bookingDateTime:
+          type: string
+          format: date-time
+        category:
+          type: string
+          example: Groceries
+
+    DomesticPaymentRequest:
+      type: object
+      required: [data, risk]
+      properties:
+        data:
+          type: object
+          required: [initiation]
+          properties:
+            initiation:
+              type: object
+              required: [instructionIdentification, instructedAmount, debtorAccount, creditorAccount]
+              properties:
+                instructionIdentification:
+                  type: string
+                instructedAmount:
+                  type: object
+                  properties:
+                    amount:
+                      type: string
+                    currency:
+                      type: string
+                debtorAccount:
+                  type: object
+                  properties:
+                    identification:
+                      type: string
+                    schemeName:
+                      type: string
+                creditorAccount:
+                  type: object
+                  properties:
+                    identification:
+                      type: string
+                    schemeName:
+                      type: string
+                remittanceInformation:
+                  type: object
+                  properties:
+                    reference:
+                      type: string
+        risk:
+          type: object
+
+    Payment:
+      type: object
+      properties:
+        domesticPaymentId:
+          type: string
+          example: PAY-7741920
+        status:
+          type: string
+          enum: [AcceptedSettlementInProcess, AcceptedSettlementCompleted, Rejected, Cancelled]
+        amount:
+          type: string
+          example: "500.00"
+        currency:
+          type: string
+          example: GBP
+
+    Loan:
+      type: object
+      properties:
+        loanId:
+          type: string
+          example: LN-48291
+        status:
+          type: string
+          enum: [Active, UnderReview, PreQualified, Closed, Rejected]
+        outstandingBalance:
+          type: number
+        interestRate:
+          type: string
+          example: "6.9%"
+        currency:
+          type: string
+          example: GBP
+        nextPaymentDate:
+          type: string
+          format: date
+
+    Card:
+      type: object
+      properties:
+        cardId:
+          type: string
+          example: CRD-88421
+        status:
+          type: string
+          enum: [Active, Blocked, Cancelled]
+        last4:
+          type: string
+          example: "4291"
+        cardType:
+          type: string
+          example: Visa Platinum
+        creditLimit:
+          type: number
+          example: 5000
+        availableCredit:
+          type: number
+          example: 3241.80
+
+    Portfolio:
+      type: object
+      properties:
+        portfolioId:
+          type: string
+          example: PRT-29183
+        totalValue:
+          type: number
+          example: 48291.44
+        currency:
+          type: string
+          example: GBP
+        performanceYTD:
+          type: string
+          example: "+8.4%"
+        holdings:
+          type: array
+          items:
+            type: object
+            properties:
+              instrument:
+                type: string
+              quantity:
+                type: number
+              currentValue:
+                type: number
+
+    AMLResult:
+      type: object
+      properties:
+        screeningId:
+          type: string
+          example: AML-12345
+        status:
+          type: string
+          enum: [Clear, Review, Escalated]
+        riskScore:
+          type: integer
+          minimum: 0
+          maximum: 100
+        matchesFound:
+          type: integer
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid authentication token
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string

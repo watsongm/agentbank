@@ -37,29 +37,48 @@ const server = new McpServer({
 });
 
 /* ─────────────────────────────────────────────
-   HTTP helper
+   HTTP helper — 10s timeout per attempt, 2 retries with 500ms backoff
 ───────────────────────────────────────────── */
-async function apiCall(method, path, body) {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method,
-    headers: {
-      "Authorization": TOKEN.startsWith("Bearer ") ? TOKEN : `Bearer ${TOKEN}`,
-      "Content-Type": "application/json",
-      "x-fapi-interaction-id": crypto.randomUUID(),
-    },
-    ...(body ? { body: JSON.stringify(body) } : {}),
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`agentBANK API error ${res.status}: ${text}`);
+async function apiCall(method, path, body, extraHeaders = {}) {
+  let lastError;
+  for (let attempt = 0; attempt <= 2; attempt++) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10_000);
+    try {
+      const res = await fetch(`${BASE_URL}${path}`, {
+        method,
+        headers: {
+          "Authorization": TOKEN.startsWith("Bearer ") ? TOKEN : `Bearer ${TOKEN}`,
+          "Content-Type": "application/json",
+          "x-fapi-interaction-id": crypto.randomUUID(),
+          ...extraHeaders,
+        },
+        ...(body ? { body: JSON.stringify(body) } : {}),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`agentBANK API error ${res.status}: ${text}`);
+      }
+      return res.json();
+    } catch (err) {
+      clearTimeout(timeoutId);
+      lastError = err;
+      if (err.name === "AbortError" || attempt === 2) break;
+      await new Promise(r => setTimeout(r, 500));
+    }
   }
-
-  return res.json();
+  throw lastError;
 }
 
 function ok(data) {
   return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+}
+
+function consentHeaders(consent_token) {
+  const auth = consent_token.startsWith("Bearer ") ? consent_token : `Bearer ${consent_token}`;
+  return { "Authorization": auth };
 }
 
 /* ─────────────────────────────────────────────
@@ -70,7 +89,7 @@ server.tool(
   "Retrieve the authenticated customer profile including KYC status and risk rating.",
   { consent_token: z.string().describe("FAPI consent token obtained during OAuth flow") },
   async ({ consent_token }) => {
-    const data = await apiCall("GET", "/open-banking/v3.1/party", null);
+    const data = await apiCall("GET", "/open-banking/v3.1/party", null, consentHeaders(consent_token));
     return ok(data);
   }
 );
@@ -83,7 +102,7 @@ server.tool(
   "List all accounts in scope for the given consent token.",
   { consent_token: z.string().describe("FAPI consent token") },
   async ({ consent_token }) => {
-    const data = await apiCall("GET", "/open-banking/v3.1/accounts", null);
+    const data = await apiCall("GET", "/open-banking/v3.1/accounts", null, consentHeaders(consent_token));
     return ok(data);
   }
 );
@@ -109,9 +128,11 @@ server.tool(
     from_date:  z.string().describe("Start date in YYYY-MM-DD format"),
     to_date:    z.string().describe("End date in YYYY-MM-DD format"),
     limit:      z.number().int().min(1).max(500).default(100).describe("Maximum number of transactions to return"),
+    cursor:     z.string().optional().describe("Pagination cursor from previous response's next_cursor field"),
   },
-  async ({ account_id, from_date, to_date, limit }) => {
+  async ({ account_id, from_date, to_date, limit, cursor }) => {
     const params = new URLSearchParams({ fromBookingDateTime: from_date, toBookingDateTime: to_date, limit });
+    if (cursor) params.set("cursor", cursor);
     const data = await apiCall("GET", `/open-banking/v3.1/accounts/${account_id}/transactions?${params}`, null);
     return ok(data);
   }
@@ -176,14 +197,15 @@ server.tool(
   {
     party_id:     z.string().describe("Customer party identifier"),
     amount:       z.number().positive().describe("Requested loan amount"),
+    currency:     z.string().length(3).default("GBP").describe("ISO 4217 currency code (default: GBP)"),
     term_months:  z.number().int().min(1).max(360).describe("Loan term in months"),
     purpose:      z.string().describe("Loan purpose, e.g. HomeImprovement, CarPurchase, Consolidation"),
   },
-  async ({ party_id, amount, term_months, purpose }) => {
+  async ({ party_id, amount, currency, term_months, purpose }) => {
     const data = await apiCall("POST", "/bian/consumer-loan/initiate", {
       partyId: party_id,
       requestedAmount: amount,
-      currency: "GBP",
+      currency,
       termMonths: term_months,
       purpose,
     });
@@ -232,11 +254,11 @@ server.tool(
 
 server.tool(
   "place_order",
-  "Place a buy or sell order for a financial instrument within a portfolio.",
+  "Place a buy or sell order for a financial instrument within a portfolio. Supports fractional quantities.",
   {
     portfolio_id: z.string().describe("Portfolio identifier"),
     instrument:   z.string().describe("Instrument ticker or ISIN, e.g. AAPL or GB00B16GWD56"),
-    quantity:     z.number().int().positive().describe("Number of units to buy or sell"),
+    quantity:     z.number().positive().describe("Number of units to buy or sell (fractional quantities supported)"),
     direction:    z.enum(["buy", "sell"]).describe("Order direction"),
   },
   async ({ portfolio_id, instrument, quantity, direction }) => {
@@ -278,10 +300,15 @@ server.tool(
     webhook_url: z.string().url().describe("HTTPS endpoint that will receive event payloads"),
   },
   async ({ party_id, event_types, webhook_url }) => {
+    // FAPI webhook ownership verification: generate a challenge token and include
+    // it in the subscription request. The server is expected to POST the challenge
+    // to webhook_url and verify the echo before activating the subscription.
+    const verificationToken = crypto.randomUUID();
     const data = await apiCall("POST", "/bian/customer-event-history/webhook", {
       partyId: party_id,
       eventTypes: event_types,
       webhookUrl: webhook_url,
+      verificationToken,
     });
     return ok(data);
   }

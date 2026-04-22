@@ -1,0 +1,16 @@
+export const TOOLS = [
+  {name:"get_accounts",      domain:"accounts",      desc:"List all accounts in scope",                        params:["consent_token"]},
+  {name:"get_balance",       domain:"accounts",      desc:"Real-time account balance",                         params:["account_id"]},
+  {name:"get_transactions",  domain:"transactions",  desc:"Paginated transaction history",                     params:["account_id","from_date","to_date","limit","cursor"]},
+  {name:"initiate_payment",  domain:"payments",      desc:"Create and submit a payment",                       params:["debtor_account","creditor_account","amount","currency","reference"]},
+  {name:"get_payment_status",domain:"payments",      desc:"Check payment execution status",                    params:["payment_id"]},
+  {name:"get_party",         domain:"party",         desc:"Retrieve authenticated customer profile",           params:["consent_token"]},
+  {name:"get_loan_details",  domain:"lending",       desc:"Retrieve loan account and schedule",                params:["loan_id"]},
+  {name:"apply_for_loan",    domain:"lending",       desc:"Submit loan application",                           params:["party_id","amount","currency","term_months","purpose"]},
+  {name:"get_card_details",  domain:"cards",         desc:"Retrieve card info and limits",                     params:["card_id"]},
+  {name:"block_card",        domain:"cards",         desc:"Block or unblock a card",                           params:["card_id","action"]},
+  {name:"get_portfolio",     domain:"investments",   desc:"Retrieve investment portfolio holdings",            params:["portfolio_id"]},
+  {name:"place_order",       domain:"investments",   desc:"Place buy or sell order (fractional qty supported)",params:["portfolio_id","instrument","quantity","direction"]},
+  {name:"run_aml_screen",    domain:"compliance",    desc:"Screen a party or transaction for AML and sanctions",params:["subject_type","subject_id"]},
+  {name:"subscribe_events",  domain:"notifications", desc:"Subscribe agent to real-time account events",       params:["party_id","event_types","webhook_url"]},
+];

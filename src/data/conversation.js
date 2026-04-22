@@ -1,0 +1,16 @@
+export const CONVERSATION = [
+  {role:"agent",  text:"Authenticated via OAuth 2.0 + FAPI. Scope: accounts:read payments:write party:read"},
+  {role:"call",   tool:"get_party",        params:{consent_token:"eyJhbGci..."}},
+  {role:"result", result:{partyId:"P-00291847",name:"Aria Chen",kycStatus:"VERIFIED",riskRating:"LOW"}},
+  {role:"agent",  text:"Customer verified. KYC: VERIFIED. Fetching 90 days of transactions..."},
+  {role:"call",   tool:"get_transactions", params:{account_id:"ACC-1829",from_date:"2025-12-24",to_date:"2026-03-24"}},
+  {role:"result", result:{count:143,discretionarySpend:487.20,savingsOpportunity:120,topCategories:["Dining","Entertainment","Shopping"]}},
+  {role:"call",   tool:"get_balance",      params:{account_id:"ACC-1829"}},
+  {role:"result", result:{accountId:"ACC-1829",available:4821.50,currency:"GBP"}},
+  {role:"agent",  text:"Balance GBP 4,821.50. Safe to transfer GBP 120 leaving GBP 500 buffer."},
+  {role:"call",   tool:"initiate_payment", params:{debtor_account:"ACC-1829",creditor_account:"ACC-2041",amount:120,currency:"GBP"}},
+  {role:"result", result:{paymentId:"PAY-7741920",status:"AcceptedSettlementInProcess",amount:120}},
+  {role:"call",   tool:"subscribe_events", params:{party_id:"P-00291847",event_types:["transaction.credit"]}},
+  {role:"result", result:{subscriptionId:"SUB-88291",status:"Active",nextTrigger:"On salary credit > 4000"}},
+  {role:"agent",  text:"Done. Swept GBP 120 to savings. New balance: GBP 2,270. Goal in 6 months. Monthly automation active."},
+];

@@ -1,479 +1,14 @@
 import { useState, useEffect, useRef } from "react";
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from "recharts";
 
-/* ══════════════════════════════════════════════════════
-   DATA
-══════════════════════════════════════════════════════ */
-const DOMAINS = [
-  { id:"party", icon:"◈", color:"#4fc3f7", name:"Party Reference Data", bian:"SD-PartyReferenceDataManagement",
-    desc:"Manage customer identity, KYC, and relationship profiles.",
-    endpoints:[
-      {m:"GET",  p:"/open-banking/v3.1/party",                       d:"Retrieve authenticated party details"},
-      {m:"GET",  p:"/bian/party-reference/{partyId}",                d:"Full BIAN party reference record"},
-      {m:"POST", p:"/bian/party-reference/register",                 d:"Onboard new party with KYC initiation"},
-      {m:"PUT",  p:"/bian/party-reference/{partyId}/update",         d:"Update party profile attributes"},
-    ],
-    caps:["Query customer profile","Initiate KYC refresh","Verify identity attributes","Retrieve party relationships"],
-  },
-  { id:"accounts", icon:"⬡", color:"#81c784", name:"Current Account", bian:"SD-CurrentAccount",
-    desc:"Full lifecycle management of current/checking accounts.",
-    endpoints:[
-      {m:"GET",  p:"/open-banking/v3.1/accounts",                    d:"List all accounts for consent scope"},
-      {m:"GET",  p:"/open-banking/v3.1/accounts/{accountId}",        d:"Retrieve account details"},
-      {m:"GET",  p:"/bian/current-account/{accountId}/balance",      d:"Real-time balance with BIAN structure"},
-      {m:"POST", p:"/bian/current-account/initiate",                 d:"Open new current account"},
-      {m:"PUT",  p:"/bian/current-account/{accountId}/update",       d:"Update account terms and features"},
-    ],
-    caps:["Check balances","Open accounts","Update account settings","Retrieve account terms"],
-  },
-  { id:"payments", icon:"⟳", color:"#ffb74d", name:"Payment Execution", bian:"SD-PaymentExecution",
-    desc:"Orchestrate domestic, international, and instant payment rails.",
-    endpoints:[
-      {m:"POST", p:"/open-banking/v3.1/domestic-payments",           d:"Initiate domestic payment"},
-      {m:"POST", p:"/open-banking/v3.1/international-payments",      d:"Initiate international payment"},
-      {m:"GET",  p:"/open-banking/v3.1/domestic-payments/{id}",      d:"Payment status retrieval"},
-      {m:"POST", p:"/bian/payment-execution/initiate",               d:"BIAN-structured payment initiation"},
-      {m:"GET",  p:"/bian/payment-execution/{execId}/retrieve",      d:"Full BIAN execution record"},
-      {m:"PUT",  p:"/bian/payment-execution/{execId}/update",        d:"Amend pending payment instruction"},
-    ],
-    caps:["Initiate payments","Check payment status","Cancel pending payments","Retrieve payment history","Schedule future payments"],
-  },
-  { id:"transactions", icon:"≡", color:"#ce93d8", name:"Transaction Engine", bian:"SD-AccountingTransactions",
-    desc:"Retrieve, categorise and enrich transaction data.",
-    endpoints:[
-      {m:"GET",  p:"/open-banking/v3.1/accounts/{id}/transactions",  d:"Paginated transaction history"},
-      {m:"GET",  p:"/bian/accounting-transactions/{acctId}/list",    d:"BIAN-structured transaction ledger"},
-      {m:"POST", p:"/bian/accounting-transactions/search",           d:"Search and filter transactions"},
-      {m:"GET",  p:"/bian/accounting-transactions/{txId}/retrieve",  d:"Single transaction detail"},
-    ],
-    caps:["Retrieve transaction history","Categorise spending","Detect anomalies","Export statements","Analyse patterns"],
-  },
-  { id:"lending", icon:"◆", color:"#ef9a9a", name:"Consumer Lending", bian:"SD-ConsumerLoan",
-    desc:"End-to-end loan origination, servicing and closure.",
-    endpoints:[
-      {m:"POST", p:"/bian/consumer-loan/initiate",                   d:"Originate new loan application"},
-      {m:"GET",  p:"/bian/consumer-loan/{loanId}/retrieve",          d:"Loan account details"},
-      {m:"GET",  p:"/bian/consumer-loan/{loanId}/repayment-schedule",d:"Full amortisation schedule"},
-      {m:"PUT",  p:"/bian/consumer-loan/{loanId}/update",            d:"Modify loan terms"},
-      {m:"POST", p:"/bian/consumer-loan/{loanId}/request",           d:"Request early repayment or refinance"},
-    ],
-    caps:["Apply for loans","Check eligibility","Retrieve repayment schedules","Request restructuring","Monitor loan health"],
-  },
-  { id:"cards", icon:"▭", color:"#80cbc4", name:"Credit and Debit Cards", bian:"SD-CreditCard",
-    desc:"Card issuance, authorisation, dispute management and rewards.",
-    endpoints:[
-      {m:"GET",  p:"/open-banking/v3.1/accounts/{id}/statements",    d:"Card statements"},
-      {m:"POST", p:"/bian/credit-card/initiate",                     d:"Apply for new card"},
-      {m:"GET",  p:"/bian/credit-card/{cardId}/retrieve",            d:"Card details and limits"},
-      {m:"PUT",  p:"/bian/credit-card/{cardId}/update",              d:"Update card preferences and limits"},
-      {m:"POST", p:"/bian/credit-card/{cardId}/request",             d:"Request card block or unblock"},
-    ],
-    caps:["Check card limits","Block and unblock cards","Retrieve statements","Raise disputes","Manage rewards"],
-  },
-  { id:"savings", icon:"◉", color:"#fff176", name:"Savings and Deposits", bian:"SD-SavingsAccount",
-    desc:"Savings account management, term deposits and interest calculations.",
-    endpoints:[
-      {m:"POST", p:"/bian/savings-account/initiate",                 d:"Open savings account or term deposit"},
-      {m:"GET",  p:"/bian/savings-account/{acctId}/retrieve",        d:"Savings account details"},
-      {m:"GET",  p:"/bian/savings-account/{acctId}/interest",        d:"Interest accrual and projections"},
-      {m:"PUT",  p:"/bian/savings-account/{acctId}/update",          d:"Update savings goals and instructions"},
-    ],
-    caps:["Open savings accounts","Check interest rates","Set savings goals","Transfer to savings","Retrieve maturity dates"],
-  },
-  { id:"investments", icon:"△", color:"#b39ddb", name:"Investment Portfolio", bian:"SD-InvestmentPortfolioManagement",
-    desc:"Portfolio construction, order management and performance reporting.",
-    endpoints:[
-      {m:"GET",  p:"/bian/investment-portfolio/{portId}/retrieve",   d:"Portfolio holdings and valuation"},
-      {m:"POST", p:"/bian/investment-portfolio/initiate",            d:"Create new investment portfolio"},
-      {m:"POST", p:"/bian/investment-portfolio/{portId}/request",    d:"Place buy or sell order"},
-      {m:"GET",  p:"/bian/investment-portfolio/{portId}/performance",d:"Performance attribution report"},
-    ],
-    caps:["Check portfolio value","Place orders","Retrieve performance","Analyse allocation","Rebalance portfolios"],
-  },
-  { id:"compliance", icon:"⬟", color:"#ffcc80", name:"Regulatory Compliance", bian:"SD-RegulatoryReporting",
-    desc:"AML screening, sanctions checking and regulatory reporting.",
-    endpoints:[
-      {m:"POST", p:"/bian/regulatory-reporting/initiate",            d:"Initiate regulatory report"},
-      {m:"GET",  p:"/bian/regulatory-reporting/{reportId}/retrieve", d:"Retrieve report status"},
-      {m:"POST", p:"/bian/aml-screening/evaluate",                   d:"Run AML and sanctions screening"},
-      {m:"GET",  p:"/bian/aml-screening/{caseId}/retrieve",          d:"Retrieve screening result"},
-    ],
-    caps:["Screen transactions","Run KYC checks","Generate regulatory reports","Monitor compliance status"],
-  },
-  { id:"notifications", icon:"◌", color:"#f48fb1", name:"Customer Notifications", bian:"SD-CustomerEventHistory",
-    desc:"Event-driven notification delivery and customer communication history.",
-    endpoints:[
-      {m:"POST", p:"/bian/customer-event-history/initiate",          d:"Register notification preference"},
-      {m:"GET",  p:"/bian/customer-event-history/{partyId}/list",    d:"Retrieve event and notification history"},
-      {m:"POST", p:"/bian/customer-event-history/webhook",           d:"Subscribe to real-time event webhooks"},
-    ],
-    caps:["Subscribe to events","Retrieve notification history","Set alert thresholds","Manage communication preferences"],
-  },
-];
-
-const TOOLS = [
-  {name:"get_accounts",      domain:"accounts",      desc:"List all accounts in scope",                        params:["consent_token"]},
-  {name:"get_balance",       domain:"accounts",      desc:"Real-time account balance",                         params:["account_id"]},
-  {name:"get_transactions",  domain:"transactions",  desc:"Paginated transaction history",                     params:["account_id","from_date","to_date","limit"]},
-  {name:"initiate_payment",  domain:"payments",      desc:"Create and submit a payment",                       params:["debtor_account","creditor_account","amount","currency","reference"]},
-  {name:"get_payment_status",domain:"payments",      desc:"Check payment execution status",                    params:["payment_id"]},
-  {name:"get_party",         domain:"party",         desc:"Retrieve authenticated customer profile",           params:["consent_token"]},
-  {name:"get_loan_details",  domain:"lending",       desc:"Retrieve loan account and schedule",                params:["loan_id"]},
-  {name:"apply_for_loan",    domain:"lending",       desc:"Submit loan application",                           params:["party_id","amount","term_months","purpose"]},
-  {name:"get_card_details",  domain:"cards",         desc:"Retrieve card info and limits",                     params:["card_id"]},
-  {name:"block_card",        domain:"cards",         desc:"Block or unblock a card",                           params:["card_id","action"]},
-  {name:"get_portfolio",     domain:"investments",   desc:"Retrieve investment portfolio holdings",            params:["portfolio_id"]},
-  {name:"place_order",       domain:"investments",   desc:"Place buy or sell order",                           params:["portfolio_id","instrument","quantity","direction"]},
-  {name:"run_aml_screen",    domain:"compliance",    desc:"Screen a party or transaction for AML and sanctions",params:["subject_type","subject_id"]},
-  {name:"subscribe_events",  domain:"notifications", desc:"Subscribe agent to real-time account events",       params:["party_id","event_types","webhook_url"]},
-];
-
-const AGENT_BUILDS = [
-  {
-    id:"loan-prequalify",
-    icon:"◆", color:"#ef9a9a",
-    name:"Loan Pre-qualification",
-    desc:"Analyses account health, income patterns, and existing obligations to pre-qualify a customer — without a hard credit check.",
-    tags:["lending","accounts","transactions"],
-    code:`// Loan Pre-qualification Agent
-const agent = new AgentBankAgent({
-  scope: "accounts:read transactions:read lending:write"
-});
-const token = await agent.authenticate();
-
-// 1. Pull financial profile
-const [party, accounts] = await Promise.all([
-  agent.tools.get_party({ consent_token: token }),
-  agent.tools.get_accounts({ consent_token: token }),
-]);
-
-// 2. Analyse 6 months of income and expenditure
-const txns = await agent.tools.get_transactions({
-  account_id: accounts[0].accountId,
-  from_date: "2025-09-01", to_date: "2026-03-01", limit: 500,
-});
-// LLM derives: avgMonthlyIncome: 4200, avgExpenditure: 2840, dsr: 0.32
-
-// 3. Check existing loan obligations
-const loan = await agent.tools.get_loan_details({ loan_id: "LN-48291" });
-// -> outstandingBalance: 7842.33  interestRate: "6.9%"
-
-// 4. Submit pre-qualification
-const result = await agent.tools.apply_for_loan({
-  party_id: party.partyId,
-  amount: 15000, term_months: 48, purpose: "HomeImprovement",
-});
-// -> loanId: "LN-92841"  status: "PreQualified"  indicativeRate: "7.2%"`,
-  },
-  {
-    id:"fraud-sentinel",
-    icon:"⬟", color:"#ffcc80",
-    name:"Fraud Sentinel",
-    desc:"Monitors real-time transactions for anomalous patterns, runs AML screening, and autonomously blocks the card when risk threshold is breached.",
-    tags:["transactions","compliance","cards"],
-    code:`// Fraud Sentinel Agent — triggered via webhook
-export async function onTransactionEvent(event) {
-  const agent = new AgentBankAgent({
-    scope: "transactions:read compliance:write cards:write"
-  });
-
-  // 1. Fetch recent transaction context
-  const txns = await agent.tools.get_transactions({
-    account_id: event.accountId,
-    from_date: subDays(new Date(), 7), limit: 50,
-  });
-  // LLM flags: 3 overseas txns in 10 min, avg amount +800% above baseline
-
-  // 2. Run AML / sanctions screen
-  const screen = await agent.tools.run_aml_screen({
-    subject_type: "transaction", subject_id: event.transactionId,
-  });
-  // -> riskScore: 87  status: "Review"  matchesFound: 1
-
-  if (screen.riskScore > 75) {
-    // 3. Block card immediately
-    await agent.tools.block_card({
-      card_id: event.cardId, action: "block",
-    });
-    // -> status: "Blocked"  reason: "AML threshold exceeded"
-    // Customer notified via CustomerNotifications webhook
-  }
-}`,
-  },
-  {
-    id:"portfolio-rebalancer",
-    icon:"△", color:"#b39ddb",
-    name:"Portfolio Rebalancer",
-    desc:"Retrieves current allocation, compares against target weights, and places buy/sell orders to rebalance within configured drift thresholds.",
-    tags:["investments","accounts"],
-    code:`// Portfolio Rebalancing Agent — runs monthly
-const agent = new AgentBankAgent({
-  scope: "investments:read investments:write"
-});
-await agent.authenticate();
-
-// 1. Retrieve current holdings
-const portfolio = await agent.tools.get_portfolio({
-  portfolio_id: "PRT-29183"
-});
-// -> totalValue: 48291.44  performanceYTD: "+8.4%"
-// holdings: [{ instrument:"AAPL", weight:0.31, target:0.25 }, ...]
-
-// 2. LLM calculates drift vs target allocation
-// AAPL: 31% actual vs 25% target → SELL 6%  (~2897 GBP)
-// BONDS: 18% actual vs 25% target → BUY 7%  (~3380 GBP)
-
-// 3. Place rebalancing orders
-await agent.tools.place_order({
-  portfolio_id: "PRT-29183",
-  instrument: "AAPL", quantity: 12, direction: "sell",
-});
-await agent.tools.place_order({
-  portfolio_id: "PRT-29183",
-  instrument: "VGOV", quantity: 34, direction: "buy",
-});
-// -> orders submitted  estimatedSettlement: "T+2"`,
-  },
-  {
-    id:"wealth-summary",
-    icon:"◉", color:"#fff176",
-    name:"Wealth Summary",
-    desc:"Aggregates balances across current, savings, and investment accounts to produce a structured financial health report with actionable insights.",
-    tags:["accounts","savings","investments","transactions"],
-    code:`// Wealth Summary Agent — on-demand report
-const agent = new AgentBankAgent({
-  scope: "accounts:read savings:read investments:read transactions:read"
-});
-const token = await agent.authenticate();
-
-// 1. Fetch all balances in parallel
-const [current, savings, portfolio, txns] = await Promise.all([
-  agent.tools.get_balance({ account_id: "ACC-1829" }),
-  agent.tools.get_balance({ account_id: "ACC-2041" }),
-  agent.tools.get_portfolio({ portfolio_id: "PRT-29183" }),
-  agent.tools.get_transactions({
-    account_id: "ACC-1829", from_date: "2026-01-01", limit: 200
-  }),
-]);
-
-// 2. LLM synthesises health report
-// {
-//   netWorth:       63612.94 GBP,
-//   liquidAssets:   17321.50 GBP,
-//   investedAssets: 48291.44 GBP,
-//   monthlyInflow:   4200.00 GBP,
-//   savingsRate:        "18%",
-//   insights: [
-//     "Savings goal on track — 6 months to Holiday target",
-//     "Portfolio up 8.4% YTD — consider rebalancing AAPL",
-//     "Discretionary spend 12% above 3-month average"
-//   ]
-// }`,
-  },
-  {
-    id:"bill-pay-automator",
-    icon:"⟳", color:"#ffb74d",
-    name:"Bill Pay Automator",
-    desc:"Detects recurring bill patterns from transaction history, verifies sufficient balance, and schedules forward payments with a configurable buffer.",
-    tags:["transactions","payments","accounts"],
-    code:`// Bill Pay Automator Agent — runs weekly
-const agent = new AgentBankAgent({
-  scope: "accounts:read transactions:read payments:write"
-});
-await agent.authenticate();
-
-// 1. Scan 3 months of history for recurring debits
-const txns = await agent.tools.get_transactions({
-  account_id: "ACC-1829",
-  from_date: "2025-12-01", to_date: "2026-03-01", limit: 300,
-});
-// LLM identifies recurring bills:
-// [{ payee: "THAMES WATER", amount: 48.50, dueDate: "2026-04-14" },
-//  { payee: "BT BROADBAND",  amount: 35.00, dueDate: "2026-04-16" }, ...]
-
-// 2. Verify balance covers upcoming bills + 500 GBP buffer
-const balance = await agent.tools.get_balance({ account_id: "ACC-1829" });
-// -> available: 4821.50  required: 249.00  buffer: 500  ✓ safe
-
-// 3. Schedule payments
-for (const bill of upcomingBills) {
-  await agent.tools.initiate_payment({
-    debtor_account:   "ACC-1829",
-    creditor_account: bill.creditorIBAN,
-    amount:    bill.amount, currency: "GBP",
-    reference: \`AUTO-\${bill.payee}-\${bill.dueDate}\`,
-  });
-}
-// -> 5 payments scheduled  totalAmount: 249.00 GBP`,
-  },
-];
-
-const AGENT_STEPS = [
-  {id:1,title:"Authenticate and Load Profile",domain:"party",color:"#4fc3f7",icon:"◈",
-   desc:"Agent authenticates via FAPI OAuth 2.0 and retrieves the customer verified party profile.",
-   code:`// Step 1: Authenticate and retrieve party profile
-const agent = new AgentBankAgent({
-  clientId: process.env.AGENT_CLIENT_ID,
-  scope: "party:read accounts:read transactions:read savings:write payments:write"
-});
-const token = await agent.authenticate(); // FAPI PAR flow
-const party = await agent.tools.get_party({ consent_token: token });
-console.log(party.name, party.kycStatus);
-// -> Aria Chen  VERIFIED`},
-  {id:2,title:"Analyse Spending Patterns",domain:"transactions",color:"#ce93d8",icon:"≡",
-   desc:"Agent fetches 90 days of transactions and uses the LLM to categorise discretionary spending.",
-   code:`// Step 2: Retrieve and analyse 90 days of transactions
-const txns = await agent.tools.get_transactions({
-  account_id: "ACC-1829",
-  from_date: "2025-12-24",
-  to_date: "2026-03-24",
-  limit: 200
-});
-// LLM categorises spend and finds savings opportunity
-// -> discretionary: 487.20 GBP/mo  savingsOpportunity: 120 GBP`},
-  {id:3,title:"Check Existing Savings",domain:"savings",color:"#fff176",icon:"◉",
-   desc:"Agent retrieves current savings balance, interest rate and goal progress.",
-   code:`// Step 3: Retrieve savings position
-const balance = await agent.tools.get_balance({
-  account_id: "ACC-2041"  // savings account
-});
-// -> balance: 2150.00  goal: Holiday (3000 GBP)  monthsToGoal: 7`},
-  {id:4,title:"Calculate Optimal Transfer",domain:"accounts",color:"#81c784",icon:"⬡",
-   desc:"Agent checks current account balance and calculates a safe transfer leaving a 500 GBP buffer.",
-   code:`// Step 4: Check current account and calculate safe transfer
-const current = await agent.tools.get_balance({
-  account_id: "ACC-1829"
-});
-// LLM reasons: balance 4821.50, avg spend 2180, buffer 500
-// -> safeTransfer: 120.00 GBP`},
-  {id:5,title:"Execute Savings Sweep",domain:"payments",color:"#ffb74d",icon:"⟳",
-   desc:"Agent initiates the payment from current account to savings with a full audit trail.",
-   code:`// Step 5: Execute the savings sweep
-const payment = await agent.tools.initiate_payment({
-  debtor_account:   "ACC-1829",
-  creditor_account: "ACC-2041",
-  amount:    120.00,
-  currency:  "GBP",
-  reference: "AGENT-SAVINGS-SWEEP-2026-03"
-});
-// -> paymentId: PAY-7741920  status: AcceptedSettlementInProcess`},
-  {id:6,title:"Subscribe to Future Events",domain:"notifications",color:"#f48fb1",icon:"◌",
-   desc:"Agent sets up a webhook to repeat the sweep automatically on each salary credit.",
-   code:`// Step 6: Subscribe to salary credit events for monthly automation
-const sub = await agent.tools.subscribe_events({
-  party_id:    "P-00291847",
-  event_types: ["transaction.credit", "balance.threshold"],
-  webhook_url: "https://savings-agent.agentbank.io/webhook"
-});
-// -> subscriptionId: SUB-88291  status: Active`},
-];
-
-const CONVERSATION = [
-  {role:"agent",  text:"Authenticated via OAuth 2.0 + FAPI. Scope: accounts:read payments:write party:read"},
-  {role:"call",   tool:"get_party",        params:{consent_token:"eyJhbGci..."}},
-  {role:"result", result:{partyId:"P-00291847",name:"Aria Chen",kycStatus:"VERIFIED",riskRating:"LOW"}},
-  {role:"agent",  text:"Customer verified. KYC: VERIFIED. Fetching 90 days of transactions..."},
-  {role:"call",   tool:"get_transactions", params:{account_id:"ACC-1829",from_date:"2025-12-24",to_date:"2026-03-24"}},
-  {role:"result", result:{count:143,discretionarySpend:487.20,savingsOpportunity:120,topCategories:["Dining","Entertainment","Shopping"]}},
-  {role:"call",   tool:"get_balance",      params:{account_id:"ACC-1829"}},
-  {role:"result", result:{accountId:"ACC-1829",available:4821.50,currency:"GBP"}},
-  {role:"agent",  text:"Balance GBP 4,821.50. Safe to transfer GBP 120 leaving GBP 500 buffer."},
-  {role:"call",   tool:"initiate_payment", params:{debtor_account:"ACC-1829",creditor_account:"ACC-2041",amount:120,currency:"GBP"}},
-  {role:"result", result:{paymentId:"PAY-7741920",status:"AcceptedSettlementInProcess",amount:120}},
-  {role:"call",   tool:"subscribe_events", params:{party_id:"P-00291847",event_types:["transaction.credit"]}},
-  {role:"result", result:{subscriptionId:"SUB-88291",status:"Active",nextTrigger:"On salary credit > 4000"}},
-  {role:"agent",  text:"Done. Swept GBP 120 to savings. New balance: GBP 2,270. Goal in 6 months. Monthly automation active."},
-];
-
-/* mock api responses */
-function mockApi(method, path) {
-  if (path.includes("party"))            return {partyId:"P-00291847",name:"Aria Chen",kycStatus:"VERIFIED",riskRating:"LOW",nationality:"GBR"};
-  if (path.includes("balance"))          return {accountId:"ACC-1829",available:4821.50,currency:"GBP",dateTime:new Date().toISOString()};
-  if (path.includes("accounts"))         return {accounts:[{accountId:"ACC-1829",accountSubType:"CurrentAccount",currency:"GBP"},{accountId:"ACC-2041",accountSubType:"Savings",currency:"GBP"}]};
-  if (path.includes("transactions"))     return {transactions:[{id:"TXN-001",amount:-42.50,description:"TESCO STORES",bookingDateTime:"2026-03-22T14:23:00Z"},{id:"TXN-002",amount:2500.00,description:"SALARY PAYMENT",bookingDateTime:"2026-03-20T08:00:00Z"}]};
-  if (path.includes("domestic-payments") && method==="POST") return {domesticPaymentId:"PAY-"+Math.floor(Math.random()*9000000+1000000),status:"AcceptedSettlementInProcess",amount:"500.00",currency:"GBP"};
-  if (path.includes("consumer-loan") && method==="POST")     return {loanId:"LN-"+Math.floor(Math.random()*90000+10000),status:"UnderReview",requestedAmount:10000,indicativeRate:"6.9%"};
-  if (path.includes("consumer-loan"))    return {loanId:"LN-48291",status:"Active",outstandingBalance:7842.33,interestRate:"6.9%",nextPaymentDate:"2026-04-01"};
-  if (path.includes("credit-card") && method==="POST") return {cardId:"CRD-"+Math.floor(Math.random()*90000+10000),status:"ApplicationReceived",cardType:"Visa Platinum"};
-  if (path.includes("credit-card"))      return {cardId:"CRD-88421",status:"Active",last4:"4291",cardType:"Visa Platinum",creditLimit:5000,availableCredit:3241.80};
-  if (path.includes("investment"))       return {portfolioId:"PRT-29183",totalValue:48291.44,currency:"GBP",performanceYTD:"+8.4%",holdings:[{instrument:"AAPL",quantity:12,currentValue:2841.60}]};
-  if (path.includes("aml"))             return {screeningId:"AML-"+Math.floor(Math.random()*90000+10000),status:"Clear",riskScore:12,matchesFound:0};
-  if (path.includes("savings"))          return {accountId:"SAV-19284",status:"Active",balance:12500.00,interestRate:"4.75%",maturityDate:"2026-12-01"};
-  if (path.includes("regulatory"))       return {reportId:"REG-"+Math.floor(Math.random()*90000+10000),status:"Submitted",reportType:"SARReport"};
-  if (path.includes("webhook") || path.includes("event")) return {subscriptionId:"SUB-"+Math.floor(Math.random()*90000+10000),status:"Active",eventTypes:["payment.completed","balance.low"]};
-  return {status:"success",message:"Operation completed",timestamp:new Date().toISOString()};
-}
-
-function defaultBody(method, path) {
-  if (method === "GET") return "";
-  if (path.includes("domestic-payments")) return JSON.stringify({data:{initiation:{instructionIdentification:"INSTR-001",instructedAmount:{amount:"500.00",currency:"GBP"},debtorAccount:{identification:"ACC-1829",schemeName:"IBAN"},creditorAccount:{identification:"GB29NWBK60161331926819",schemeName:"IBAN"},remittanceInformation:{reference:"INV-2241"}}},risk:{}},null,2);
-  if (path.includes("consumer-loan/initiate")) return JSON.stringify({partyId:"P-00291847",requestedAmount:10000,currency:"GBP",termMonths:36,purpose:"HomeImprovement"},null,2);
-  if (path.includes("payment-execution/initiate")) return JSON.stringify({paymentType:"DomesticCredit",amount:{value:500,currency:"GBP"},debtorAccountId:"ACC-1829",creditorIBAN:"GB29NWBK60161331926819"},null,2);
-  if (path.includes("webhook")) return JSON.stringify({partyId:"P-00291847",eventTypes:["payment.completed","balance.low"],webhookUrl:"https://your-agent.example.com/events"},null,2);
-  return JSON.stringify({note:"Add request body here"},null,2);
-}
-
-/* observability helpers */
-const OBS_TOOLS = ["get_party","get_accounts","get_balance","get_transactions","initiate_payment","apply_for_loan","get_card_details","run_aml_screen"];
-const OBS_CUSTOMERS = ["Aria Chen","James Okafor","Sofia Reyes","Lena Fischer","Kai Nakamura","Priya Sharma"];
-const OBS_MODELS = ["claude-opus-4-5","claude-sonnet-4-6"];
-
-function rnd(a,b){ return Math.floor(Math.random()*(b-a+1))+a; }
-
-function makeSession(id) {
-  return {
-    id:`SES-${String(id).padStart(5,"0")}`,
-    traceId:Array.from({length:16},()=>Math.floor(Math.random()*16).toString(16)).join(""),
-    customer:OBS_CUSTOMERS[rnd(0,OBS_CUSTOMERS.length-1)],
-    model:OBS_MODELS[rnd(0,1)],
-    tool:OBS_TOOLS[rnd(0,OBS_TOOLS.length-1)],
-    latency:rnd(180,1200),
-    inputTok:rnd(800,4200),
-    outputTok:rnd(120,1600),
-    toolCalls:rnd(1,8),
-    status:Math.random()>0.09?"success":Math.random()>0.5?"error":"timeout",
-    ts:Date.now(),
-  };
-}
-
-function makeHistory() {
-  return Array.from({length:20},(_,i)=>({
-    t:`${String(i).padStart(2,"0")}:00`,
-    latency:rnd(200,900),
-    inputTok:rnd(1200,4000),
-    outputTok:rnd(200,1600),
-    toolCalls:rnd(2,10),
-    errors:rnd(0,3),
-    sessions:rnd(1,8),
-  }));
-}
-
-function makeSpans(session) {
-  const colors=["#4fc3f7","#81c784","#ffb74d","#ce93d8","#ef9a9a","#80cbc4"];
-  const rows=[
-    {name:"agent.session",     service:"agentbank-agent",  start:0,   dur:session.latency, depth:0},
-    {name:"agent.tool_call."+session.tool, service:"agentbank-agent", start:rnd(20,80), dur:rnd(200,600), depth:1},
-    {name:"bian.service.retrieve", service:"SD-"+session.tool.split("_").slice(-1)[0], start:rnd(100,200), dur:rnd(80,300), depth:2},
-    {name:"core.ledger.read",  service:"core-banking",     start:rnd(180,300), dur:rnd(30,120), depth:3},
-  ];
-  return rows.map((r,i)=>({...r,color:colors[i%colors.length],status:Math.random()>0.05?"ok":"error"}));
-}
-
-function makeTraceSteps(session) {
-  const steps=[];
-  let t=0;
-  steps.push({type:"sys",  t:t+=10,  text:`Session ${session.id} — model: ${session.model} — customer: ${session.customer}`});
-  steps.push({type:"auth", t:t+=40,  text:`FAPI token validated. Scope: accounts:read payments:write`});
-  for(let i=0;i<session.toolCalls;i++){
-    const tool=OBS_TOOLS[rnd(0,OBS_TOOLS.length-1)];
-    steps.push({type:"think",t:t+=rnd(80,280), text:`[Reasoning] Determining next action — ${rnd(200,800)} input tokens`});
-    steps.push({type:"call", t:t+=20,           text:`tool_use: ${tool}({ account_id: "ACC-${rnd(1000,9999)}" })`});
-    steps.push({type:"ret",  t:t+=rnd(40,400),  text:`tool_result: { status: "ok", latency: ${rnd(40,400)}ms }`});
-  }
-  steps.push({type:"think",t:t+=200, text:`[Reasoning] Task complete. Composing response — ${rnd(100,500)} output tokens`});
-  steps.push({type:"done", t:t+=50,  text:`stop_reason: end_turn — total: ${session.inputTok} in / ${session.outputTok} out — ${session.latency}ms`});
-  return steps;
-}
+import { DOMAINS } from "./data/domains.js";
+import { TOOLS } from "./data/tools.js";
+import { AGENT_BUILDS } from "./data/agentBuilds.js";
+import { AGENT_STEPS } from "./data/agentSteps.js";
+import { CONVERSATION } from "./data/conversation.js";
+import { mockApi, defaultBody } from "./mock/api.js";
+import { OBS_TOOLS, OBS_MODELS, rnd, makeSession, makeHistory, makeSpans, makeTraceSteps } from "./mock/sessions.js";
+import McpTab from "./components/McpTab.jsx";
 
 /* ══════════════════════════════════════════════════════
    STYLES
@@ -489,8 +24,6 @@ const CSS = `
 }
 html{scroll-behavior:smooth;}
 body{background:var(--bg);color:var(--ink);font-family:var(--sans);overflow-x:hidden;}
-
-/* NAV */
 .nav{position:fixed;top:0;left:0;right:0;z-index:300;display:flex;align-items:center;justify-content:space-between;padding:0 40px;height:60px;background:rgba(248,247,244,.95);backdrop-filter:blur(12px);border-bottom:1px solid var(--line);}
 .nav-logo{font-family:var(--display);font-size:20px;color:var(--ink);letter-spacing:-.5px;}
 .nav-logo span{color:var(--gold);}
@@ -499,8 +32,6 @@ body{background:var(--bg);color:var(--ink);font-family:var(--sans);overflow-x:hi
 .nl:hover{color:var(--ink);}
 .nav-btn{background:var(--ink);color:var(--bg);padding:8px 18px;font-size:13px;font-weight:600;border:none;cursor:pointer;transition:background .2s;}
 .nav-btn:hover{background:#2d3548;}
-
-/* HERO */
 .hero{min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:120px 40px 80px;position:relative;overflow:hidden;}
 .hero-grid{position:absolute;inset:0;background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:48px 48px;opacity:.5;}
 .hero-inner{position:relative;max-width:900px;}
@@ -518,20 +49,14 @@ h1 em{font-style:normal;color:var(--gold);}
 .hero-stats{display:flex;gap:44px;margin-top:80px;padding-top:40px;border-top:1px solid var(--line);flex-wrap:wrap;}
 .stat-n{font-size:34px;font-weight:800;letter-spacing:-1px;}.stat-n span{color:var(--gold);}
 .stat-l{font-size:11px;font-weight:500;color:var(--mid);margin-top:4px;letter-spacing:1px;text-transform:uppercase;}
-
-/* SECTION BASE */
 .sec{padding:96px 40px;}
 .sec-tag{font-family:var(--mono);font-size:11px;letter-spacing:2px;color:var(--gold);text-transform:uppercase;margin-bottom:16px;display:block;}
 .sec-h{font-size:clamp(30px,4vw,50px);font-weight:800;letter-spacing:-1.5px;line-height:1.05;margin-bottom:20px;}
 .sec-p{font-size:16px;color:var(--mid);line-height:1.7;max-width:580px;margin-bottom:56px;}
-
-/* DARK SECTION */
 .dark{background:var(--ink);color:var(--bg);}
 .dark .sec-tag{color:var(--gold);}
 .dark .sec-h{color:var(--bg);}
 .dark .sec-p{color:rgba(255,255,255,.45);}
-
-/* AGENT LAYOUT */
 .agent-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:start;}
 .agent-feats{display:flex;flex-direction:column;gap:20px;}
 .feat{padding:22px;border:1px solid rgba(255,255,255,.1);transition:border-color .2s;}
@@ -539,8 +64,6 @@ h1 em{font-style:normal;color:var(--gold);}
 .feat-icon{font-size:19px;margin-bottom:10px;}
 .feat-h{font-size:15px;font-weight:700;margin-bottom:7px;color:var(--bg);}
 .feat-p{font-size:13px;color:rgba(255,255,255,.45);line-height:1.6;}
-
-/* TERMINAL */
 .term{background:#0a0c10;border:1px solid rgba(255,255,255,.1);}
 .term-bar{display:flex;align-items:center;gap:7px;padding:11px 15px;border-bottom:1px solid rgba(255,255,255,.07);}
 .tdot{width:10px;height:10px;border-radius:50%;}
@@ -555,8 +78,6 @@ h1 em{font-style:normal;color:var(--gold);}
 .tm-res{margin:3px 0 9px 14px;padding:9px 11px;background:rgba(255,255,255,.03);border-left:2px solid rgba(255,255,255,.09);}
 .tm-rlbl{color:rgba(255,255,255,.25);font-size:10px;margin-bottom:3px;}
 .tm-rval{color:#a5d6a7;font-size:10.5px;}
-
-/* SERVICES GRID */
 .svc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);}
 .svc-card{background:var(--bg);padding:28px;cursor:pointer;transition:background .2s;position:relative;overflow:hidden;}
 .svc-card:hover{background:var(--cream);}
@@ -568,8 +89,6 @@ h1 em{font-style:normal;color:var(--gold);}
 .svc-desc{font-size:13px;color:var(--mid);line-height:1.6;margin-bottom:12px;}
 .svc-meta{font-family:var(--mono);font-size:11px;display:flex;gap:14px;color:var(--mid);}
 .svc-meta span{color:var(--ink);font-weight:600;}
-
-/* TOOLS SECTION */
 .tools-sec{padding:96px 40px;background:var(--cream);}
 .tools-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(255px,1fr));gap:13px;}
 .tool-card{padding:17px;background:var(--bg);border:1px solid var(--line);}
@@ -578,8 +97,6 @@ h1 em{font-style:normal;color:var(--gold);}
 .tool-desc{font-size:12px;color:var(--mid);line-height:1.5;margin-bottom:8px;}
 .tool-params{display:flex;flex-wrap:wrap;gap:4px;}
 .tool-p{font-family:var(--mono);font-size:10px;padding:2px 6px;background:var(--cream);color:var(--mid);border:1px solid var(--line);}
-
-/* USE CASE */
 .uc-sec{padding:96px 40px;background:var(--cream);}
 .uc-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:start;}
 .uc-steps{display:flex;flex-direction:column;}
@@ -603,12 +120,8 @@ h1 em{font-style:normal;color:var(--gold);}
 .code-badge{font-family:var(--mono);font-size:10px;padding:2px 8px;border:1px solid;border-radius:10px;}
 .code-scroll{padding:18px;overflow:auto;max-height:460px;}
 .code-scroll pre{font-family:var(--mono);font-size:11.5px;line-height:1.75;color:#a5d6a7;white-space:pre;}
-
-/* ARCH */
 .arch-full{padding:80px 40px 96px;}
 .arch-section-hdr{font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--gold);text-transform:uppercase;margin-bottom:18px;padding-bottom:10px;border-bottom:1px solid rgba(201,168,76,.2);}
-
-/* stack diagram */
 .arch-stack{display:flex;flex-direction:column;gap:2px;margin-bottom:64px;}
 .arch-row{display:grid;grid-template-columns:150px 1fr;align-items:stretch;}
 .arch-lbl{font-family:var(--mono);font-size:9px;letter-spacing:1px;color:rgba(255,255,255,.28);flex-shrink:0;text-transform:uppercase;display:flex;align-items:center;padding-right:18px;border-right:1px solid rgba(255,255,255,.05);margin-right:0;}
@@ -621,8 +134,6 @@ h1 em{font-style:normal;color:var(--gold);}
 .arch-chip.purple{background:rgba(206,147,216,.08);border-color:rgba(206,147,216,.25);color:#ce93d8;}
 .arch-connect{grid-column:2;height:18px;display:flex;align-items:center;padding-left:18px;}
 .arch-connect-line{width:1px;height:100%;background:rgba(255,255,255,.07);margin-left:22px;}
-
-/* agent channels */
 .arch-channels{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:64px;}
 .arch-chan{border:1px solid rgba(255,255,255,.08);display:flex;flex-direction:column;}
 .arch-chan-hdr{padding:13px 16px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:10px;}
@@ -635,8 +146,6 @@ h1 em{font-style:normal;color:var(--gold);}
 .arch-flow-text{font-size:12px;color:rgba(255,255,255,.5);line-height:1.55;}
 .arch-flow-text strong{color:rgba(255,255,255,.8);font-weight:600;}
 .arch-flow-arrow{font-family:var(--mono);font-size:10px;color:rgba(255,255,255,.18);padding-left:30px;}
-
-/* BIAN domain cards */
 .arch-domains{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px;margin-bottom:64px;}
 .arch-domain{padding:16px;border:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.015);}
 .arch-domain-top{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
@@ -647,8 +156,6 @@ h1 em{font-style:normal;color:var(--gold);}
 .arch-domain-caps{display:flex;flex-direction:column;gap:4px;}
 .arch-domain-cap{font-size:11px;color:rgba(255,255,255,.38);display:flex;align-items:flex-start;gap:6px;}
 .arch-domain-cap::before{content:'→';color:rgba(255,255,255,.15);flex-shrink:0;font-family:var(--mono);font-size:10px;}
-
-/* OB surface */
 .arch-ob{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:64px;}
 .arch-ob-card{padding:16px;border:1px solid rgba(79,195,247,.15);background:rgba(79,195,247,.03);}
 .arch-ob-name{font-size:13px;font-weight:700;color:#4fc3f7;margin-bottom:10px;}
@@ -656,18 +163,13 @@ h1 em{font-style:normal;color:var(--gold);}
 .arch-ob-ep:last-child{border-bottom:none;}
 .arch-ob-badge{font-size:9px;font-weight:700;padding:1px 4px;border-radius:1px;}
 .ob-GET{background:#1a3d1a;color:#4caf50;}.ob-POST{background:#1a2a4a;color:#64b5f6;}.ob-PUT{background:#3d2a0a;color:#ffb74d;}
-
-/* standards table */
 .arch-standards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;}
 .arch-std{padding:16px;border:1px solid rgba(255,255,255,.06);}
 .arch-std-name{font-size:13px;font-weight:700;color:rgba(255,255,255,.8);margin-bottom:3px;}
 .arch-std-ver{font-family:var(--mono);font-size:10px;color:var(--gold);margin-bottom:8px;}
 .arch-std-desc{font-size:12px;color:rgba(255,255,255,.35);line-height:1.55;}
-
 @media(max-width:900px){.arch-channels{grid-template-columns:1fr;}.arch-full{padding:56px 20px 72px;}}
 @media(max-width:768px){.arch-row{grid-template-columns:90px 1fr;}.arch-lbl{font-size:8px;}}
-
-/* MODAL */
 .overlay{position:fixed;inset:0;background:rgba(13,15,20,.87);z-index:500;display:flex;align-items:flex-start;justify-content:center;padding:40px 20px;overflow-y:auto;}
 .modal{background:var(--bg);width:100%;max-width:760px;border:1px solid var(--line);}
 .modal-hdr{padding:26px 30px 22px;border-bottom:1px solid var(--line);display:flex;align-items:flex-start;justify-content:space-between;gap:14px;}
@@ -693,8 +195,6 @@ h1 em{font-style:normal;color:var(--gold);}
 .cap-text{font-size:13px;font-weight:500;}
 .scope-box{margin-top:14px;padding:14px;background:var(--cream);border:1px solid var(--line);}
 .scope-lbl{font-family:var(--mono);font-size:10px;color:var(--mid);margin-bottom:6px;}
-
-/* CONSOLE */
 .console-wrap{position:fixed;inset:0;background:#070a0e;z-index:600;display:flex;flex-direction:column;}
 .console-top{display:flex;align-items:center;justify-content:space-between;padding:0 22px;height:52px;background:#0c1018;border-bottom:1px solid #18222e;flex-shrink:0;}
 .console-logo{font-family:var(--display);font-size:16px;font-weight:800;color:#fff;}
@@ -753,8 +253,6 @@ h1 em{font-style:normal;color:var(--gold);}
 .res-loading{display:flex;align-items:center;gap:9px;color:var(--gold);font-family:var(--mono);font-size:12px;padding:18px 0;}
 .spinner{width:15px;height:15px;border:2px solid rgba(201,168,76,.2);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg)}}
-
-/* OBSERVABILITY */
 .obs-wrap{position:fixed;inset:0;background:#07090d;z-index:600;display:flex;flex-direction:column;}
 .obs-top{display:flex;align-items:center;justify-content:space-between;padding:0 22px;height:52px;background:#0c1018;border-bottom:1px solid #18222e;flex-shrink:0;}
 .obs-logo{font-family:var(--display);font-size:16px;font-weight:800;color:#fff;}
@@ -786,6 +284,7 @@ h1 em{font-style:normal;color:var(--gold);}
 .srow.on{background:rgba(201,168,76,.07);border-left:2px solid var(--gold);}
 .srow-hdr{color:#2a3a4a;font-size:9px;letter-spacing:1px;text-transform:uppercase;cursor:default;}
 .srow-hdr:hover{background:transparent;}
+.srow.console-row{border-left:2px solid rgba(79,195,247,.4);}
 .sbadge{font-size:10px;padding:2px 6px;}
 .sb-success{background:rgba(0,230,118,.1);color:var(--green);border:1px solid rgba(0,230,118,.3);}
 .sb-error{background:rgba(255,82,82,.1);color:var(--red);border:1px solid rgba(255,82,82,.3);}
@@ -834,8 +333,6 @@ h1 em{font-style:normal;color:var(--gold);}
 .attr-row{display:flex;justify-content:space-between;margin-bottom:3px;}
 .attr-k{font-family:var(--mono);font-size:10px;color:#445566;}
 .attr-v{font-family:var(--mono);font-size:10px;color:rgba(255,255,255,.65);}
-
-/* AGENT BUILDS */
 .builds-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;margin-bottom:40px;}
 .build-card{padding:22px;border:1px solid var(--line);cursor:pointer;transition:border-color .2s,background .2s;}
 .build-card:hover{border-color:var(--gold);}
@@ -851,8 +348,6 @@ h1 em{font-style:normal;color:var(--gold);}
 .build-viewer-badge{font-family:var(--mono);font-size:10px;padding:2px 8px;border:1px solid;letter-spacing:.5px;}
 .build-viewer-code{background:#07090d;padding:24px;overflow-x:auto;}
 .build-viewer-code pre{font-family:var(--mono);font-size:12px;line-height:1.8;color:#c8d8e8;margin:0;white-space:pre;}
-
-/* MCP TAB */
 .mcp-sec{padding:96px 40px;}
 .mcp-grid{display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-bottom:40px;}
 .mcp-card{border:1px solid var(--line);padding:28px;}
@@ -873,15 +368,10 @@ h1 em{font-style:normal;color:var(--gold);}
 .mcp-param.req{border-color:var(--gold);color:var(--gold);}
 .mcp-term{margin-top:40px;}
 @media(max-width:900px){.mcp-grid{grid-template-columns:1fr;}}
-
-/* TAB BAR */
 .tab-bar{position:sticky;top:60px;z-index:200;background:rgba(248,247,244,.97);backdrop-filter:blur(12px);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:0;padding:0 40px;}
 .tab-btn{font-size:12px;font-weight:600;letter-spacing:.5px;padding:14px 22px;background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;color:var(--mid);transition:color .2s,border-color .2s;white-space:nowrap;}
 .tab-btn:hover{color:var(--ink);}
 .tab-btn.on{color:var(--ink);border-bottom-color:var(--ink);}
-@media(max-width:768px){.tab-bar{padding:0 20px;overflow-x:auto;}.tab-btn{padding:12px 14px;font-size:11px;}}
-
-/* FOOTER */
 footer{padding:56px 40px 36px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;justify-content:space-between;gap:36px;}
 .footer-logo{font-family:var(--display);font-size:20px;font-weight:800;margin-bottom:7px;}
 .footer-logo span{color:var(--gold);}
@@ -891,16 +381,12 @@ footer{padding:56px 40px 36px;border-top:1px solid var(--line);display:flex;flex
 .fl{font-size:13px;color:var(--mid);cursor:pointer;transition:color .2s;}
 .fl:hover{color:var(--ink);}
 .footer-bar{padding:20px 40px;border-top:1px solid var(--line);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;font-family:var(--mono);font-size:11px;color:var(--mid);}
-
-/* RESPONSIVE */
+@media(max-width:768px){.tab-bar{padding:0 20px;overflow-x:auto;}.tab-btn{padding:12px 14px;font-size:11px;}}
 @media(max-width:1100px){.chart-row-3{grid-template-columns:1fr 1fr;}.trace-layout{grid-template-columns:1fr;}}
 @media(max-width:900px){.agent-grid,.uc-grid,.workspace{grid-template-columns:1fr;}.detail-panel,.res-pane{display:none;}}
-@media(max-width:768px){.nav{padding:0 20px;}.nav-links{display:none;}.sec,.tools-sec,.uc-sec{padding:60px 20px;}.hero{padding:100px 20px 60px;}.hero-stats{gap:26px;}footer,.footer-bar{padding-left:20px;padding-right:20px;}.srow{grid-template-columns:80px 1fr 65px 60px;}.srow>*:nth-child(n+5){display:none;}.arch-lbl{width:80px;font-size:9px;}.chart-row,.chart-row-3{grid-template-columns:1fr;}}
+@media(max-width:768px){.nav{padding:0 20px;}.nav-links{display:none;}.sec,.tools-sec,.uc-sec{padding:60px 20px;}.hero{padding:100px 20px 60px;}.hero-stats{gap:26px;}footer,.footer-bar{padding-left:20px;padding-right:20px;}.srow{grid-template-columns:80px 1fr 65px 60px;}.srow>*:nth-child(n+5){display:none;}}
 `;
 
-/* ══════════════════════════════════════════════════════
-   CUSTOM TOOLTIP
-══════════════════════════════════════════════════════ */
 function CT({active,payload,label,unit=""}) {
   if (!active || !payload?.length) return null;
   return (
@@ -913,225 +399,43 @@ function CT({active,payload,label,unit=""}) {
   );
 }
 
-/* ══════════════════════════════════════════════════════
-   MCP TAB COMPONENT
-══════════════════════════════════════════════════════ */
-const CLAUDE_DESKTOP_CONFIG = `{
-  "mcpServers": {
-    "agentbank": {
-      "command": "node",
-      "args": ["/path/to/agentbank/mcp-server/index.js"],
-      "env": {
-        "AGENTBANK_BASE_URL": "https://your-agentbank.example.com",
-        "AGENTBANK_TOKEN": "Bearer eyJhbGci..."
-      }
-    }
-  }
-}`;
-
-const SERVER_SNIPPET = `import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { z } from "zod";
-
-const server = new McpServer({ name: "agentbank", version: "1.0.0" });
-
-server.tool(
-  "get_balance",
-  "Retrieve real-time account balance.",
-  { account_id: z.string() },
-  async ({ account_id }) => {
-    const res = await fetch(\`\${BASE_URL}/bian/current-account/\${account_id}/balance\`,
-      { headers: { Authorization: TOKEN } });
-    return { content: [{ type: "text", text: JSON.stringify(await res.json(), null, 2) }] };
-  }
-);
-// ... 13 more tools — see mcp-server/index.js
-
-const transport = new StdioServerTransport();
-await server.connect(transport);`;
-
-const MCP_HANDSHAKE = [
-  {dir:"client", text:'{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","clientInfo":{"name":"claude-desktop","version":"1.0"}}}'},
-  {dir:"server", text:'{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2024-11-05","serverInfo":{"name":"agentbank","version":"1.0.0"},"capabilities":{"tools":{}}}}'},
-  {dir:"client", text:'{"jsonrpc":"2.0","id":2,"method":"tools/list"}'},
-  {dir:"server", text:'{"jsonrpc":"2.0","id":2,"result":{"tools":[{"name":"get_balance","description":"Retrieve real-time account balance.","inputSchema":{"type":"object","properties":{"account_id":{"type":"string"}},"required":["account_id"]}},{"name":"get_transactions","description":"Retrieve paginated transaction history.","inputSchema":{"type":"object","properties":{"account_id":{"type":"string"},"from_date":{"type":"string"},"to_date":{"type":"string"},"limit":{"type":"number"}},"required":["account_id","from_date","to_date"]}},...12 more]}}'},
-  {dir:"client", text:'{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_balance","arguments":{"account_id":"ACC-1829"}}}'},
-  {dir:"server", text:'{"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"text","text":"{\\"accountId\\":\\"ACC-1829\\",\\"available\\":4821.50,\\"currency\\":\\"GBP\\",\\"dateTime\\":\\"2026-04-11T09:14:22Z\\"}"}]}}'},
-];
-
-function McpTab({ tools, domains }) {
-  const [copied, setCopied]   = useState(null);
-  const [msgIdx, setMsgIdx]   = useState(0);
-  const termRef               = useRef(null);
-
-  useEffect(() => {
-    if (msgIdx < MCP_HANDSHAKE.length) {
-      const t = setTimeout(() => setMsgIdx(i => i + 1), 900);
-      return () => clearTimeout(t);
-    }
-  }, [msgIdx]);
-
-  useEffect(() => {
-    if (termRef.current) termRef.current.scrollTop = termRef.current.scrollHeight;
-  }, [msgIdx]);
-
-  function copy(key, text) {
-    navigator.clipboard.writeText(text);
-    setCopied(key);
-    setTimeout(() => setCopied(null), 1800);
-  }
-
-  return (
-    <section className="mcp-sec">
-      <span className="sec-tag">MODEL CONTEXT PROTOCOL</span>
-      <h2 className="sec-h">agentBANK as<br/>an MCP Server</h2>
-      <p className="sec-p">The reference MCP server (<code style={{fontFamily:"var(--mono)",fontSize:13}}>mcp-server/</code>) exposes all 14 agentBANK tools over stdio transport — connect any MCP-compatible client in minutes.</p>
-
-      {/* Top 2-col grid */}
-      <div className="mcp-grid">
-
-        {/* Claude Desktop config */}
-        <div className="mcp-card">
-          <div className="mcp-card-hdr">
-            <span className="mcp-card-icon" style={{color:"var(--gold)"}}>⚙</span>
-            <span className="mcp-card-title">Claude Desktop Config</span>
-          </div>
-          <p className="mcp-card-sub">Add this to <code style={{fontFamily:"var(--mono)"}}>~/.claude/claude_desktop_config.json</code> to connect Claude Desktop to agentBANK instantly.</p>
-          <div className="mcp-copy-block">
-            <pre className="mcp-code">{CLAUDE_DESKTOP_CONFIG}</pre>
-            <button className="mcp-copy-btn" onClick={() => copy("cfg", CLAUDE_DESKTOP_CONFIG)}>{copied === "cfg" ? "✓ COPIED" : "COPY"}</button>
-          </div>
-        </div>
-
-        {/* Server snippet */}
-        <div className="mcp-card">
-          <div className="mcp-card-hdr">
-            <span className="mcp-card-icon" style={{color:"var(--blue)"}}>◈</span>
-            <span className="mcp-card-title">Server Implementation</span>
-          </div>
-          <p className="mcp-card-sub">Built with <code style={{fontFamily:"var(--mono)"}}>@modelcontextprotocol/sdk</code> + Zod. Each agentBANK tool is a typed MCP tool with full schema validation.</p>
-          <div className="mcp-copy-block">
-            <pre className="mcp-code">{SERVER_SNIPPET}</pre>
-            <button className="mcp-copy-btn" onClick={() => copy("srv", SERVER_SNIPPET)}>{copied === "srv" ? "✓ COPIED" : "COPY"}</button>
-          </div>
-        </div>
-
-      </div>
-
-      {/* MCP protocol handshake terminal */}
-      <div className="mcp-term">
-        <div className="term">
-          <div className="term-bar">
-            <div className="tdot" style={{background:"#ff5f57"}}/><div className="tdot" style={{background:"#ffbd2e"}}/><div className="tdot" style={{background:"#28c840"}}/>
-            <span className="term-lbl">MCP STDIO PROTOCOL TRACE</span>
-            <button style={{marginLeft:"auto",fontFamily:"var(--mono)",fontSize:10,padding:"3px 9px",background:"rgba(255,255,255,.05)",border:"1px solid rgba(255,255,255,.1)",color:"rgba(255,255,255,.3)",cursor:"pointer"}} onClick={() => setMsgIdx(0)}>↺ REPLAY</button>
-          </div>
-          <div className="term-body" ref={termRef} style={{maxHeight:280}}>
-            {MCP_HANDSHAKE.slice(0, msgIdx).map((m, i) => (
-              <div key={i} style={{marginBottom:8}}>
-                <div style={{color: m.dir === "client" ? "#4fc3f7" : "#81c784", fontSize:10, marginBottom:2, letterSpacing:1}}>
-                  {m.dir === "client" ? "▶ CLIENT →" : "◀ SERVER ←"}
-                </div>
-                <div style={{color:"rgba(255,255,255,.5)", fontSize:10, wordBreak:"break-all", lineHeight:1.6}}>{m.text}</div>
-              </div>
-            ))}
-            {msgIdx < MCP_HANDSHAKE.length && <span style={{color:"rgba(255,255,255,.3)"}}>▌</span>}
-          </div>
-        </div>
-      </div>
-
-      {/* Tool manifest */}
-      <div style={{marginTop:48}}>
-        <span className="sec-tag">MCP TOOL MANIFEST</span>
-        <h3 className="sec-h" style={{fontSize:"clamp(22px,3vw,34px)",marginBottom:12}}>14 Tools · Full Schema</h3>
-        <p style={{fontSize:14,color:"var(--mid)",marginBottom:24}}>Every agentBANK tool maps 1-to-1 to an MCP tool definition with Zod-validated inputSchema.</p>
-        <div className="mcp-tools-grid">
-          {tools.map(t => {
-            const dom = domains.find(d => d.id === t.domain);
-            return (
-              <div key={t.name} className="mcp-tool">
-                <div className="mcp-tool-name" style={{color: dom?.color}}>{t.name}</div>
-                <div className="mcp-tool-desc">{t.desc}</div>
-                <div className="mcp-schema">
-                  {t.params.map((p, i) => (
-                    <span key={p} className={`mcp-param ${i === 0 ? "req" : ""}`}>{p}</span>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Quick-start steps */}
-      <div style={{marginTop:48,padding:28,border:"1px solid var(--line)",background:"var(--cream)"}}>
-        <span className="sec-tag" style={{marginBottom:14}}>QUICK START</span>
-        <div style={{display:"flex",flexDirection:"column",gap:12}}>
-          {[
-            {n:"1", cmd:"cd mcp-server && npm install", label:"Install dependencies"},
-            {n:"2", cmd:"AGENTBANK_BASE_URL=http://localhost:3000 node index.js", label:"Start the MCP server"},
-            {n:"3", cmd:"# Add Claude Desktop config (see above), restart Claude Desktop", label:"Connect Claude Desktop"},
-            {n:"4", cmd:'# Ask Claude: "What is the balance on account ACC-1829?"', label:"Start using agentBANK tools"},
-          ].map(s => (
-            <div key={s.n} style={{display:"flex",alignItems:"flex-start",gap:14}}>
-              <div style={{width:24,height:24,borderRadius:"50%",background:"var(--ink)",color:"var(--bg)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"var(--mono)",fontSize:11,fontWeight:700,flexShrink:0,marginTop:2}}>{s.n}</div>
-              <div>
-                <div style={{fontSize:12,fontWeight:600,marginBottom:4}}>{s.label}</div>
-                <code style={{fontFamily:"var(--mono)",fontSize:11,color:"var(--mid)"}}>{s.cmd}</code>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ══════════════════════════════════════════════════════
-   APP
-══════════════════════════════════════════════════════ */
 export default function App() {
-  /* — core state — */
   const [activeTab, setActiveTab] = useState("channel");
   const tabBarRef                  = useRef(null);
+  const [modal, setModal]          = useState(null);
+  const [modalTab, setModalTab]    = useState("ep");
+  const [showConsole, setShowConsole] = useState(false);
+  const [showObs, setShowObs]      = useState(false);
+
+  const [termIdx, setTermIdx]      = useState(0);
+  const termRef                    = useRef(null);
+  const [ucStep, setUcStep]        = useState(0);
+  const [selBuild, setSelBuild]    = useState(AGENT_BUILDS[0].id);
+
+  /* console state */
+  const [cDomain, setCDomain]  = useState(DOMAINS[0].id);
+  const [cEpIdx, setCEpIdx]    = useState(0);
+  const [cBody, setCBody]      = useState("");
+  const [cAuth, setCAuth]      = useState("Bearer eyJhbGciOiJQUzI1NiIsInR5cCI6IkpXVCJ9...");
+  const [cResp, setCResp]      = useState(null);
+  const [cLoading, setCLoading]= useState(false);
+  const [cTime, setCTime]      = useState(null);
+
+  /* observability state */
+  const [obsTab, setObsTab]        = useState("metrics");
+  const [obsPaused, setObsPaused]  = useState(false);
+  const [sessions, setSessions]    = useState(()=>Array.from({length:12},(_,i)=>makeSession(i+1)));
+  const [history, setHistory]      = useState(makeHistory);
+  const [selSess, setSelSess]      = useState(null);
+  const [traceLines, setTraceLines]= useState([]);
+  const [spans, setSpans]          = useState([]);
+  const sessCounter                = useRef(13);
+  const traceRef                   = useRef(null);
+
   function switchTab(id) {
     setActiveTab(id);
     window.scrollTo({ top: (tabBarRef.current?.offsetTop ?? 0) - 60, behavior: "smooth" });
   }
-  const [modal, setModal]         = useState(null);   // domain id
-  const [modalTab, setModalTab]   = useState("ep");
-  const [showConsole, setShowConsole] = useState(false);
-  const [showObs, setShowObs]     = useState(false);
-
-  /* — terminal — */
-  const [termIdx, setTermIdx]     = useState(0);
-  const termRef                   = useRef(null);
-
-  /* — use case — */
-  const [ucStep, setUcStep]       = useState(0);
-
-  /* — agent builds — */
-  const [selBuild, setSelBuild]   = useState(AGENT_BUILDS[0].id);
-
-  /* — console — */
-  const [cDomain, setCDomain]     = useState(DOMAINS[0].id);
-  const [cEpIdx, setCEpIdx]       = useState(0);
-  const [cBody, setCBody]         = useState("");
-  const [cAuth, setCAuth]         = useState("Bearer eyJhbGciOiJQUzI1NiIsInR5cCI6IkpXVCJ9...");
-  const [cResp, setCResp]         = useState(null);
-  const [cLoading, setCLoading]   = useState(false);
-  const [cTime, setCTime]         = useState(null);
-
-  /* — obs — */
-  const [obsTab, setObsTab]       = useState("metrics");
-  const [obsPaused, setObsPaused] = useState(false);
-  const [sessions, setSessions]   = useState(()=>Array.from({length:12},(_,i)=>makeSession(i+1)));
-  const [history, setHistory]     = useState(makeHistory);
-  const [selSess, setSelSess]     = useState(null);
-  const [traceLines, setTraceLines] = useState([]);
-  const [spans, setSpans]         = useState([]);
-  const sessCounter               = useRef(13);
-  const traceRef                  = useRef(null);
 
   /* terminal animation */
   useEffect(()=>{
@@ -1178,33 +482,56 @@ export default function App() {
     setCEpIdx(i); setCResp(null);
     setCBody(defaultBody(cDom.endpoints[i].m, cDom.endpoints[i].p));
   }
+
+  /* API Console → Observability: real calls appear as sessions with a blue left border */
   async function sendReq() {
     if (!cEp) return;
     setCLoading(true); setCResp(null);
-    const t0=Date.now();
-    await new Promise(r=>setTimeout(r,350+Math.random()*450));
-    setCTime(Date.now()-t0);
-    setCResp(mockApi(cEp.m, cEp.p));
+    const t0 = Date.now();
+    await new Promise(r=>setTimeout(r, 350+Math.random()*450));
+    const elapsed = Date.now()-t0;
+    setCTime(elapsed);
+    const resp = mockApi(cEp.m, cEp.p);
+    setCResp(resp);
     setCLoading(false);
+
+    const matchedTool = TOOLS.find(t=>t.domain===cDomain) ?? TOOLS[0];
+    const consoleSess = {
+      id: `SES-${String(sessCounter.current++).padStart(5,"0")}`,
+      traceId: Array.from({length:16},()=>Math.floor(Math.random()*16).toString(16)).join(""),
+      customer: "API Console",
+      model: OBS_MODELS[0],
+      tool: matchedTool.name,
+      latency: elapsed,
+      inputTok: rnd(200,600),
+      outputTok: rnd(40,180),
+      toolCalls: 1,
+      status: "success",
+      ts: Date.now(),
+      source: "console",
+    };
+    setSessions(p=>[consoleSess, ...p].slice(0,40));
+    setHistory(p=>{
+      const pt={t:new Date().toLocaleTimeString("en",{hour:"2-digit",minute:"2-digit"}),latency:elapsed,inputTok:consoleSess.inputTok,outputTok:consoleSess.outputTok,toolCalls:1,errors:0,sessions:1};
+      return [...p.slice(-19),pt];
+    });
   }
 
   /* derived obs metrics */
-  const rec   = sessions.slice(0,30);
-  const avgLat= Math.round(rec.reduce((a,s)=>a+s.latency,0)/rec.length);
-  const totTok= rec.reduce((a,s)=>a+s.inputTok+s.outputTok,0);
-  const errPct= +(rec.filter(s=>s.status!=="success").length/rec.length*100).toFixed(1);
-  const avgTool=+(rec.reduce((a,s)=>a+s.toolCalls,0)/rec.length).toFixed(1);
+  const rec    = sessions.slice(0,30);
+  const avgLat = Math.round(rec.reduce((a,s)=>a+s.latency,0)/rec.length);
+  const totTok = rec.reduce((a,s)=>a+s.inputTok+s.outputTok,0);
+  const errPct = +(rec.filter(s=>s.status!=="success").length/rec.length*100).toFixed(1);
+  const avgTool= +(rec.reduce((a,s)=>a+s.toolCalls,0)/rec.length).toFixed(1);
   const toolDist=OBS_TOOLS.map(n=>({name:n.replace(/_/g," "),calls:rec.filter(s=>s.tool===n).length*rnd(1,4)||rnd(1,8)})).sort((a,b)=>b.calls-a.calls);
   const spanMax=spans.length?Math.max(...spans.map(s=>s.start+s.dur))||1:1;
   const spColors=["#4fc3f7","#81c784","#ffb74d","#ce93d8","#ef9a9a","#80cbc4"];
-
   const modalDomain = modal ? DOMAINS.find(d=>d.id===modal) : null;
 
   return (
     <>
       <style>{CSS}</style>
 
-      {/* ── NAV ── */}
       <nav className="nav">
         <div className="nav-logo">AGENT<span>BANK</span></div>
         <div className="nav-links">
@@ -1222,7 +549,6 @@ export default function App() {
         </div>
       </nav>
 
-      {/* ── HERO ── */}
       <section className="hero" id="top">
         <div className="hero-grid"/>
         <div className="hero-inner">
@@ -1241,22 +567,13 @@ export default function App() {
         </div>
       </section>
 
-      {/* ── TAB BAR ── */}
       <div className="tab-bar" ref={tabBarRef}>
-        {[
-          {id:"channel",  label:"AI Channel"},
-          {id:"usecase",  label:"Use Case"},
-          {id:"services", label:"Services & APIs"},
-          {id:"builds",   label:"Agent Builds"},
-          {id:"arch",     label:"Architecture"},
-          {id:"mcp",      label:"MCP Server"},
-        ].map(t=>(
+        {[{id:"channel",label:"AI Channel"},{id:"usecase",label:"Use Case"},{id:"services",label:"Services & APIs"},{id:"builds",label:"Agent Builds"},{id:"arch",label:"Architecture"},{id:"mcp",label:"MCP Server"}].map(t=>(
           <button key={t.id} className={`tab-btn ${activeTab===t.id?"on":""}`} onClick={()=>switchTab(t.id)}>{t.label}</button>
         ))}
       </div>
 
-      {/* ── AI AGENT CHANNEL ── */}
-      {activeTab === "channel" && <section className="sec dark" id="agent">
+      {activeTab==="channel" && <section className="sec dark" id="agent">
         <span className="sec-tag">PRIMARY CHANNEL</span>
         <h2 className="sec-h">AI Agents as<br/>First-Class Customers</h2>
         <p className="sec-p">agentBANK exposes a structured tool-use layer allowing AI agents to authenticate, reason, and transact autonomously — using the same Open Banking consent framework.</p>
@@ -1295,11 +612,10 @@ export default function App() {
         </div>
       </section>}
 
-      {/* ── USE CASE ── */}
-      {activeTab === "usecase" && <section className="uc-sec" id="usecase">
+      {activeTab==="usecase" && <section className="uc-sec" id="usecase">
         <span className="sec-tag">EXAMPLE AGENT</span>
         <h2 className="sec-h">Smart Savings Agent</h2>
-        <p className="sec-p">A complete worked example: an AI agent that analyses spending, calculates a safe monthly savings amount, executes the transfer, and automates it on future salary credits. Click each step.</p>
+        <p className="sec-p">A complete worked example: an AI agent that analyses spending, calculates a safe monthly savings amount, executes the transfer, and automates it on future salary credits.</p>
         <div className="uc-grid">
           <div className="uc-steps">
             {AGENT_STEPS.map((s,i)=>(
@@ -1327,50 +643,46 @@ export default function App() {
         </div>
       </section>}
 
-      {/* ── SERVICES & TOOLS ── */}
-      {activeTab === "services" && <>
-      <section id="services" style={{padding:"96px 40px 0"}}>
-        <span className="sec-tag">BIAN SERVICE DOMAINS</span>
-        <h2 className="sec-h">Complete Banking<br/>Capability Model</h2>
-        <p className="sec-p">Each domain implements both Open Banking v3.1 and the corresponding BIAN service domain interface. Click any card to explore endpoints and agent capabilities.</p>
-      </section>
-      <div style={{padding:"0 40px 96px"}}>
-        <div className="svc-grid">
-          {DOMAINS.map(d=>(
-            <div key={d.id} className="svc-card" style={{"--c":d.color}} onClick={()=>{setModal(d.id);setModalTab("ep");}}>
-              <div className="svc-icon" style={{color:d.color}}>{d.icon}</div>
-              <div className="svc-name">{d.name}</div>
-              <div className="svc-bian">{d.bian}</div>
-              <div className="svc-desc">{d.desc}</div>
-              <div className="svc-meta"><span><span>{d.endpoints.length}</span> endpoints</span><span><span>{d.caps.length}</span> agent tools</span></div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── TOOLS ── */}
-      <section className="tools-sec" id="tools">
-        <span className="sec-tag">AGENT TOOL REGISTRY</span>
-        <h2 className="sec-h">14 Agent-Callable<br/>Tool Functions</h2>
-        <p className="sec-p">Every tool is typed, scoped to a BIAN service domain, and callable by AI agents with the appropriate consent token.</p>
-        <div className="tools-grid">
-          {TOOLS.map(t=>{
-            const dom=DOMAINS.find(d=>d.id===t.domain);
-            return (
-              <div key={t.name} className="tool-card">
-                <div className="tool-name" style={{color:dom?.color}}>{t.name}()</div>
-                <div className="tool-dom">{t.domain.replace(/-/g," ")}</div>
-                <div className="tool-desc">{t.desc}</div>
-                <div className="tool-params">{t.params.map(p=><span key={p} className="tool-p">{p}</span>)}</div>
+      {activeTab==="services" && <>
+        <section id="services" style={{padding:"96px 40px 0"}}>
+          <span className="sec-tag">BIAN SERVICE DOMAINS</span>
+          <h2 className="sec-h">Complete Banking<br/>Capability Model</h2>
+          <p className="sec-p">Each domain implements both Open Banking v3.1 and the corresponding BIAN service domain interface. Click any card to explore endpoints and agent capabilities.</p>
+        </section>
+        <div style={{padding:"0 40px 96px"}}>
+          <div className="svc-grid">
+            {DOMAINS.map(d=>(
+              <div key={d.id} className="svc-card" style={{"--c":d.color}} onClick={()=>{setModal(d.id);setModalTab("ep");}}>
+                <div className="svc-icon" style={{color:d.color}}>{d.icon}</div>
+                <div className="svc-name">{d.name}</div>
+                <div className="svc-bian">{d.bian}</div>
+                <div className="svc-desc">{d.desc}</div>
+                <div className="svc-meta"><span><span>{d.endpoints.length}</span> endpoints</span><span><span>{d.caps.length}</span> agent tools</span></div>
               </div>
-            );
-          })}
+            ))}
+          </div>
         </div>
-      </section>
+        <section className="tools-sec" id="tools">
+          <span className="sec-tag">AGENT TOOL REGISTRY</span>
+          <h2 className="sec-h">14 Agent-Callable<br/>Tool Functions</h2>
+          <p className="sec-p">Every tool is typed, scoped to a BIAN service domain, and callable by AI agents with the appropriate consent token.</p>
+          <div className="tools-grid">
+            {TOOLS.map(t=>{
+              const dom=DOMAINS.find(d=>d.id===t.domain);
+              return (
+                <div key={t.name} className="tool-card">
+                  <div className="tool-name" style={{color:dom?.color}}>{t.name}()</div>
+                  <div className="tool-dom">{t.domain.replace(/-/g," ")}</div>
+                  <div className="tool-desc">{t.desc}</div>
+                  <div className="tool-params">{t.params.map(p=><span key={p} className="tool-p">{p}</span>)}</div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
       </>}
 
-      {/* ── AGENT BUILDS ── */}
-      {activeTab === "builds" && (()=>{
+      {activeTab==="builds" && (()=>{
         const build = AGENT_BUILDS.find(b=>b.id===selBuild);
         return (
           <section className="sec" id="builds">
@@ -1400,13 +712,10 @@ export default function App() {
         );
       })()}
 
-      {/* ── ARCHITECTURE ── */}
-      {activeTab === "arch" && <section className="dark arch-full" id="arch">
+      {activeTab==="arch" && <section className="dark arch-full" id="arch">
         <span className="sec-tag">REFERENCE ARCHITECTURE</span>
         <h2 className="sec-h" style={{marginBottom:14}}>agentBANK Architecture</h2>
         <p style={{fontSize:16,color:"rgba(255,255,255,.4)",lineHeight:1.7,maxWidth:640,marginBottom:64}}>A complete view of how AI agents, Open Banking, BIAN service domains, and the MCP server interact — from client to ledger.</p>
-
-        {/* ── 1. FULL STACK DIAGRAM ── */}
         <div className="arch-section-hdr">Full Stack Overview</div>
         <div className="arch-stack">
           {[
@@ -1424,92 +733,18 @@ export default function App() {
             null,
             {l:"INFRA",        chips:[{t:"Event Bus",c:""},{t:"Key Management",c:""},{t:"Immutable Audit",c:""},{t:"Data Warehouse",c:""}]},
           ].map((row,i)=>
-            row === null
+            row===null
               ? <div key={i} className="arch-connect"><div className="arch-connect-line"/></div>
-              : (
-                <div key={row.l} className="arch-row">
-                  <div className="arch-lbl">{row.l}</div>
-                  <div className="arch-band">
-                    <div className="arch-comps">
-                      {row.chips.map(ch=><span key={ch.t} className={`arch-chip ${ch.c}`}>{ch.t}</span>)}
-                    </div>
-                  </div>
-                </div>
-              )
+              : <div key={row.l} className="arch-row"><div className="arch-lbl">{row.l}</div><div className="arch-band"><div className="arch-comps">{row.chips.map(ch=><span key={ch.t} className={`arch-chip ${ch.c}`}>{ch.t}</span>)}</div></div></div>
           )}
         </div>
-
-        {/* ── 2. HOW AGENTS CONNECT ── */}
-        <div className="arch-section-hdr">How Agents Connect</div>
-        <div className="arch-channels">
-          {[
-            {
-              icon:"◈", color:"var(--gold)", title:"MCP Client", sub:"Claude Desktop · Cursor · Any MCP Host",
-              steps:[
-                {dot:"1",dc:"rgba(201,168,76,.15)",bc:"rgba(201,168,76,.4)",tc:"var(--gold)", body:<><strong>Configure</strong> — add agentBANK to <code style={{fontFamily:"var(--mono)",fontSize:10}}>claude_desktop_config.json</code></>},
-                {dot:"2",dc:"rgba(201,168,76,.15)",bc:"rgba(201,168,76,.4)",tc:"var(--gold)", body:<><strong>Handshake</strong> — client sends <code style={{fontFamily:"var(--mono)",fontSize:10}}>initialize</code> + <code style={{fontFamily:"var(--mono)",fontSize:10}}>tools/list</code> over stdio</>},
-                {dot:"3",dc:"rgba(201,168,76,.15)",bc:"rgba(201,168,76,.4)",tc:"var(--gold)", body:<><strong>Tool call</strong> — MCP server validates input with Zod, calls agentBANK API, returns JSON result</>},
-              ],
-              footerColor:"rgba(201,168,76,.2)", footerText:"Transport: stdio · Protocol: JSON-RPC 2.0 · Auth: env AGENTBANK_TOKEN",
-            },
-            {
-              icon:"⟳", color:"#4fc3f7", title:"Anthropic / OpenAI SDK", sub:"Custom agents · Serverless functions · Backends",
-              steps:[
-                {dot:"1",dc:"rgba(79,195,247,.1)",bc:"rgba(79,195,247,.3)",tc:"#4fc3f7", body:<><strong>Authenticate</strong> — FAPI PAR flow returns scoped consent token</>},
-                {dot:"2",dc:"rgba(79,195,247,.1)",bc:"rgba(79,195,247,.3)",tc:"#4fc3f7", body:<><strong>Define tools</strong> — pass agentBANK tool schemas as <code style={{fontFamily:"var(--mono)",fontSize:10}}>tools</code> array in <code style={{fontFamily:"var(--mono)",fontSize:10}}>messages.create</code></>},
-                {dot:"3",dc:"rgba(79,195,247,.1)",bc:"rgba(79,195,247,.3)",tc:"#4fc3f7", body:<><strong>Execute</strong> — model emits <code style={{fontFamily:"var(--mono)",fontSize:10}}>tool_use</code> block, agent calls API, feeds <code style={{fontFamily:"var(--mono)",fontSize:10}}>tool_result</code> back</>},
-              ],
-              footerColor:"rgba(79,195,247,.12)", footerText:"Transport: HTTPS · Auth: FAPI 2.0 + DPoP · Consent: OAuth 2.0 scopes",
-            },
-            {
-              icon:"⬡", color:"#81c784", title:"Open Banking App", sub:"Third-party apps · Regulated PISPs / AISPs",
-              steps:[
-                {dot:"1",dc:"rgba(129,199,132,.1)",bc:"rgba(129,199,132,.3)",tc:"#81c784", body:<><strong>Consent</strong> — customer authorises scopes via standard Open Banking consent flow</>},
-                {dot:"2",dc:"rgba(129,199,132,.1)",bc:"rgba(129,199,132,.3)",tc:"#81c784", body:<><strong>Access token</strong> — app exchanges code for bearer token scoped to authorised resources</>},
-                {dot:"3",dc:"rgba(129,199,132,.1)",bc:"rgba(129,199,132,.3)",tc:"#81c784", body:<><strong>Call APIs</strong> — standard Open Banking v3.1 REST endpoints: accounts, payments, transactions</>},
-              ],
-              footerColor:"rgba(129,199,132,.1)", footerText:"Standard: Open Banking v3.1 · Auth: OAuth 2.0 + PKCE · Format: ISO 20022",
-            },
-          ].map(ch=>(
-            <div key={ch.title} className="arch-chan">
-              <div className="arch-chan-hdr">
-                <span className="arch-chan-icon" style={{color:ch.color}}>{ch.icon}</span>
-                <div><div className="arch-chan-title">{ch.title}</div><div className="arch-chan-sub">{ch.sub}</div></div>
-              </div>
-              <div className="arch-chan-body">
-                {ch.steps.map((s,i)=>(
-                  <div key={i}>
-                    <div className="arch-flow-step">
-                      <div className="arch-flow-dot" style={{background:s.dc,border:`1px solid ${s.bc}`,color:s.tc}}>{s.dot}</div>
-                      <div className="arch-flow-text">{s.body}</div>
-                    </div>
-                    {i < ch.steps.length-1 && <div className="arch-flow-arrow">↓</div>}
-                  </div>
-                ))}
-              </div>
-              <div style={{padding:"10px 16px",borderTop:"1px solid rgba(255,255,255,.05)",background:ch.footerColor}}>
-                <div style={{fontFamily:"var(--mono)",fontSize:9,color:"rgba(255,255,255,.3)",letterSpacing:.5,lineHeight:1.7}}>{ch.footerText}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* ── 3. BIAN SERVICE DOMAIN CAPABILITY MAP ── */}
         <div className="arch-section-hdr">BIAN Service Domain Capability Map</div>
         <div className="arch-domains">
           {DOMAINS.map(d=>(
             <div key={d.id} className="arch-domain">
-              <div className="arch-domain-top">
-                <span className="arch-domain-icon" style={{color:d.color}}>{d.icon}</span>
-                <div>
-                  <div className="arch-domain-name">{d.name}</div>
-                  <div className="arch-domain-bian">{d.bian}</div>
-                </div>
-              </div>
+              <div className="arch-domain-top"><span className="arch-domain-icon" style={{color:d.color}}>{d.icon}</span><div><div className="arch-domain-name">{d.name}</div><div className="arch-domain-bian">{d.bian}</div></div></div>
               <div className="arch-domain-divider"/>
-              <div className="arch-domain-caps">
-                {d.caps.map(c=><div key={c} className="arch-domain-cap">{c}</div>)}
-              </div>
+              <div className="arch-domain-caps">{d.caps.map(c=><div key={c} className="arch-domain-cap">{c}</div>)}</div>
               <div style={{marginTop:10,display:"flex",gap:6,flexWrap:"wrap"}}>
                 <span style={{fontFamily:"var(--mono)",fontSize:9,padding:"2px 6px",background:"rgba(255,255,255,.05)",border:"1px solid rgba(255,255,255,.08)",color:"rgba(255,255,255,.3)"}}>{d.endpoints.length} endpoints</span>
                 <span style={{fontFamily:"var(--mono)",fontSize:9,padding:"2px 6px",background:"rgba(201,168,76,.08)",border:"1px solid rgba(201,168,76,.2)",color:"rgba(201,168,76,.7)"}}>{d.caps.length} agent tools</span>
@@ -1517,29 +752,6 @@ export default function App() {
             </div>
           ))}
         </div>
-
-        {/* ── 4. OPEN BANKING API SURFACE ── */}
-        <div className="arch-section-hdr">Open Banking v3.1 API Surface</div>
-        <div className="arch-ob">
-          {[
-            {name:"Accounts & Balances", eps:[{m:"GET",p:"/accounts"},{m:"GET",p:"/accounts/{id}"},{m:"GET",p:"/accounts/{id}/balances"},{m:"GET",p:"/accounts/{id}/transactions"}]},
-            {name:"Payment Initiation",  eps:[{m:"POST",p:"/domestic-payments"},{m:"GET",p:"/domestic-payments/{id}"},{m:"POST",p:"/international-payments"},{m:"GET",p:"/international-payments/{id}"}]},
-            {name:"Confirmation of Funds",eps:[{m:"GET",p:"/funds-confirmation"},{m:"POST",p:"/funds-confirmations"}]},
-            {name:"Event Notifications", eps:[{m:"POST",p:"/event-subscriptions"},{m:"GET",p:"/event-subscriptions"},{m:"DELETE",p:"/event-subscriptions/{id}"}]},
-          ].map(card=>(
-            <div key={card.name} className="arch-ob-card">
-              <div className="arch-ob-name">{card.name}</div>
-              {card.eps.map(ep=>(
-                <div key={ep.p} className="arch-ob-ep">
-                  <span style={{color:"rgba(255,255,255,.4)",fontSize:10}}>{ep.p}</span>
-                  <span className={`arch-ob-badge ob-${ep.m}`}>{ep.m}</span>
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
-
-        {/* ── 5. STANDARDS COMPLIANCE ── */}
         <div className="arch-section-hdr">Standards Compliance</div>
         <div className="arch-standards">
           {[
@@ -1550,20 +762,13 @@ export default function App() {
             {name:"ISO 20022",                 ver:"2019",     desc:"Payment message format for domestic and international payment instruction payloads."},
             {name:"OAuth 2.0 / OIDC",          ver:"RFC 6749", desc:"Authorisation framework and identity layer underpinning the FAPI consent and token flows."},
           ].map(s=>(
-            <div key={s.name} className="arch-std">
-              <div className="arch-std-name">{s.name}</div>
-              <div className="arch-std-ver">{s.ver}</div>
-              <div className="arch-std-desc">{s.desc}</div>
-            </div>
+            <div key={s.name} className="arch-std"><div className="arch-std-name">{s.name}</div><div className="arch-std-ver">{s.ver}</div><div className="arch-std-desc">{s.desc}</div></div>
           ))}
         </div>
-
       </section>}
 
-      {/* ── MCP SERVER ── */}
-      {activeTab === "mcp" && <McpTab tools={TOOLS} domains={DOMAINS}/>}
+      {activeTab==="mcp" && <McpTab tools={TOOLS} domains={DOMAINS}/>}
 
-      {/* ── FOOTER ── */}
       <footer>
         <div><div className="footer-logo">AGENT<span>BANK</span></div><div className="footer-tag">BIAN v12 · Open Banking v3.1 · AI-Native Reference Implementation</div></div>
         {[{h:"API Standards",ls:["Open Banking v3.1","BIAN v12","FAPI 2.0","ISO 20022"]},{h:"Service Domains",ls:["Current Account","Payments","Consumer Lending","Investments"]},{h:"Developer",ls:["API Console","Observability","Agent SDK","OpenAPI Spec"]}].map(col=>(
@@ -1583,7 +788,7 @@ export default function App() {
         <span>Open Banking API v3.1 + BIAN Service Domain Model v12</span>
       </div>
 
-      {/* ══ DOMAIN MODAL ══ */}
+      {/* DOMAIN MODAL */}
       {modalDomain && (
         <div className="overlay" onClick={e=>e.target===e.currentTarget&&setModal(null)}>
           <div className="modal">
@@ -1597,32 +802,14 @@ export default function App() {
                 <button className={`mtab ${modalTab==="ep"?"on":""}`} onClick={()=>setModalTab("ep")}>Endpoints ({modalDomain.endpoints.length})</button>
                 <button className={`mtab ${modalTab==="caps"?"on":""}`} onClick={()=>setModalTab("caps")}>Agent Capabilities ({modalDomain.caps.length})</button>
               </div>
-              {modalTab==="ep" && (
-                <div className="ep-list">
-                  {modalDomain.endpoints.map((ep,i)=>(
-                    <div key={i} className="ep-row">
-                      <span className={`ep-badge badge-${ep.m}`}>{ep.m}</span>
-                      <div><div className="ep-path">{ep.p}</div><div className="ep-desc">{ep.d}</div></div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {modalTab==="caps" && (
-                <div>
-                  <div className="cap-list">
-                    {modalDomain.caps.map((c,i)=>(
-                      <div key={i} className="cap-row"><div className="cap-tick">✓</div><span className="cap-text">{c}</span></div>
-                    ))}
-                  </div>
-                  <div className="scope-box"><div className="scope-lbl">REQUIRED CONSENT SCOPE</div><code style={{fontFamily:"var(--mono)",fontSize:12,color:"var(--ink)"}}>{modalDomain.id}:read {modalDomain.id}:write</code></div>
-                </div>
-              )}
+              {modalTab==="ep" && <div className="ep-list">{modalDomain.endpoints.map((ep,i)=><div key={i} className="ep-row"><span className={`ep-badge badge-${ep.m}`}>{ep.m}</span><div><div className="ep-path">{ep.p}</div><div className="ep-desc">{ep.d}</div></div></div>)}</div>}
+              {modalTab==="caps" && <div><div className="cap-list">{modalDomain.caps.map((c,i)=><div key={i} className="cap-row"><div className="cap-tick">✓</div><span className="cap-text">{c}</span></div>)}</div><div className="scope-box"><div className="scope-lbl">REQUIRED CONSENT SCOPE</div><code style={{fontFamily:"var(--mono)",fontSize:12,color:"var(--ink)"}}>{modalDomain.id}:read {modalDomain.id}:write</code></div></div>}
             </div>
           </div>
         </div>
       )}
 
-      {/* ══ API CONSOLE ══ */}
+      {/* API CONSOLE */}
       {showConsole && (
         <div className="console-wrap">
           <div className="console-top">
@@ -1663,19 +850,8 @@ export default function App() {
                       <div className="field"><span className="field-lbl">x-fapi-interaction-id</span><input className="field-inp" defaultValue="3f785c72-b4a1-4b9c-9221-8d6c3f0e1294" readOnly/></div>
                       <div className="field"><span className="field-lbl">Content-Type</span><input className="field-inp" value="application/json" readOnly/></div>
                     </div>
-                    {cEp?.m!=="GET" && (
-                      <div className="field-section">
-                        <div className="field-sec-hdr">REQUEST BODY</div>
-                        <div style={{padding:"8px 14px"}}><textarea className="field-ta" rows={8} value={cBody} onChange={e=>setCBody(e.target.value)}/></div>
-                      </div>
-                    )}
-                    <div className="field-section">
-                      <div className="field-sec-hdr">ENDPOINT INFO</div>
-                      <div style={{padding:"10px 14px"}}>
-                        <div style={{fontSize:12,color:"rgba(255,255,255,.35)",lineHeight:1.7}}>{cEp?.d}</div>
-                        <div style={{marginTop:7,fontFamily:"monospace",fontSize:10,color:"#2a3a4a"}}>SCOPE: <span style={{color:"rgba(201,168,76,.7)"}}>{cDomain}:read{cEp?.m!=="GET"?" "+cDomain+":write":""}</span></div>
-                      </div>
-                    </div>
+                    {cEp?.m!=="GET" && <div className="field-section"><div className="field-sec-hdr">REQUEST BODY</div><div style={{padding:"8px 14px"}}><textarea className="field-ta" rows={8} value={cBody} onChange={e=>setCBody(e.target.value)}/></div></div>}
+                    <div className="field-section"><div className="field-sec-hdr">ENDPOINT INFO</div><div style={{padding:"10px 14px"}}><div style={{fontSize:12,color:"rgba(255,255,255,.35)",lineHeight:1.7}}>{cEp?.d}</div><div style={{marginTop:7,fontFamily:"monospace",fontSize:10,color:"#2a3a4a"}}>SCOPE: <span style={{color:"rgba(201,168,76,.7)"}}>{cDomain}:read{cEp?.m!=="GET"?" "+cDomain+":write":""}</span></div></div></div>
                   </div>
                 </div>
                 <div className="res-pane">
@@ -1692,7 +868,7 @@ export default function App() {
         </div>
       )}
 
-      {/* ══ OBSERVABILITY ══ */}
+      {/* OBSERVABILITY */}
       {showObs && (
         <div className="obs-wrap">
           <div className="obs-top">
@@ -1709,22 +885,18 @@ export default function App() {
             ))}
           </div>
 
-          {/* METRICS */}
           {obsTab==="metrics" && (
             <div className="obs-page">
               <div className="kpi-row">
                 {[
-                  {l:"AVG LATENCY",   v:`${avgLat}ms`,               c:"var(--orange)"},
+                  {l:"AVG LATENCY",   v:`${avgLat}ms`,                  c:"var(--orange)"},
                   {l:"TOTAL TOKENS",  v:`${(totTok/1000).toFixed(1)}k`, c:"var(--blue)"},
-                  {l:"AVG TOOL CALLS",v:avgTool,                      c:"var(--purple)"},
-                  {l:"ERROR RATE",    v:`${errPct}%`,                  c:errPct>5?"var(--red)":"var(--green)"},
-                  {l:"LIVE SESSIONS", v:sessions.length,               c:"var(--green)"},
-                  {l:"MODELS ACTIVE", v:OBS_MODELS.length,             c:"var(--blue)"},
+                  {l:"AVG TOOL CALLS",v:avgTool,                         c:"var(--purple)"},
+                  {l:"ERROR RATE",    v:`${errPct}%`,                    c:errPct>5?"var(--red)":"var(--green)"},
+                  {l:"LIVE SESSIONS", v:sessions.length,                 c:"var(--green)"},
+                  {l:"MODELS ACTIVE", v:OBS_MODELS.length,               c:"var(--blue)"},
                 ].map(k=>(
-                  <div key={k.l} className="kpi">
-                    <div className="kpi-lbl">{k.l}</div>
-                    <div className="kpi-val" style={{color:k.c}}>{k.v}</div>
-                  </div>
+                  <div key={k.l} className="kpi"><div className="kpi-lbl">{k.l}</div><div className="kpi-val" style={{color:k.c}}>{k.v}</div></div>
                 ))}
               </div>
               <div className="chart-row">
@@ -1802,10 +974,10 @@ export default function App() {
               <div className="sess-table">
                 <div className="srow srow-hdr"><span>SESSION</span><span>MODEL</span><span>CUSTOMER</span><span>LATENCY</span><span>TOKENS</span><span>STATUS</span><span>TOOLS</span></div>
                 {sessions.slice(0,14).map(s=>(
-                  <div key={s.id} className={`srow ${selSess?.id===s.id?"on":""}`} onClick={()=>{setSelSess(s);setObsTab("trace");}}>
+                  <div key={s.id} className={`srow ${selSess?.id===s.id?"on":""} ${s.source==="console"?"console-row":""}`} onClick={()=>{setSelSess(s);setObsTab("trace");}}>
                     <span style={{color:"var(--gold)",fontFamily:"monospace"}}>{s.id}</span>
                     <span style={{color:"var(--blue)",fontSize:10}}>{s.model.replace("claude-","")}</span>
-                    <span>{s.customer}</span>
+                    <span style={{color:s.source==="console"?"var(--blue)":undefined}}>{s.customer}</span>
                     <span style={{color:"var(--orange)"}}>{s.latency}ms</span>
                     <span>{((s.inputTok+s.outputTok)/1000).toFixed(1)}k</span>
                     <span><span className={`sbadge sb-${s.status}`}>{s.status}</span></span>
@@ -1816,7 +988,6 @@ export default function App() {
             </div>
           )}
 
-          {/* TRACE */}
           {obsTab==="trace" && (
             <div className="obs-page">
               {!selSess ? (
@@ -1830,10 +1001,7 @@ export default function App() {
                     <div className="panel-hdr"><span className="panel-hdr-lbl">AGENT REASONING TRACE</span><span className="panel-tid">{selSess.traceId.slice(0,20)}…</span></div>
                     <div className="trace-body" ref={traceRef}>
                       {traceLines.map((ln,i)=>(
-                        <div key={i} className="tl">
-                          <span className="tl-t">+{ln.t}ms</span>
-                          <span className={`tl-${ln.type}`}>{ln.text}</span>
-                        </div>
+                        <div key={i} className="tl"><span className="tl-t">+{ln.t}ms</span><span className={`tl-${ln.type}`}>{ln.text}</span></div>
                       ))}
                       {traceLines.length < makeTraceSteps(selSess).length && <span style={{color:"rgba(201,168,76,.5)",animation:"pulse 1s infinite"}}>▌</span>}
                     </div>
@@ -1841,7 +1009,7 @@ export default function App() {
                   <div className="detail-panel">
                     <div className="detail-sec">
                       <div className="dlbl">Session Details</div>
-                      {[["Session",selSess.id,"gold"],["Customer",selSess.customer,""],["Model",selSess.model,"blue"],["Status",selSess.status,selSess.status==="success"?"green":"red"],["Latency",selSess.latency+"ms",""],["Tool Calls",selSess.toolCalls,""]].map(([k,v,c])=>(
+                      {[["Session",selSess.id,"gold"],["Customer",selSess.customer,""],["Model",selSess.model,"blue"],["Status",selSess.status,selSess.status==="success"?"green":"red"],["Latency",selSess.latency+"ms",""],["Tool Calls",selSess.toolCalls,""],["Source",selSess.source??"simulated",""]].map(([k,v,c])=>(
                         <div key={k} className="drow"><span className="dk">{k}</span><span className={`dv ${c}`}>{v}</span></div>
                       ))}
                     </div>
@@ -1870,7 +1038,6 @@ export default function App() {
             </div>
           )}
 
-          {/* OTEL */}
           {obsTab==="otel" && (
             <div className="obs-page">
               {!selSess ? (
@@ -1882,31 +1049,21 @@ export default function App() {
                 <>
                   <div className="kpi-row" style={{marginBottom:14}}>
                     {[["TRACE ID",selSess.traceId.slice(0,16)+"…",""],["TOTAL SPANS",spans.length,"var(--blue)"],["ROOT DURATION",spanMax+"ms","var(--orange)"],["SERVICES",[...new Set(spans.map(s=>s.service))].length,"var(--green)"],["ERRORS",spans.filter(s=>s.status==="error").length,spans.some(s=>s.status==="error")?"var(--red)":"var(--green)"]].map(([l,v,c])=>(
-                      <div key={l} className="kpi" style={{padding:"11px 13px"}}>
-                        <div className="kpi-lbl">{l}</div>
-                        <div className="kpi-val" style={{fontSize:15,color:c||"rgba(255,255,255,.75)"}}>{v}</div>
-                      </div>
+                      <div key={l} className="kpi" style={{padding:"11px 13px"}}><div className="kpi-lbl">{l}</div><div className="kpi-val" style={{fontSize:15,color:c||"rgba(255,255,255,.75)"}}>{v}</div></div>
                     ))}
                   </div>
                   <div className="span-panel">
                     <div className="panel-hdr"><span className="panel-hdr-lbl">Trace Waterfall</span><span className="panel-tid">{selSess.traceId}</span><span style={{fontFamily:"monospace",fontSize:10,color:"#445566",marginLeft:"auto"}}>{selSess.model}</span></div>
                     <div className="span-body">
                       <div style={{display:"flex",paddingLeft:220,paddingBottom:6,minWidth:500}}>
-                        {[0,25,50,75,100].map(p=>(
-                          <span key={p} style={{fontFamily:"monospace",fontSize:9,color:"#2a3a4a",flex:1}}>{Math.round(spanMax*p/100)}ms</span>
-                        ))}
+                        {[0,25,50,75,100].map(p=><span key={p} style={{fontFamily:"monospace",fontSize:9,color:"#2a3a4a",flex:1}}>{Math.round(spanMax*p/100)}ms</span>)}
                       </div>
                       {spans.map((sp,i)=>(
                         <div key={sp.name+i} className="span-row" style={{paddingLeft:sp.depth*16}}>
-                          <div className="span-info">
-                            <div className="span-name">{sp.name}</div>
-                            <div className="span-svc" style={{color:spColors[i%spColors.length]}}>{sp.service}</div>
-                          </div>
+                          <div className="span-info"><div className="span-name">{sp.name}</div><div className="span-svc" style={{color:spColors[i%spColors.length]}}>{sp.service}</div></div>
                           <div className="span-track">
                             {[25,50,75].map(p=><div key={p} style={{position:"absolute",left:p+"%",top:0,bottom:0,width:1,background:"rgba(255,255,255,.04)"}}/>)}
-                            <div className="span-bar" style={{left:(sp.start/spanMax*100)+"%",width:Math.max(sp.dur/spanMax*100,0.5)+"%",background:sp.status==="ok"?spColors[i%spColors.length]+"99":"rgba(255,82,82,.7)"}}>
-                              {sp.dur>spanMax*.08?sp.dur+"ms":""}
-                            </div>
+                            <div className="span-bar" style={{left:(sp.start/spanMax*100)+"%",width:Math.max(sp.dur/spanMax*100,0.5)+"%",background:sp.status==="ok"?spColors[i%spColors.length]+"99":"rgba(255,82,82,.7)"}}>{sp.dur>spanMax*.08?sp.dur+"ms":""}</div>
                           </div>
                           <div className="span-dur">{sp.dur}ms</div>
                         </div>
