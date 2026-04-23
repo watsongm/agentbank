@@ -1,0 +1,481 @@
+// agentBANK reference data model
+// Covers all 10 BIAN service domains plus cross-cutting tables (audit,
+// consent, metering). See docs/adr/0001-backend-stack.md for stack choice.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ───────────────────────────────────────────────────────────────
+// 1. PARTY REFERENCE DATA  (SD-PartyReferenceDataManagement)
+// ───────────────────────────────────────────────────────────────
+model Party {
+  id             String           @id @default(cuid())
+  partyRef       String           @unique // external "PAR-NNNN"
+  legalName      String
+  givenName      String?
+  familyName     String?
+  dateOfBirth    DateTime?
+  email          String?
+  phone          String?
+  addressLine1   String?
+  addressLine2   String?
+  city           String?
+  postcode       String?
+  country        String           @default("GB")
+  kycStatus      KycStatus        @default(PENDING)
+  riskRating     RiskRating       @default(LOW)
+  partyType      PartyType        @default(INDIVIDUAL)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  deletedAt      DateTime?
+
+  accounts       Account[]
+  loans          Loan[]
+  cards          Card[]
+  portfolios     Portfolio[]
+  consents       Consent[]
+  subscriptions  NotificationSubscription[]
+  complianceCase ComplianceCase[]
+
+  @@index([legalName])
+}
+
+enum KycStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  REVIEW
+  EXPIRED
+}
+
+enum RiskRating {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum PartyType {
+  INDIVIDUAL
+  BUSINESS
+  TRUST
+}
+
+// ───────────────────────────────────────────────────────────────
+// 2. CURRENT ACCOUNT  (SD-CurrentAccount)
+// ───────────────────────────────────────────────────────────────
+model Account {
+  id              String        @id @default(cuid())
+  accountRef      String        @unique // external "ACC-1829"
+  partyId         String
+  party           Party         @relation(fields: [partyId], references: [id])
+  accountType     AccountType
+  productName     String
+  currency        String        @default("GBP")
+  availableBalance Decimal      @default(0) @db.Decimal(18, 4)
+  ledgerBalance   Decimal       @default(0) @db.Decimal(18, 4)
+  overdraftLimit  Decimal       @default(0) @db.Decimal(18, 4)
+  status          AccountStatus @default(ACTIVE)
+  openedAt        DateTime      @default(now())
+  closedAt        DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  transactions    Transaction[]
+  paymentsOut     Payment[]     @relation("DebtorAccount")
+  paymentsIn      Payment[]     @relation("CreditorAccount")
+  cards           Card[]
+
+  @@index([partyId])
+  @@index([status])
+}
+
+enum AccountType {
+  CURRENT
+  SAVINGS
+  LOAN
+  CREDIT_CARD
+  INVESTMENT
+}
+
+enum AccountStatus {
+  ACTIVE
+  FROZEN
+  CLOSED
+  DORMANT
+}
+
+// ───────────────────────────────────────────────────────────────
+// 3. PAYMENT EXECUTION  (SD-PaymentExecution)
+// ───────────────────────────────────────────────────────────────
+model Payment {
+  id                String        @id @default(cuid())
+  paymentRef        String        @unique // external "PAY-NNNN"
+  debtorAccountId   String
+  debtorAccount     Account       @relation("DebtorAccount", fields: [debtorAccountId], references: [id])
+  creditorAccountId String?
+  creditorAccount   Account?      @relation("CreditorAccount", fields: [creditorAccountId], references: [id])
+  creditorName      String?
+  creditorIban      String?
+  creditorSortCode  String?
+  creditorAccNum    String?
+  amount            Decimal       @db.Decimal(18, 4)
+  currency          String        @default("GBP")
+  reference         String?
+  paymentType       PaymentType   @default(DOMESTIC)
+  status            PaymentStatus @default(PENDING)
+  scheduledFor      DateTime?
+  executedAt        DateTime?
+  failureReason     String?
+  fapiInteractionId String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  transactions      Transaction[]
+
+  @@index([debtorAccountId])
+  @@index([status])
+}
+
+enum PaymentType {
+  DOMESTIC
+  INTERNATIONAL
+  INSTANT
+  STANDING_ORDER
+  DIRECT_DEBIT
+}
+
+enum PaymentStatus {
+  PENDING
+  AUTHORISED
+  EXECUTING
+  COMPLETED
+  FAILED
+  CANCELLED
+  REJECTED
+}
+
+// ───────────────────────────────────────────────────────────────
+// 4. ACCOUNTING TRANSACTIONS  (SD-AccountingTransactions)
+//    Double-entry ledger — each business event produces two rows.
+// ───────────────────────────────────────────────────────────────
+model Transaction {
+  id            String          @id @default(cuid())
+  txRef         String          @unique // external "TXN-48291"
+  accountId     String
+  account       Account         @relation(fields: [accountId], references: [id])
+  paymentId     String?
+  payment       Payment?        @relation(fields: [paymentId], references: [id])
+  direction     TxDirection
+  amount        Decimal         @db.Decimal(18, 4)
+  currency      String          @default("GBP")
+  balanceAfter  Decimal         @db.Decimal(18, 4)
+  category      String?
+  merchantName  String?
+  description   String
+  bookedAt      DateTime        @default(now())
+  valueDate     DateTime        @default(now())
+  status        TxStatus        @default(BOOKED)
+  createdAt     DateTime        @default(now())
+
+  @@index([accountId, bookedAt])
+  @@index([status])
+}
+
+enum TxDirection {
+  DEBIT
+  CREDIT
+}
+
+enum TxStatus {
+  PENDING
+  BOOKED
+  REVERSED
+}
+
+// ───────────────────────────────────────────────────────────────
+// 5. CONSUMER LOAN  (SD-ConsumerLoan)
+// ───────────────────────────────────────────────────────────────
+model Loan {
+  id                 String       @id @default(cuid())
+  loanRef            String       @unique // external "LOAN-NNNN"
+  partyId            String
+  party              Party        @relation(fields: [partyId], references: [id])
+  principal          Decimal      @db.Decimal(18, 4)
+  currency           String       @default("GBP")
+  termMonths         Int
+  interestRateAnnual Decimal      @db.Decimal(6, 4)
+  outstandingBalance Decimal      @db.Decimal(18, 4)
+  purpose            String?
+  status             LoanStatus   @default(APPLIED)
+  appliedAt          DateTime     @default(now())
+  approvedAt         DateTime?
+  closedAt           DateTime?
+  repayments         Repayment[]
+
+  @@index([partyId])
+  @@index([status])
+}
+
+enum LoanStatus {
+  APPLIED
+  PRE_QUALIFIED
+  APPROVED
+  DISBURSED
+  REPAYING
+  SETTLED
+  REJECTED
+  DEFAULTED
+}
+
+model Repayment {
+  id          String    @id @default(cuid())
+  loanId      String
+  loan        Loan      @relation(fields: [loanId], references: [id])
+  dueDate     DateTime
+  amount      Decimal   @db.Decimal(18, 4)
+  paidDate    DateTime?
+  paidAmount  Decimal?  @db.Decimal(18, 4)
+  status      RepaymentStatus @default(DUE)
+
+  @@index([loanId, dueDate])
+}
+
+enum RepaymentStatus {
+  DUE
+  PAID
+  MISSED
+  PARTIAL
+}
+
+// ───────────────────────────────────────────────────────────────
+// 6. CREDIT AND DEBIT CARDS  (SD-CreditCard)
+// ───────────────────────────────────────────────────────────────
+model Card {
+  id            String      @id @default(cuid())
+  cardRef       String      @unique // external "CARD-NNNN"
+  partyId       String
+  party         Party       @relation(fields: [partyId], references: [id])
+  linkedAccountId String?
+  linkedAccount Account?    @relation(fields: [linkedAccountId], references: [id])
+  cardType      CardType
+  last4         String
+  expiryMonth   Int
+  expiryYear    Int
+  creditLimit   Decimal?    @db.Decimal(18, 4)
+  currentBalance Decimal    @default(0) @db.Decimal(18, 4)
+  status        CardStatus  @default(ACTIVE)
+  issuedAt      DateTime    @default(now())
+
+  @@index([partyId])
+}
+
+enum CardType {
+  DEBIT
+  CREDIT
+  PREPAID
+}
+
+enum CardStatus {
+  ACTIVE
+  BLOCKED
+  EXPIRED
+  LOST
+  STOLEN
+  PENDING
+}
+
+// ───────────────────────────────────────────────────────────────
+// 8. INVESTMENT PORTFOLIO  (SD-InvestmentPortfolioManagement)
+// ───────────────────────────────────────────────────────────────
+model Portfolio {
+  id              String      @id @default(cuid())
+  portfolioRef    String      @unique // external "PORT-NNNN"
+  partyId         String
+  party           Party       @relation(fields: [partyId], references: [id])
+  currency        String      @default("GBP")
+  cashBalance     Decimal     @default(0) @db.Decimal(18, 4)
+  marketValue     Decimal     @default(0) @db.Decimal(18, 4)
+  status          String      @default("ACTIVE")
+  openedAt        DateTime    @default(now())
+  holdings        Holding[]
+  orders          Order[]
+}
+
+model Holding {
+  id           String    @id @default(cuid())
+  portfolioId  String
+  portfolio    Portfolio @relation(fields: [portfolioId], references: [id])
+  instrument   String
+  quantity     Decimal   @db.Decimal(18, 8)
+  avgCost      Decimal   @db.Decimal(18, 6)
+  marketPrice  Decimal   @db.Decimal(18, 6)
+  currency     String    @default("GBP")
+
+  @@unique([portfolioId, instrument])
+}
+
+model Order {
+  id           String      @id @default(cuid())
+  orderRef     String      @unique
+  portfolioId  String
+  portfolio    Portfolio   @relation(fields: [portfolioId], references: [id])
+  instrument   String
+  quantity     Decimal     @db.Decimal(18, 8)
+  direction    OrderDirection
+  orderType    OrderType   @default(MARKET)
+  limitPrice   Decimal?    @db.Decimal(18, 6)
+  status       OrderStatus @default(OPEN)
+  filledPrice  Decimal?    @db.Decimal(18, 6)
+  placedAt     DateTime    @default(now())
+  filledAt     DateTime?
+}
+
+enum OrderDirection {
+  BUY
+  SELL
+}
+
+enum OrderType {
+  MARKET
+  LIMIT
+  STOP
+}
+
+enum OrderStatus {
+  OPEN
+  FILLED
+  PARTIAL
+  CANCELLED
+  REJECTED
+}
+
+// ───────────────────────────────────────────────────────────────
+// 9. REGULATORY COMPLIANCE  (SD-RegulatoryReporting) — AML cases
+// ───────────────────────────────────────────────────────────────
+model ComplianceCase {
+  id           String    @id @default(cuid())
+  caseRef      String    @unique
+  subjectType  String    // "party" | "transaction"
+  subjectId    String
+  partyId      String?
+  party        Party?    @relation(fields: [partyId], references: [id])
+  screenType   ScreenType
+  decision     Decision
+  score        Int       // 0-100
+  reasons      String[]  @default([])
+  createdAt    DateTime  @default(now())
+  resolvedAt   DateTime?
+
+  @@index([subjectId])
+}
+
+enum ScreenType {
+  AML
+  SANCTIONS
+  PEP
+  FRAUD
+}
+
+enum Decision {
+  CLEAR
+  REVIEW
+  FLAG
+  BLOCK
+}
+
+// ───────────────────────────────────────────────────────────────
+// 10. NOTIFICATIONS  (SD-CustomerEventHistory)
+// ───────────────────────────────────────────────────────────────
+model NotificationSubscription {
+  id                 String    @id @default(cuid())
+  partyId            String
+  party              Party     @relation(fields: [partyId], references: [id])
+  eventTypes         String[]
+  webhookUrl         String
+  verificationToken  String
+  active             Boolean   @default(true)
+  createdAt          DateTime  @default(now())
+  lastDeliveredAt    DateTime?
+}
+
+// ───────────────────────────────────────────────────────────────
+// CROSS-CUTTING: Consent + Audit + Client registry + Metering
+//    (Used by tier 2 & 3 — rows land as features ship)
+// ───────────────────────────────────────────────────────────────
+model Client {
+  id           String   @id @default(cuid())
+  clientId     String   @unique
+  clientSecret String   // hashed in real impl
+  name         String
+  orgName      String?
+  scopes       String[] @default([])
+  tier         String   @default("starter")
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  consents     Consent[]
+  auditLogs    AuditLog[]
+}
+
+model Consent {
+  id         String   @id @default(cuid())
+  consentRef String   @unique
+  partyId    String
+  party      Party    @relation(fields: [partyId], references: [id])
+  clientId   String
+  client     Client   @relation(fields: [clientId], references: [id])
+  scopes     String[]
+  status     ConsentStatus @default(ACTIVE)
+  grantedAt  DateTime @default(now())
+  expiresAt  DateTime?
+  revokedAt  DateTime?
+
+  @@index([partyId])
+}
+
+enum ConsentStatus {
+  ACTIVE
+  REVOKED
+  EXPIRED
+}
+
+// Append-only, hash-chained. See ADR-0002 (pending).
+model AuditLog {
+  id                 BigInt   @id @default(autoincrement())
+  ts                 DateTime @default(now())
+  clientId           String?
+  client             Client?  @relation(fields: [clientId], references: [id])
+  agentIdentity      String?
+  humanPrincipalId   String?
+  method             String
+  path               String
+  scopeUsed          String?
+  fapiInteractionId  String?
+  reasoningTraceId   String?
+  statusCode         Int
+  latencyMs          Int
+  requestHash        String   // sha256 of body
+  responseHash       String   // sha256 of body
+  prevHash           String   // chain link
+  rowHash            String   // sha256(ts+clientId+path+prevHash+requestHash+responseHash)
+
+  @@index([clientId, ts])
+  @@index([fapiInteractionId])
+}
+
+model MeteringCounter {
+  id        String   @id @default(cuid())
+  clientId  String
+  toolName  String
+  periodYm  String   // "2026-04"
+  count     Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@unique([clientId, toolName, periodYm])
+}
