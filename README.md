@@ -27,13 +27,28 @@ agentBANK combines two proven open standards — the **UK Open Banking API v3.1*
 
 ---
 
-## Live Demo
+## What's in this repo
 
-> Open the app in your browser and explore all six tabs: AI Channel, Use Case, Services & APIs, Agent Builds, Architecture, and MCP Server.
+agentBANK ships as three independently runnable artifacts plus the SDK and MCP server they share:
+
+| Artifact | Path | What it is |
+|---|---|---|
+| **Frontend mock** | `src/`, `index.html`, `vite.config.js` | React + Vite single-page app — the agent showcase, API console, and observability dashboard, backed by an in-memory mock (`src/mock/`). |
+| **Runnable backend** | `backend/` | Fastify + Prisma + Postgres reference implementation of the OpenAPI v3.1.11 surface and BIAN service domains. The same HTTP surface the SDK and MCP server target. |
+| **Executive visuals** | `agentbank-executive-visuals.html` | Standalone, dependency-free HTML deck — five exhibits framing the agent-native commerce thesis for non-technical audiences. |
+| MCP server | `mcp-server/` | Standalone `@modelcontextprotocol/sdk` server exposing the agent tools over stdio. |
+| SDK | `sdk/` | Lightweight JS client over the OpenAPI surface. |
+| OpenAPI spec | `openapi.yaml` | Single source of truth — served at `/openapi.json` and rendered at `/docs` (Scalar) by the backend. |
+| ADRs | `docs/adr/` | Architecture decisions (e.g. `0001-backend-stack.md`). |
+| Compose | `docker-compose.yml` | One-command spin-up of the backend + Postgres. |
+
+Everything below describes those artifacts in more detail.
 
 ---
 
-## App Layout
+## Frontend mock — App layout
+
+The frontend is a self-contained React + Vite app that runs against an **in-memory mock** (`src/mock/api.js`). It's the showcase surface — open it locally to explore the agent UX, browse endpoints in the API Console, and watch the observability dashboard. Point it at the real backend by replacing `mockApi()` with `fetch()` calls (see `src/mock/api.js`).
 
 The app uses a **tab-based layout** — a sticky tab bar below the hero keeps each topic focused without requiring long vertical scrolling.
 
@@ -118,7 +133,70 @@ run_aml_screen        subscribe_events
 
 ---
 
+## Backend — runnable reference
+
+The `backend/` directory is the runnable counterpart to the OpenAPI spec — Fastify 4 + Prisma 5 + Postgres 16, written in strict TypeScript, serving `openapi.yaml` (rendered at `/docs` via Scalar) plus the BIAN endpoints. Same HTTP surface the SDK and MCP server target, so you can point either of them at `http://localhost:3000` and exercise the real wire format end-to-end.
+
+### Quick start
+
+```bash
+docker compose up --build              # backend + Postgres in one go
+# or, against a Postgres you're already running:
+cd backend && cp .env.example .env
+npm install && npm run db:generate
+npx prisma db push --accept-data-loss --skip-generate
+npm run db:seed
+npm run dev                            # http://localhost:3000
+```
+
+Key surfaces:
+
+- `GET /health` — liveness + Postgres reachability
+- `GET /openapi.json` — the canonical OpenAPI v3.1.11 spec
+- `GET /docs` — Scalar API reference UI
+- `GET /open-banking/v3.1/...` — Open Banking endpoints
+- `GET /bian/...` — BIAN service-domain endpoints
+
+### Implementation status
+
+The schema covers all 10 BIAN domains and the seed script populates 3 personas × 2 accounts × 90 days of transactions. Endpoint coverage is being filled in tier by tier — see `backend/README.md` for the live tracker. As of this writing:
+
+| Domain | Endpoints live | Notes |
+|---|---|---|
+| Party | 4 / 4 | complete |
+| Accounts | 3 / 5 | list, detail, balance — initiate/update pending |
+| Payments | 6 / 6 | idempotent, double-entry ledger posting |
+| Transactions | 4 / 4 | cursor-paginated |
+| Lending, Cards, Savings, Investments, Compliance, Notifications | 0 / 21 | scheduled in Plan A tier 2 |
+
+CI (`.github/workflows/ci.yml`) typechecks and builds the frontend, runs the backend smoke test against a Postgres service container, and lints the MCP server on every push.
+
+---
+
+## Executive visuals
+
+`agentbank-executive-visuals.html` is a **standalone, dependency-free** HTML deck for non-technical audiences — open it directly in any browser, no build step, no server. Five tabbed exhibits frame the agent-native commerce thesis at the level a board, regulator, or design-partner exec needs:
+
+| # | Exhibit | What it shows |
+|---|---------|---------------|
+| 1 | The stack | The four-layer agent → rails → trust fabric model that sits under every domain. |
+| 2 | Features → primitives | How customer-visible features collapse into reusable agent primitives. |
+| 3 | User experience | What an agent-mediated interaction looks and feels like. |
+| 4 | The lifestyle agent | Where this lands when finance, commerce, travel, and health share one agent. |
+| 5 | Blended outcomes | The cross-domain outcomes that only become possible when channels share a fabric. |
+
+```bash
+open agentbank-executive-visuals.html      # macOS
+xdg-open agentbank-executive-visuals.html  # Linux
+```
+
+It's intentionally divorced from the React app: nothing to install, easy to email or drop into a deck, and styled for a calmer, print-friendly aesthetic than the developer-facing showcase.
+
+---
+
 ## Architecture
+
+The diagram below is the **target architecture**. The `backend/` reference today implements the channels (AI Agent API, MCP server), the OpenAPI v3.1.11 surface, the BIAN service-domain layer for four of ten domains, and a double-entry ledger; the gateway, event bus, and risk/MDM layers are stubbed or pending — see Roadmap.
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -150,22 +228,20 @@ run_aml_screen        subscribe_events
 
 ## Service Domains
 
-| # | Domain | BIAN Service Domain | Endpoints | Agent Tools |
-|---|--------|-------------------|-----------|-------------|
-| 1 | Party Reference Data | SD-PartyReferenceDataManagement | 4 | 4 |
-| 2 | Current Account | SD-CurrentAccount | 5 | 4 |
-| 3 | Payment Execution | SD-PaymentExecution | 6 | 5 |
-| 4 | Transaction Engine | SD-AccountingTransactions | 4 | 5 |
-| 5 | Consumer Lending | SD-ConsumerLoan | 5 | 5 |
-| 6 | Credit and Debit Cards | SD-CreditCard | 5 | 5 |
-| 7 | Savings and Deposits | SD-SavingsAccount | 4 | 5 |
-| 8 | Investment Portfolio | SD-InvestmentPortfolioManagement | 4 | 5 |
-| 9 | Regulatory Compliance | SD-RegulatoryReporting | 4 | 4 |
-| 10 | Customer Notifications | SD-CustomerEventHistory | 3 | 4 |
+| # | Domain | BIAN Service Domain | Endpoints | Agent Tools | Backend status |
+|---|--------|-------------------|-----------|-------------|----------------|
+| 1 | Party Reference Data | SD-PartyReferenceDataManagement | 4 | 4 | live |
+| 2 | Current Account | SD-CurrentAccount | 5 | 4 | partial (3/5) |
+| 3 | Payment Execution | SD-PaymentExecution | 6 | 5 | live |
+| 4 | Transaction Engine | SD-AccountingTransactions | 4 | 5 | live |
+| 5 | Consumer Lending | SD-ConsumerLoan | 5 | 5 | pending |
+| 6 | Credit and Debit Cards | SD-CreditCard | 5 | 5 | pending |
+| 7 | Savings and Deposits | SD-SavingsAccount | 4 | 5 | pending |
+| 8 | Investment Portfolio | SD-InvestmentPortfolioManagement | 4 | 5 | pending |
+| 9 | Regulatory Compliance | SD-RegulatoryReporting | 4 | 4 | pending |
+| 10 | Customer Notifications | SD-CustomerEventHistory | 3 | 4 | pending |
 
-**Total: 44 endpoints · 14 agent tool functions**
-
-Each domain is accessible via both its Open Banking v3.1 endpoint and its BIAN service domain interface, and is exposed as a typed MCP tool via the reference MCP server.
+**Target: 44 endpoints · 14 agent tool functions** — frontend mock and MCP tool registry expose all 14; backend currently implements 17 of 44 endpoints across 4 of 10 domains. Each domain is designed to be accessible via both its Open Banking v3.1 endpoint and its BIAN service-domain interface.
 
 ---
 
@@ -250,7 +326,7 @@ The skill knows the `AGENT_BUILDS` data shape, all 14 available tools, and the c
 
 ## Observability
 
-The built-in observability dashboard covers three dimensions required for production agent deployments:
+The frontend mock ships an observability dashboard (`src/Observability.jsx`) that demonstrates the three dimensions required for production agent deployments. It runs against simulated session data — wiring it to live OpenTelemetry / pino output from the backend is on the roadmap.
 
 ### LLM Metrics
 Real-time monitoring of agent session latency, token consumption (input and output separately), tool call frequency per session, error rates, and model utilisation. Displayed as live-updating time-series charts with a 2.4-second refresh cycle.
@@ -272,14 +348,14 @@ Distributed trace waterfall showing the full call hierarchy: **agent session →
 
 ## Security Model
 
-| Mechanism | Purpose |
-|-----------|---------|
-| FAPI 2.0 | Security profile for all agent authentication flows |
-| PAR (Pushed Authorisation Requests) | Consent initiation — prevents token interception |
-| DPoP (Demonstration of Proof of Possession) | Binds tokens to the requesting agent instance |
-| Consent scopes | Fine-grained per-domain permissions (`accounts:read`, `payments:write`, etc.) |
-| Step-up authentication | Required for high-value operations above configurable thresholds |
-| Immutable audit log | Every agent action logged with full parameter capture for regulatory audit |
+| Mechanism | Purpose | Backend status |
+|-----------|---------|----------------|
+| FAPI 2.0 | Security profile for all agent authentication flows | partial — `x-fapi-interaction-id` propagation in `lib/fapi.ts`; full PAR/DPoP pending |
+| PAR (Pushed Authorisation Requests) | Consent initiation — prevents token interception | pending |
+| DPoP (Demonstration of Proof of Possession) | Binds tokens to the requesting agent instance | pending |
+| Consent scopes | Fine-grained per-domain permissions (`accounts:read`, `payments:write`, etc.) | pending |
+| Step-up authentication | Required for high-value operations above configurable thresholds | pending |
+| Immutable audit log | Every agent action logged with full parameter capture for regulatory audit | schema in place; hash-chain protocol drafted in ADR-0002 |
 
 ---
 
@@ -301,56 +377,70 @@ Distributed trace waterfall showing the full call hierarchy: **agent session →
 
 ### Prerequisites
 
-- **Node.js 18+** — [nodejs.org](https://nodejs.org)
+- **Node.js 20+** — [nodejs.org](https://nodejs.org) (required by the backend; the frontend works on 18+)
 - **npm 9+** — included with Node.js
-
-### Run the app
+- **Docker** (optional) — for the one-command backend + Postgres spin-up
 
 ```bash
-# 1. Clone the repository
 git clone https://github.com/watsongm/agentbank.git
 cd agentbank
-
-# 2. Install dependencies
-npm install
-
-# 3. Start the development server
-npm run dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173) — you should see the agentBANK landing page.
+### 1 · Frontend mock
 
-### Run the MCP server
+```bash
+npm install
+npm run dev                # http://localhost:5173
+npm run build && npm run preview   # production build
+```
+
+This is the React showcase — agent UX, API console, observability dashboard — backed by an in-memory mock. No backend required.
+
+### 2 · Runnable backend
+
+```bash
+docker compose up --build  # backend + Postgres in one command
+```
+
+Or against a Postgres you're already running:
+
+```bash
+cd backend
+cp .env.example .env       # set DATABASE_URL
+npm install
+npm run db:generate
+npx prisma db push --accept-data-loss --skip-generate
+npm run db:seed
+npm run dev                # http://localhost:3000
+```
+
+Then visit `http://localhost:3000/docs` for the live API reference, or `curl http://localhost:3000/health` to confirm DB connectivity.
+
+### 3 · Executive visuals
+
+No build step — just open the file:
+
+```bash
+open agentbank-executive-visuals.html      # macOS
+xdg-open agentbank-executive-visuals.html  # Linux
+```
+
+### 4 · MCP server
 
 ```bash
 cd mcp-server
 npm install
-
-# Point at your agentBANK API instance
 AGENTBANK_BASE_URL=http://localhost:3000 \
 AGENTBANK_TOKEN="Bearer eyJhbGci..." \
-node index.js
+  node index.js
 ```
 
-### Build the app for production
+Point `AGENTBANK_BASE_URL` at the local backend (above) or any deployed agentBANK instance.
 
-```bash
-npm run build      # outputs to dist/
-npm run preview    # preview the production build locally
-```
+### Deploying the frontend mock
 
-### Deploy
-
-**Netlify (drag and drop):**
-```bash
-npm run build
-# Drag the dist/ folder to https://app.netlify.com/drop
-```
-
-**Vercel:**
-```bash
-npx vercel --prod
-```
+**Netlify:** `npm run build` then drag `dist/` to <https://app.netlify.com/drop>.
+**Vercel:** `npx vercel --prod`.
 
 ---
 
@@ -358,28 +448,45 @@ npx vercel --prod
 
 ```
 agentbank/
-├── .claude/
-│   └── skills/
-│       └── agentbank-build/
-│           └── SKILL.md          # /agentbank-build Claude Code skill
-├── mcp-server/                   # Standalone MCP server (separate deployable)
-│   ├── index.js                  # All 14 agentBANK tools as MCP tools (stdio transport)
-│   └── package.json              # @modelcontextprotocol/sdk + zod
-├── public/
-│   └── favicon.svg
-├── src/
-│   ├── main.jsx                  # React entry point
-│   └── App.jsx                   # Full app — tab layout, all sections, overlays
-├── .gitignore
-├── index.html
-├── package.json
-├── vite.config.js
-└── README.md
+├── .claude/skills/agentbank-build/   # /agentbank-build Claude Code skill
+├── .github/workflows/ci.yml          # frontend build + backend smoke + mcp lint
+├── backend/                          # Runnable reference — Fastify + Prisma + Postgres
+│   ├── prisma/
+│   │   ├── schema.prisma             # 10 BIAN domains + audit log
+│   │   └── seed.ts                   # 3 personas × 2 accounts × 90 days of txns
+│   ├── src/
+│   │   ├── server.ts                 # Fastify entrypoint
+│   │   ├── lib/                      # db, errors, fapi, openapi
+│   │   └── domains/{party,accounts,transactions,payments}/
+│   ├── test/smoke.test.ts            # vitest smoke suite (CI gate)
+│   ├── Dockerfile
+│   └── package.json
+├── docs/adr/                         # Architecture decision records
+│   └── 0001-backend-stack.md
+├── mcp-server/                       # MCP stdio server — 14 typed tools
+│   ├── index.js
+│   └── package.json
+├── sdk/                              # JS client over the OpenAPI surface
+├── src/                              # Frontend mock (React + Vite)
+│   ├── main.jsx
+│   ├── App.jsx                       # Tabbed showcase, API console, agent flows
+│   ├── Observability.jsx             # LLM metrics + trace + OTel waterfall
+│   ├── components/
+│   ├── data/
+│   └── mock/                         # In-memory API + canned sessions
+├── public/favicon.svg
+├── agentbank-executive-visuals.html  # Standalone exec deck (no build)
+├── docker-compose.yml                # backend + Postgres
+├── openapi.yaml                      # Canonical spec (served by backend)
+├── index.html, vite.config.js, package.json   # Frontend mock root
+├── backlog.md, README.md
 ```
 
 ---
 
 ## Technology Stack
+
+**Frontend mock** (`src/`)
 
 | Layer | Technology | Notes |
 |-------|-----------|-------|
@@ -388,10 +495,35 @@ agentbank/
 | Charts | Recharts 2.x | Used in Observability dashboard |
 | Styling | Plain CSS | CSS variables, no framework |
 | Fonts | Google Fonts | IBM Plex Sans, Fira Code, Syne |
-| MCP Server | @modelcontextprotocol/sdk | Stdio transport, Zod schema validation |
-| API | In-memory mock | Replace `mockApi()` in `App.jsx` with real `fetch()` for production |
+| API | In-memory mock | `src/mock/api.js` — swap for real `fetch()` against the backend |
 
-No backend required for the frontend app. The API console and observability dashboard use in-memory mock responses. The MCP server makes real HTTP calls — point `AGENTBANK_BASE_URL` at a live agentBANK API instance.
+**Backend** (`backend/`)
+
+| Layer | Technology | Notes |
+|-------|-----------|-------|
+| Runtime | Node.js 20 LTS | strict TypeScript, NodeNext modules |
+| HTTP | Fastify 4 | `@fastify/helmet`, `cors`, `sensible` |
+| Validation | Zod | shared schemas with SDK and MCP server |
+| ORM | Prisma 5 | typed client, `db push` in dev |
+| Database | Postgres 16 | container in `docker-compose.yml` |
+| Spec serving | `@scalar/fastify-api-reference` | renders `openapi.yaml` at `/docs` |
+| Logging | pino | JSON by default; pretty-print via `LOG_PRETTY=1` |
+| Tests | vitest | smoke suite gates CI |
+
+**MCP server** (`mcp-server/`)
+
+| Layer | Technology | Notes |
+|-------|-----------|-------|
+| Protocol | `@modelcontextprotocol/sdk` | stdio transport |
+| Validation | Zod | tool input schemas |
+
+**Executive visuals** (`agentbank-executive-visuals.html`)
+
+| Layer | Technology | Notes |
+|-------|-----------|-------|
+| Everything | Plain HTML + CSS | no build, no JS framework — open in any browser |
+
+The frontend mock and executive visuals run with no backend. The MCP server and SDK make real HTTP calls — point them at the local backend (`http://localhost:3000`) or a deployed agentBANK instance.
 
 ---
 
@@ -424,9 +556,17 @@ agentBANK is designed around a **developer-first, agent-builder revenue model**.
 
 ## Roadmap
 
-- [x] Tab-based layout — six focused sections replacing single-page scroll
+- [x] Tab-based frontend layout — six focused sections replacing single-page scroll
 - [x] MCP Server — all 14 tools via `@modelcontextprotocol/sdk` stdio transport
+- [x] Executive visuals — five-exhibit standalone HTML deck
+- [x] Runnable backend scaffold — Fastify + Prisma + Postgres, OpenAPI served at `/docs`
+- [x] Backend tier 1 domains — Party, Accounts (partial), Payments, Transactions
+- [x] CI — frontend build, backend smoke test against Postgres, MCP lint
+- [ ] Backend tier 2 domains — Lending, Cards, Savings, Investments, Compliance, Notifications
+- [ ] FAPI 2.0 — PAR + DPoP, consent scopes, step-up auth
+- [ ] Audit log hash-chain (ADR-0002 — drafting)
 - [ ] WebSocket support for real-time event streaming
+- [ ] Wire frontend observability dashboard to live OpenTelemetry from the backend
 - [ ] Additional BIAN domains (Trade Finance, Correspondent Banking)
 - [ ] Customer explainability log UI
 - [ ] Consent management flow
