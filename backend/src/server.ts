@@ -9,8 +9,11 @@ import sensible from "@fastify/sensible";
 import { prisma } from "./lib/db.js";
 import { errorHandler } from "./lib/errors.js";
 import { fapiPlugin } from "./lib/fapi.js";
+import { openApiRoutes } from "./lib/openapi.js";
 import { partyRoutes } from "./domains/party/routes.js";
 import { accountsRoutes } from "./domains/accounts/routes.js";
+import { transactionsRoutes } from "./domains/transactions/routes.js";
+import { paymentsRoutes } from "./domains/payments/routes.js";
 
 const PORT = Number(process.env.PORT ?? 3000);
 const HOST = process.env.HOST ?? "0.0.0.0";
@@ -54,12 +57,27 @@ async function buildServer() {
     name: "agentBANK",
     tagline: "The AI-native reference bank",
     docs: "/docs",
+    openapi: "/openapi.json",
     health: "/health",
   }));
+
+  // OpenAPI: spec at /openapi.json, Scalar UI at /docs (when available)
+  await app.register(openApiRoutes);
+  try {
+    const scalar = await import("@scalar/fastify-api-reference");
+    await app.register(scalar.default, {
+      routePrefix: "/docs",
+      configuration: { url: "/openapi.json" },
+    });
+  } catch (err) {
+    app.log.warn({ err }, "@scalar/fastify-api-reference not installed; /docs disabled");
+  }
 
   // Domains
   await app.register(partyRoutes);
   await app.register(accountsRoutes);
+  await app.register(transactionsRoutes);
+  await app.register(paymentsRoutes);
 
   return app;
 }

@@ -49,10 +49,10 @@ backend/
 
 | Domain | Endpoints | Status |
 |---|---|---|
-| Party | 4 | in progress |
-| Accounts | 3 of 5 | in progress |
-| Payments | 0 of 6 | pending |
-| Transactions | 0 of 4 | pending |
+| Party | 4 of 4 | complete |
+| Accounts | 3 of 5 | partial — initiate/update pending tier 2 |
+| Payments | 6 of 6 | complete (idempotent, double-entry posting) |
+| Transactions | 4 of 4 | complete (cursor-paginated) |
 | Lending | 0 of 5 | pending |
 | Cards | 0 of 5 | pending |
 | Savings | 0 of 4 | pending |
