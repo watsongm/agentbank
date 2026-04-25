@@ -10,6 +10,20 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
+type TxSeed = {
+  txRef: string;
+  accountId: string;
+  direction: "DEBIT" | "CREDIT";
+  amount: string;
+  currency: string;
+  balanceAfter: string;
+  category: string;
+  merchantName?: string;
+  description: string;
+  bookedAt: Date;
+  valueDate: Date;
+};
+
 // Prisma accepts decimal as string at the input boundary
 const D = (s: string) => s;
 
@@ -137,7 +151,7 @@ async function main() {
       if (existing === 0) {
         const now = Date.now();
         const day = 24 * 3600 * 1000;
-        const txs: Array<Record<string, unknown>> = [];
+        const txs: TxSeed[] = [];
         let running = Number(primary.ledger);
         // 90 days of realistic pattern: ~daily £5–80 spend + monthly £2500 salary credit
         for (let i = 89; i >= 0; i--) {

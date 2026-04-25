@@ -1,8 +1,9 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/db.js";
 import { NotFound, BadRequest, Conflict } from "../../lib/errors.js";
 import type { InitiatePaymentInputT, PaymentDto, UpdatePaymentInputT } from "./schema.js";
 
-type PaymentRow = Awaited<ReturnType<typeof prisma.payment.findFirst>> & object;
+type PaymentRow = NonNullable<Awaited<ReturnType<typeof prisma.payment.findFirst>>>;
 
 function toDto(p: PaymentRow): PaymentDto {
   return {
@@ -60,7 +61,7 @@ export const paymentsService = {
     const paymentRef = `PAY-${Date.now().toString(36).toUpperCase()}`;
     const amountStr = input.amount.toFixed(2);
 
-    const result = await prisma.$transaction(async (tx: typeof prisma) => {
+    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // Debit debtor
       const newDebtorBal = (Number(debtor.availableBalance) - Number(input.amount)).toFixed(2);
       await tx.account.update({
