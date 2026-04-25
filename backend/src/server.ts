@@ -20,14 +20,19 @@ const HOST = process.env.HOST ?? "0.0.0.0";
 const LOG_LEVEL = process.env.LOG_LEVEL ?? "info";
 
 async function buildServer() {
+  // Only opt into pino-pretty when LOG_PRETTY=1 is explicitly set —
+  // CI / prod / smoke tests use plain JSON logging so we don't have to
+  // ship pino-pretty in every install.
+  const logger =
+    process.env.LOG_PRETTY === "1"
+      ? {
+          level: LOG_LEVEL,
+          transport: { target: "pino-pretty", options: { colorize: true } },
+        }
+      : { level: LOG_LEVEL };
+
   const app = Fastify({
-    logger: {
-      level: LOG_LEVEL,
-      transport:
-        process.env.NODE_ENV === "production"
-          ? undefined
-          : { target: "pino-pretty", options: { colorize: true } },
-    },
+    logger,
     genReqId: () => crypto.randomUUID(),
     disableRequestLogging: false,
   });

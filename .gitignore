@@ -7,3 +7,7 @@ coverage/
 .DS_Store
 .idea/
 .vscode/
+
+# Vite/Vitest write transient timestamp files next to configs while loading them
+*.timestamp-*.mjs
+*.timestamp-*.js
