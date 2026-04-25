@@ -53,7 +53,10 @@ jobs:
       - run: npx prisma generate
       - run: npm run typecheck
       - run: npm run build
-      - run: npx prisma migrate deploy
+      # No migration files yet (Tier 1 still iterating on the schema), so push
+      # the schema straight into the test DB instead of migrate deploy.
+      - run: npx prisma db push --accept-data-loss --skip-generate
+      - run: npm run db:seed
       - run: npm test --if-present
 
   mcp-server:

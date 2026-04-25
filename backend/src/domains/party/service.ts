@@ -34,7 +34,13 @@ export const partyService = {
    * the bearer token's sub/party claim.
    */
   async getAuthenticated(): Promise<PartyDto> {
-    const p = await prisma.party.findFirst({ where: { deletedAt: null } });
+    // Tier 1 demo: return the earliest-created verified party so smoke tests
+    // and the Smart Savings demo land on a deterministic record (Aria).
+    // Tier 2 will resolve from the bearer token's sub/party claim.
+    const p = await prisma.party.findFirst({
+      where: { deletedAt: null, kycStatus: "VERIFIED" },
+      orderBy: { createdAt: "asc" },
+    });
     if (!p) throw NotFound("Party");
     return toDto(p);
   },
