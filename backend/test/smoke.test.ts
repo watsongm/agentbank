@@ -6,16 +6,13 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import type { FastifyInstance } from "fastify";
+import { SEED } from "../src/lib/constants.js";
 
 const HAS_DB = !!process.env.DATABASE_URL;
 
 // Auth header sent on every authenticated request (Phase 3).
 // Matches the "demo-token" accepted by authPlugin in lib/auth.ts.
 const AUTH = { authorization: "Bearer demo-token" };
-
-// Seeded account ref used in multiple tests.
-// Must match the value written by prisma/seed.ts.
-const ARIA_CURRENT = "ACC-1829";
 
 describe.skipIf(!HAS_DB)("agentBANK backend smoke", () => {
   let app: FastifyInstance;
@@ -97,7 +94,7 @@ describe.skipIf(!HAS_DB)("agentBANK backend smoke", () => {
   it("GET balance for ACC-1829 returns Aria's seeded balance", async () => {
     const res = await app.inject({
       method: "GET",
-      url: `/bian/current-account/${ARIA_CURRENT}/balance`,
+      url: `/bian/current-account/${SEED.ARIA_CURRENT_REF}/balance`,
       headers: AUTH,
     });
     expect(res.statusCode).toBe(200);
@@ -111,7 +108,7 @@ describe.skipIf(!HAS_DB)("agentBANK backend smoke", () => {
   it("transactions list returns paginated items with cursor", async () => {
     const res = await app.inject({
       method: "GET",
-      url: `/open-banking/v3.1/accounts/${ARIA_CURRENT}/transactions?limit=10`,
+      url: `/open-banking/v3.1/accounts/${SEED.ARIA_CURRENT_REF}/transactions?limit=10`,
       headers: AUTH,
     });
     expect(res.statusCode).toBe(200);

@@ -41,30 +41,68 @@ export class AgentBankAgent {
       client_id:  this.clientId,
       scope:      this.scope,
     });
-    this._token = res.access_token ?? res.token ?? `demo-${this.scope.replace(/\s/g, "-")}`;
+    // 5.2: fail loudly if the server returned no token — a silent fallback to a
+    // synthesised demo string causes mysterious 401s on every subsequent tool call.
+    const token = res.access_token ?? res.token;
+    if (!token) {
+      throw new Error(
+        `agentBANK authenticate(): server returned no access_token or token field.` +
+        ` Response: ${JSON.stringify(res)}`
+      );
+    }
+    this._token = token;
     return this._token;
   }
 
-  /* ── Internal HTTP helper ── */
-  async _fetch(method, path, body, extraHeaders = {}) {
-    const headers = {
-      "Content-Type": "application/json",
-      "x-fapi-interaction-id": this._uuid(),
-      ...extraHeaders,
-    };
-    if (this._token) {
-      headers["Authorization"] = this._token.startsWith("Bearer ") ? this._token : `Bearer ${this._token}`;
+  /**
+   * Internal HTTP helper — 10 s timeout per attempt, 2 retries with
+   * exponential backoff (500 ms, 1000 ms). Matches the resilience pattern
+   * used by the MCP server's apiCall() helper.
+   *
+   * @param {string} method
+   * @param {string} path
+   * @param {object|null} body
+   * @param {object} extraHeaders
+   * @param {{ retries?: number, timeout?: number }} opts
+   */
+  async _fetch(method, path, body, extraHeaders = {}, { retries = 2, timeout = 10_000 } = {}) {
+    let lastError;
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      const controller = new AbortController();
+      const timerId = setTimeout(() => controller.abort(), timeout);
+      try {
+        const headers = {
+          "Content-Type": "application/json",
+          "x-fapi-interaction-id": this._uuid(),
+          ...extraHeaders,
+        };
+        if (this._token) {
+          headers["Authorization"] = this._token.startsWith("Bearer ")
+            ? this._token
+            : `Bearer ${this._token}`;
+        }
+        const res = await fetch(`${this.baseUrl}${path}`, {
+          method,
+          headers,
+          ...(body ? { body: JSON.stringify(body) } : {}),
+          signal: controller.signal,
+        });
+        clearTimeout(timerId);
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(`agentBANK ${method} ${path} → ${res.status}: ${text}`);
+        }
+        return res.json();
+      } catch (err) {
+        clearTimeout(timerId);
+        lastError = err;
+        // AbortError means timeout — no point retrying immediately
+        if (err.name === "AbortError" || attempt === retries) break;
+        // Exponential backoff: 500 ms, 1000 ms
+        await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+      }
     }
-    const res = await fetch(`${this.baseUrl}${path}`, {
-      method,
-      headers,
-      ...(body ? { body: JSON.stringify(body) } : {}),
-    });
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`agentBANK ${method} ${path} → ${res.status}: ${text}`);
-    }
-    return res.json();
+    throw lastError;
   }
 
   _uuid() {
