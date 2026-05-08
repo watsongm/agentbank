@@ -110,16 +110,16 @@ export class AgentBankAgent {
       /** Create and submit a domestic payment instruction. */
       initiate_payment({ debtor_account, creditor_account, amount, currency, reference }) {
         return self._fetch("POST", "/open-banking/v3.1/domestic-payments", {
-          data: {
-            initiation: {
-              instructionIdentification: `SDK-${Date.now()}`,
-              instructedAmount: { amount: String(amount), currency },
-              debtorAccount:    { identification: debtor_account,   schemeName: "IBAN" },
-              creditorAccount:  { identification: creditor_account, schemeName: "IBAN" },
-              remittanceInformation: { reference },
+          Data: {
+            Initiation: {
+              InstructionIdentification: `SDK-${Date.now()}`,
+              InstructedAmount: { Amount: String(amount), Currency: currency },
+              DebtorAccount:    { Identification: debtor_account,   SchemeName: "IBAN" },
+              CreditorAccount:  { Identification: creditor_account, SchemeName: "IBAN" },
+              RemittanceInformation: { Reference: reference },
             },
           },
-          risk: {},
+          Risk: {},
         });
       },
 

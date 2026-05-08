@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "../../lib/db.js";
 import { NotFound, BadRequest, Conflict } from "../../lib/errors.js";
 import type { InitiatePaymentInputT, PaymentDto, UpdatePaymentInputT } from "./schema.js";
@@ -47,8 +48,10 @@ export const paymentsService = {
     if (!debtor) throw NotFound(`Debtor account ${input.debtorAccount}`);
     if (debtor.status !== "ACTIVE") throw Conflict("Debtor account not active");
 
-    const debtorAvail = Number(debtor.availableBalance) + Number(debtor.overdraftLimit);
-    if (Number(input.amount) > debtorAvail) {
+    // Use Decimal arithmetic throughout to avoid float precision loss on monetary values.
+    // Prisma Decimal fields return decimal.js Decimal objects — operate on them directly.
+    const available = new Decimal(debtor.availableBalance).plus(debtor.overdraftLimit);
+    if (new Decimal(input.amount).greaterThan(available)) {
       throw BadRequest("Insufficient funds", {
         available: debtor.availableBalance.toString(),
         overdraftLimit: debtor.overdraftLimit.toString(),
@@ -62,8 +65,10 @@ export const paymentsService = {
     const amountStr = input.amount.toFixed(2);
 
     const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      // Debit debtor
-      const newDebtorBal = (Number(debtor.availableBalance) - Number(input.amount)).toFixed(2);
+      // Debit debtor — Decimal arithmetic, serialise to fixed-point string for storage
+      const newDebtorBal = new Decimal(debtor.availableBalance)
+        .minus(input.amount)
+        .toFixed(2);
       await tx.account.update({
         where: { id: debtor.id },
         data: {
@@ -75,7 +80,9 @@ export const paymentsService = {
       // Credit creditor (if internal)
       let newCreditorBal: string | null = null;
       if (creditor) {
-        newCreditorBal = (Number(creditor.availableBalance) + Number(input.amount)).toFixed(2);
+        newCreditorBal = new Decimal(creditor.availableBalance)
+          .plus(input.amount)
+          .toFixed(2);
         await tx.account.update({
           where: { id: creditor.id },
           data: {
