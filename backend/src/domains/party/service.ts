@@ -2,7 +2,9 @@ import { prisma } from "../../lib/db.js";
 import { NotFound } from "../../lib/errors.js";
 import type { PartyDto, RegisterPartyInputT, UpdatePartyInputT } from "./schema.js";
 
-function toDto(p: Awaited<ReturnType<typeof prisma.party.findFirst>> & object): PartyDto {
+type PartyRow = NonNullable<Awaited<ReturnType<typeof prisma.party.findFirst>>>;
+
+function toDto(p: PartyRow): PartyDto {
   return {
     partyId: p.id,
     partyRef: p.partyRef,
