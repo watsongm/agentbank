@@ -9,6 +9,7 @@ import sensible from "@fastify/sensible";
 import { prisma } from "./lib/db.js";
 import { errorHandler } from "./lib/errors.js";
 import { fapiPlugin } from "./lib/fapi.js";
+import { authPlugin } from "./lib/auth.js";
 import { openApiRoutes } from "./lib/openapi.js";
 import { partyRoutes } from "./domains/party/routes.js";
 import { accountsRoutes } from "./domains/accounts/routes.js";
@@ -41,6 +42,7 @@ async function buildServer() {
   await app.register(cors, { origin: true, credentials: true });
   await app.register(sensible);
   await app.register(fapiPlugin);
+  await app.register(authPlugin);
 
   app.setErrorHandler(errorHandler);
 

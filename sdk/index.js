@@ -93,8 +93,13 @@ export class AgentBankAgent {
       },
 
       /** Retrieve real-time available balance for an account. */
-      get_balance({ account_id }) {
-        return self._fetch("GET", `/bian/current-account/${account_id}/balance`, null);
+      get_balance({ account_id, consent_token }) {
+        return self._fetch(
+          "GET",
+          `/bian/current-account/${account_id}/balance`,
+          null,
+          self._consentHeader(consent_token),
+        );
       },
 
       /**

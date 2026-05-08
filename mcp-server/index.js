@@ -110,9 +110,17 @@ server.tool(
 server.tool(
   "get_balance",
   "Retrieve the real-time available balance for a specific account.",
-  { account_id: z.string().describe("The account identifier, e.g. ACC-1829") },
-  async ({ account_id }) => {
-    const data = await apiCall("GET", `/bian/current-account/${account_id}/balance`, null);
+  {
+    account_id:    z.string().describe("The account identifier, e.g. ACC-1829"),
+    consent_token: z.string().describe("FAPI consent token obtained during OAuth flow"),
+  },
+  async ({ account_id, consent_token }) => {
+    const data = await apiCall(
+      "GET",
+      `/bian/current-account/${account_id}/balance`,
+      null,
+      consentHeaders(consent_token),
+    );
     return ok(data);
   }
 );
