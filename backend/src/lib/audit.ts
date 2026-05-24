@@ -32,7 +32,7 @@ export const auditPlugin = fp(async function (fastify: FastifyInstance) {
     "onResponse",
     async (req: FastifyRequest, reply: FastifyReply) => {
       try {
-        const startTime = req.startTime ?? Date.now();
+        const startTime = (req as any).startTime ?? Date.now();
         const latencyMs = Math.round(reply.elapsedTime ?? (Date.now() - startTime));
 
         // Resolve customerId from consent if available; fall back to null

@@ -81,7 +81,7 @@ const metricsPluginImpl: FastifyPluginAsync = async (app: FastifyInstance) => {
     "/metrics",
     {
       config: { skipAuth: true },
-      schema: { hide: true }, // hide from OpenAPI docs
+      schema: { hide: true } as any, // hide from OpenAPI docs
     },
     async (_request, reply) => {
       const metrics = await registry.metrics();

@@ -59,12 +59,6 @@ async function buildServer() {
       error: "RATE_LIMITED",
       retryAfterSeconds: Math.ceil((context as { ttl: number }).ttl / 1000),
     }),
-    addHeadersOnExceedingLimit: {
-      "x-ratelimit-limit": true,
-      "x-ratelimit-remaining": true,
-      "x-ratelimit-reset": true,
-      "retry-after": true,
-    },
   });
 
   // ── Security plugins ──────────────────────────────────────────────────────
@@ -141,7 +135,7 @@ async function buildServer() {
     const paymentRateLimitConfig = {
       max: 10,
       timeWindow: "1 minute",
-      keyGenerator: (req: Parameters<typeof requiresScope>[0] & { ip: string }) => {
+      keyGenerator: (req: any) => {
         // Use the type-augmented FastifyRequest
         const r = req as unknown as { consent?: { customerId?: string }; ip: string };
         return r.consent?.customerId ?? r.ip;
