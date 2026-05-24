@@ -79,10 +79,9 @@ async function buildServer() {
       .catch(() => false);
     return {
       status: "ok",
-      version: "0.1.0",
-      service: "agentbank-backend",
-      dependencies: { postgres: dbOk ? "ok" : "unreachable" },
-      timestamp: new Date().toISOString(),
+      version: "1.0.0",
+      uptime: process.uptime(),
+      db: dbOk ? "connected" : "degraded",
     };
   });
 
