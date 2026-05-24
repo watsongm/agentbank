@@ -32,9 +32,9 @@ describe.skipIf(!HAS_DB)("agentBANK backend smoke", () => {
   it("GET /health returns ok and reports postgres reachable", async () => {
     const res = await app.inject({ method: "GET", url: "/health" });
     expect(res.statusCode).toBe(200);
-    const body = res.json() as { status: string; dependencies: { postgres: string } };
+    const body = res.json() as { status: string; db: string };
     expect(body.status).toBe("ok");
-    expect(body.dependencies.postgres).toBe("ok");
+    expect(body.db).toBe("connected");
   });
 
   it("GET /health propagates x-fapi-interaction-id without auth", async () => {
