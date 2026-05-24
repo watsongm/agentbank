@@ -125,35 +125,11 @@ async function buildServer() {
     await instance.register(transactionsRoutes);
   });
 
-  // Payments — requires INITIATE_PAYMENT; POST endpoints also have tighter rate limit
+  // Payments — requires INITIATE_PAYMENT
   await app.register(async (instance) => {
     instance.addHook("preHandler", requiresScope(ConsentScope.INITIATE_PAYMENT));
-
-    // Tighter rate limit for payment initiation: 10 req/min per customerId
-    // Applied to POST /open-banking/v3.1/domestic-payments etc.
-    const paymentRateLimitConfig = {
-      max: 10,
-      timeWindow: "1 minute",
-      keyGenerator: (req: any) => {
-        // Use the type-augmented FastifyRequest
-        const r = req as unknown as { consent?: { customerId?: string }; ip: string };
-        return r.consent?.customerId ?? r.ip;
-      },
-      errorResponseBuilder: (_req: unknown, context: { ttl: number }) => ({
-        error: "RATE_LIMITED",
-        retryAfterSeconds: Math.ceil(context.ttl / 1000),
-      }),
-    };
-
-    instance.post(
-      "/open-banking/v3.1/domestic-payments",
-      { config: { rateLimit: paymentRateLimitConfig } },
-      async () => ({}), // placeholder — real handler registered via paymentsRoutes
-    );
-
     await instance.register(paymentsRoutes);
   });
-
   return app;
 }
 
