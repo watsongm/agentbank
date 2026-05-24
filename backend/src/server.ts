@@ -1,15 +1,20 @@
 // agentBANK reference backend — entrypoint.
 // See docs/adr/0001-backend-stack.md for stack rationale.
+// See docs/adr/0002-security-model.md for security layer rationale.
 
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import sensible from "@fastify/sensible";
+import rateLimit from "@fastify/rate-limit";
 
 import { prisma } from "./lib/db.js";
 import { errorHandler } from "./lib/errors.js";
 import { fapiPlugin } from "./lib/fapi.js";
 import { authPlugin } from "./lib/auth.js";
+import { consentPlugin, ConsentScope, requiresScope } from "./lib/consent.js";
+import { auditPlugin } from "./lib/audit.js";
+import { dpopPlugin } from "./lib/dpop.js";
 import { openApiRoutes } from "./lib/openapi.js";
 import { partyRoutes } from "./domains/party/routes.js";
 import { accountsRoutes } from "./domains/accounts/routes.js";
@@ -41,8 +46,35 @@ async function buildServer() {
   await app.register(helmet, { contentSecurityPolicy: false });
   await app.register(cors, { origin: true, credentials: true });
   await app.register(sensible);
+
+  // ── Rate Limiting ─────────────────────────────────────────────────────────
+  // Global: 100 req/min per IP.
+  // Payment POST endpoints override this with 10 req/min per customerId.
+  await app.register(rateLimit, {
+    global: true,
+    max: 100,
+    timeWindow: "1 minute",
+    keyGenerator: (req) => req.ip,
+    errorResponseBuilder: (_req, context) => ({
+      error: "RATE_LIMITED",
+      retryAfterSeconds: Math.ceil((context as { ttl: number }).ttl / 1000),
+    }),
+    addHeadersOnExceedingLimit: {
+      "x-ratelimit-limit": true,
+      "x-ratelimit-remaining": true,
+      "x-ratelimit-reset": true,
+      "retry-after": true,
+    },
+  });
+
+  // ── Security plugins ──────────────────────────────────────────────────────
   await app.register(fapiPlugin);
   await app.register(authPlugin);
+  await app.register(consentPlugin);
+  await app.register(dpopPlugin);
+
+  // ── Audit log (runs on every response, after the reply is sent) ───────────
+  await app.register(auditPlugin);
 
   app.setErrorHandler(errorHandler);
 
@@ -80,11 +112,54 @@ async function buildServer() {
     app.log.warn({ err }, "@scalar/fastify-api-reference not installed; /docs disabled");
   }
 
-  // Domains
-  await app.register(partyRoutes);
-  await app.register(accountsRoutes);
-  await app.register(transactionsRoutes);
-  await app.register(paymentsRoutes);
+  // ── Domain routes with scope enforcement ─────────────────────────────────
+
+  // Party — requires READ_PARTY
+  await app.register(async (instance) => {
+    instance.addHook("preHandler", requiresScope(ConsentScope.READ_PARTY));
+    await instance.register(partyRoutes);
+  });
+
+  // Accounts — requires READ_ACCOUNTS
+  await app.register(async (instance) => {
+    instance.addHook("preHandler", requiresScope(ConsentScope.READ_ACCOUNTS));
+    await instance.register(accountsRoutes);
+  });
+
+  // Transactions — requires READ_TRANSACTIONS
+  await app.register(async (instance) => {
+    instance.addHook("preHandler", requiresScope(ConsentScope.READ_TRANSACTIONS));
+    await instance.register(transactionsRoutes);
+  });
+
+  // Payments — requires INITIATE_PAYMENT; POST endpoints also have tighter rate limit
+  await app.register(async (instance) => {
+    instance.addHook("preHandler", requiresScope(ConsentScope.INITIATE_PAYMENT));
+
+    // Tighter rate limit for payment initiation: 10 req/min per customerId
+    // Applied to POST /open-banking/v3.1/domestic-payments etc.
+    const paymentRateLimitConfig = {
+      max: 10,
+      timeWindow: "1 minute",
+      keyGenerator: (req: Parameters<typeof requiresScope>[0] & { ip: string }) => {
+        // Use the type-augmented FastifyRequest
+        const r = req as unknown as { consent?: { customerId?: string }; ip: string };
+        return r.consent?.customerId ?? r.ip;
+      },
+      errorResponseBuilder: (_req: unknown, context: { ttl: number }) => ({
+        error: "RATE_LIMITED",
+        retryAfterSeconds: Math.ceil(context.ttl / 1000),
+      }),
+    };
+
+    instance.post(
+      "/open-banking/v3.1/domestic-payments",
+      { config: { rateLimit: paymentRateLimitConfig } },
+      async () => ({}), // placeholder — real handler registered via paymentsRoutes
+    );
+
+    await instance.register(paymentsRoutes);
+  });
 
   return app;
 }

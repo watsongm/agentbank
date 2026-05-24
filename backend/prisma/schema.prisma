@@ -485,3 +485,22 @@ model MeteringCounter {
 
   @@unique([clientId, toolName, periodYm])
 }
+
+// ───────────────────────────────────────────────────────────────
+// AUDIT EVENT  (append-only — see ADR-0002)
+// No updatedAt field by design — these rows must never be modified.
+// ───────────────────────────────────────────────────────────────
+model AuditEvent {
+  id         String   @id @default(uuid())
+  requestId  String
+  customerId String?
+  tool       String   // e.g. "GET /open-banking/v3.1/accounts"
+  paramsHash String?  // SHA-256 of request body (not raw body — privacy)
+  statusCode Int
+  latencyMs  Int
+  timestamp  DateTime @default(now())
+  // No updatedAt — append-only by convention
+
+  @@index([customerId, timestamp])
+  @@index([requestId])
+}

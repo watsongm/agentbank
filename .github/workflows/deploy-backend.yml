@@ -1,0 +1,113 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# deploy-backend.yml — Builds and pushes the backend Docker image to GHCR
+#                      on every semver tag push (e.g. v1.2.3)
+#
+# HOW IT WORKS
+#   1. A developer creates and pushes a git tag:
+#        git tag v1.0.0 && git push origin v1.0.0
+#   2. This workflow builds backend/Dockerfile and pushes the image to:
+#        ghcr.io/<owner>/agentbank-backend:<tag>
+#        ghcr.io/<owner>/agentbank-backend:latest
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# WIRING TO A HOSTING PLATFORM (stub — not yet implemented)
+#
+# Option A — Fly.io
+#   Prerequisites: `flyctl` CLI, a Fly app created with `fly launch`.
+#   Add secret FLY_API_TOKEN (from `fly tokens create deploy -x 999999h`).
+#   After the Docker push step, add:
+#
+#     - name: Deploy to Fly.io
+#       uses: superfly/flyctl-actions/setup-flyctl@master
+#     - run: flyctl deploy --image ghcr.io/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+#       env:
+#         FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+#
+# Option B — Railway
+#   Prerequisites: a Railway project with a service pointing at this repo.
+#   Add secrets: RAILWAY_TOKEN (from railway.app → Account → Tokens),
+#                RAILWAY_SERVICE_ID (from the service settings page).
+#   After the Docker push step, add:
+#
+#     - name: Deploy to Railway
+#       uses: railway-app/deploy-action@v1
+#       with:
+#         service: ${{ secrets.RAILWAY_SERVICE_ID }}
+#         token:   ${{ secrets.RAILWAY_TOKEN }}
+#         image:   ghcr.io/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+#
+# Option C — Self-hosted / VPS (generic)
+#   SSH into the server and do a `docker pull` + `docker run`:
+#
+#     - name: Deploy via SSH
+#       uses: appleboy/ssh-action@v1.0.3
+#       with:
+#         host:     ${{ secrets.DEPLOY_HOST }}
+#         username: ${{ secrets.DEPLOY_USER }}
+#         key:      ${{ secrets.DEPLOY_SSH_KEY }}
+#         script: |
+#           docker pull ghcr.io/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+#           docker stop agentbank-backend || true
+#           docker rm   agentbank-backend || true
+#           docker run -d --name agentbank-backend \
+#             -e DATABASE_URL="${DATABASE_URL}" \
+#             -p 3000:3000 \
+#             ghcr.io/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Deploy Backend
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  IMAGE_NAME: ${{ github.repository_owner }}/agentbank-backend
+  REGISTRY: ghcr.io
+
+jobs:
+  build-and-push:
+    name: Build Docker image & push to GHCR
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # ── Deployment step goes here (see comments at top of file) ──────────
+      # Uncomment and configure one of the deployment options (Fly.io,
+      # Railway, or SSH) documented in the header comment block above.

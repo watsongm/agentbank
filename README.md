@@ -10,6 +10,12 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/watsongm/agentbank/actions/workflows/ci.yml">
+    <img src="https://github.com/watsongm/agentbank/actions/workflows/ci.yml/badge.svg" alt="CI"/>
+  </a>
+</p>
+
+<p align="center">
   <strong>The AI-native reference bank — built on Open Banking API v3.1 and the BIAN Service Domain Model v12, with AI agents as a first-class customer channel.</strong>
 </p>
 

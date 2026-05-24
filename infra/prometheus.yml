@@ -1,0 +1,24 @@
+# infra/prometheus.yml
+# Prometheus scrape configuration for agentBANK
+#
+# The backend exposes a Prometheus metrics endpoint at /metrics
+# served by the metricsPlugin registered in backend/src/server.ts.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    service: agentbank
+
+scrape_configs:
+  - job_name: agentbank-backend
+    static_configs:
+      - targets:
+          - backend:3000
+    metrics_path: /metrics
+    scheme: http
+
+  - job_name: prometheus
+    static_configs:
+      - targets:
+          - localhost:9090

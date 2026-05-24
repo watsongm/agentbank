@@ -1,4 +1,4 @@
-name: ci
+name: CI
 
 on:
   push:
@@ -7,21 +7,8 @@ on:
     branches: [main]
 
 jobs:
-  frontend:
-    name: frontend (vite build)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: package-lock.json
-      - run: npm ci
-      - run: npm run build
-
-  backend:
-    name: backend (typecheck + build + smoke)
+  backend-ci:
+    name: Backend — typecheck + test
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -44,32 +31,55 @@ jobs:
         working-directory: backend
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
-          cache-dependency-path: backend/package-lock.json
-      - run: npm ci
-      - run: npx prisma generate
-      - run: npm run typecheck
-      - run: npm run build
-      # No migration files yet (Tier 1 still iterating on the schema), so push
-      # the schema straight into the test DB instead of migrate deploy.
-      - run: npx prisma db push --accept-data-loss --skip-generate
-      - run: npm run db:seed
-      - run: npm test --if-present
 
-  mcp-server:
-    name: mcp-server (typecheck)
+      - name: Cache backend node_modules
+        uses: actions/cache@v4
+        with:
+          path: backend/node_modules
+          key: ${{ runner.os }}-backend-${{ hashFiles('backend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-backend-
+
+      - run: npm ci
+
+      - run: npx prisma generate
+
+      - name: Type-check
+        run: npm run type-check
+
+      - name: Push schema to test DB
+        run: npx prisma db push --accept-data-loss --skip-generate
+
+      - name: Seed test DB
+        run: npm run db:seed
+
+      - name: Run tests
+        run: npm test
+
+  frontend-ci:
+    name: Frontend — build
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: mcp-server
     steps:
       - uses: actions/checkout@v4
-      # No lockfile yet — install is fast (one dep), so skip npm cache.
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm install --no-audit --no-fund
-      - run: node --check index.js
+
+      - name: Cache root node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-root-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-root-
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Vite app
+        run: npm run build

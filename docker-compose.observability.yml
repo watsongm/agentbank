@@ -1,0 +1,61 @@
+# docker-compose.observability.yml
+#
+# Extends the base docker-compose.yml with a full observability stack.
+# Run with:
+#   docker compose -f docker-compose.yml -f docker-compose.observability.yml up
+#
+# Or use the convenience alias:
+#   docker compose -f docker-compose.observability.yml up   (pulls base automatically)
+#
+# Services added:
+#   prometheus  — scrapes /metrics from the backend every 15 s  → http://localhost:9090
+#   grafana     — pre-provisioned dashboard                     → http://localhost:3001
+#                 login: admin / agentbank
+#   loki        — log aggregation sink                          → http://localhost:3100
+
+version: "3.9"
+
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    restart: unless-stopped
+    volumes:
+      - ./infra/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    profiles: [observability]
+    networks:
+      - default
+
+  grafana:
+    image: grafana/grafana:latest
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: agentbank
+      GF_SECURITY_ADMIN_USER: admin
+      GF_PATHS_PROVISIONING: /etc/grafana/provisioning
+    volumes:
+      - ./infra/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./infra/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - grafana_data:/var/lib/grafana
+    profiles: [observability]
+    networks:
+      - default
+    depends_on:
+      - prometheus
+      - loki
+
+  loki:
+    image: grafana/loki:latest
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    profiles: [observability]
+    networks:
+      - default
+
+volumes:
+  grafana_data:
