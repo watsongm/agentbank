@@ -43,8 +43,11 @@ export const notificationsService = {
     const timestamp = new Date().toISOString();
 
     return {
+      id: eventId,
       eventId,
+      eventRef: eventId,
       partyId: party.partyRef,
+      partyRef: party.partyRef,
       eventType,
       eventTypes,
       channel,
@@ -73,9 +76,13 @@ export const notificationsService = {
 
     return {
       partyId: party.partyRef,
+      partyRef: party.partyRef,
       subscriptions: subscriptions.map((s) => ({
+        id: s.id,
         subscriptionId: s.id,
+        subscriptionRef: s.id,
         partyId: party.partyRef,
+        partyRef: party.partyRef,
         eventTypes: s.eventTypes,
         webhookUrl: s.webhookUrl,
         verificationToken: s.verificationToken,
@@ -131,8 +138,11 @@ export const notificationsService = {
     });
 
     return {
+      id: sub.id,
       subscriptionId: sub.id,
+      subscriptionRef: sub.id,
       partyId: party.partyRef,
+      partyRef: party.partyRef,
       eventTypes: sub.eventTypes,
       webhookUrl: sub.webhookUrl,
       verificationToken: sub.verificationToken,

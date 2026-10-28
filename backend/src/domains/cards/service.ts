@@ -166,6 +166,7 @@ export const cardsService = {
     return {
       ...dto,
       cardFacility: dto,
+      creditCardFacility: dto,
     };
   },
 
@@ -175,6 +176,7 @@ export const cardsService = {
     return {
       ...dto,
       cardFacility: dto,
+      creditCardFacility: dto,
     };
   },
 
@@ -193,6 +195,7 @@ export const cardsService = {
     return {
       ...dto,
       cardFacility: dto,
+      creditCardFacility: dto,
     };
   },
 
@@ -228,6 +231,7 @@ export const cardsService = {
       reason: input.reason ?? null,
       status: updated.status,
       cardFacility: dto,
+      creditCardFacility: dto,
     };
   },
 };

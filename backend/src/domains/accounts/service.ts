@@ -54,12 +54,24 @@ export const accountsService = {
    * List accounts in scope. Demo: returns all accounts of the first party.
    * Tier 2 will filter by consent-scoped party id.
    */
-  async list(): Promise<AccountDto[]> {
-    const party = await prisma.party.findFirst({ where: { deletedAt: null } });
+  async list(customerId?: string): Promise<AccountDto[]> {
+    const targetRef =
+      customerId && customerId !== "demo-customer" ? customerId : SEED.ARIA_PARTY_REF;
+    const party =
+      (await prisma.party.findFirst({
+        where: {
+          OR: [{ partyRef: targetRef }, { id: targetRef }],
+          deletedAt: null,
+        },
+      })) ??
+      (await prisma.party.findFirst({
+        where: { deletedAt: null },
+        orderBy: { createdAt: "asc" },
+      }));
     if (!party) return [];
     const accounts = await prisma.account.findMany({
       where: { partyId: party.id },
-      orderBy: { openedAt: "asc" },
+      orderBy: [{ openedAt: "asc" }, { accountRef: "asc" }],
     });
     return accounts.map(toAccountDto);
   },

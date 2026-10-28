@@ -25,12 +25,15 @@ function formatAmlCase(c: {
   resolvedAt: Date | null;
 }) {
   return {
+    id: c.id,
     caseId: c.caseRef,
+    caseRef: c.caseRef,
     screeningId: c.caseRef,
     subjectType: c.subjectType,
     subjectId: c.subjectId,
     screenType: c.screenType,
     decision: c.decision,
+    outcome: c.decision,
     status: c.decision,
     score: c.score,
     riskScore: c.score,
@@ -77,7 +80,9 @@ export const complianceService = {
     });
 
     return {
+      id: created.id,
       reportId: created.caseRef,
+      reportRef: created.caseRef,
       reportType,
       jurisdiction,
       subjectId: created.subjectId,
@@ -103,7 +108,9 @@ export const complianceService = {
 
     if (c) {
       return {
+        id: c.id,
         reportId: c.caseRef,
+        reportRef: c.caseRef,
         reportType: "SARReport",
         jurisdiction: "UK-FCA",
         subjectId: c.subjectId,
@@ -125,7 +132,9 @@ export const complianceService = {
       !reportId.includes("404")
     ) {
       return {
+        id: reportId,
         reportId,
+        reportRef: reportId,
         reportType: "SARReport",
         jurisdiction: "UK-FCA",
         subjectId: SEED.ARIA_PARTY_REF,

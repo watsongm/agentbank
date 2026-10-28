@@ -178,8 +178,8 @@ export const auditPlugin = fp(async function (fastify: FastifyInstance) {
             },
           });
 
-          // Asynchronously write hash-chained AuditLog entry (non-blocking)
-          void prisma.auditLog
+          // Write hash-chained AuditLog entry (non-failing)
+          await prisma.auditLog
             .create({
               data: {
                 ts: new Date(timestamp),

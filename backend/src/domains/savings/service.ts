@@ -111,16 +111,24 @@ export const savingsService = {
     const annualDec = balanceDec.times(DEFAULT_SAVINGS_AER).dividedBy(100);
     const monthlyDec = annualDec.dividedBy(12);
 
+    const interestPayload = {
+      accountId: account.accountRef,
+      accountRef: account.accountRef,
+      currency: account.currency,
+      balance: balanceDec.toFixed(2),
+      aerPercent: DEFAULT_SAVINGS_AER,
+      annualRatePercent: DEFAULT_SAVINGS_AER,
+      rate: DEFAULT_SAVINGS_AER,
+      aer: DEFAULT_SAVINGS_AER,
+      grossMonthlyInterest: monthlyDec.toFixed(2),
+      projectedAnnualInterest: annualDec.toFixed(2),
+      calculationDate: new Date().toISOString(),
+    };
+
     return {
-      savingsInterest: {
-        accountId: account.accountRef,
-        currency: account.currency,
-        balance: balanceDec.toFixed(2),
-        aerPercent: DEFAULT_SAVINGS_AER,
-        grossMonthlyInterest: monthlyDec.toFixed(2),
-        projectedAnnualInterest: annualDec.toFixed(2),
-        calculationDate: new Date().toISOString(),
-      },
+      ...interestPayload,
+      savingsInterest: interestPayload,
+      interestApplication: interestPayload,
     };
   },
 

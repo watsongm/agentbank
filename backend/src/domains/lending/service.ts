@@ -222,6 +222,7 @@ export const lendingService = {
       monthlyRepayment: dto.monthlyRepayment,
       repaymentsCount: created.repayments.length,
       loanFacility: dto,
+      consumerLoanFacility: dto,
     };
   },
 
@@ -231,16 +232,22 @@ export const lendingService = {
     return {
       ...dto,
       loanFacility: dto,
+      consumerLoanFacility: dto,
     };
   },
 
   async getRepaymentSchedule(loanIdOrRef: string) {
     const loan = await resolveLoan(loanIdOrRef);
     const dto = toLoanDto(loan);
-    return {
+    const schedulePayload = {
       loanId: loan.loanRef,
+      loanRef: loan.loanRef,
       currency: loan.currency,
       schedule: dto.repayments,
+    };
+    return {
+      ...schedulePayload,
+      repaymentSchedule: schedulePayload,
     };
   },
 
@@ -266,6 +273,7 @@ export const lendingService = {
     return {
       ...dto,
       loanFacility: dto,
+      consumerLoanFacility: dto,
     };
   },
 

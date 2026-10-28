@@ -56,8 +56,10 @@ function formatPortfolio(p: Awaited<ReturnType<typeof findPortfolioWithDetails>>
 
   return {
     portfolioId: p.portfolioRef,
+    portfolioRef: p.portfolioRef,
     id: p.id,
     partyId: p.party?.partyRef ?? p.partyId,
+    partyRef: p.party?.partyRef ?? p.partyId,
     currency: p.currency,
     cashBalance,
     marketValue,
@@ -84,6 +86,7 @@ function formatPortfolio(p: Awaited<ReturnType<typeof findPortfolioWithDetails>>
     }),
     recentOrders: p.orders.map((o) => ({
       orderId: o.orderRef,
+      orderRef: o.orderRef,
       instrument: o.instrument,
       quantity: Number(o.quantity),
       direction: o.direction,
@@ -278,7 +281,9 @@ export const investmentsService = {
 
     return {
       orderId: order.orderRef,
+      orderRef: order.orderRef,
       portfolioId: p.portfolioRef,
+      portfolioRef: p.portfolioRef,
       instrument: order.instrument,
       quantity: Number(order.quantity),
       direction: order.direction,
@@ -335,6 +340,7 @@ export const investmentsService = {
 
     return {
       portfolioId: p.portfolioRef,
+      portfolioRef: p.portfolioRef,
       currency: p.currency,
       cashBalance,
       totalCostBasis,
