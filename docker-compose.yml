@@ -30,6 +30,8 @@ services:
         condition: service_healthy
     ports:
       - "3000:3000"
+    volumes:
+      - ./openapi.yaml:/app/openapi.yaml:ro
 
 volumes:
   agentbank_pg:

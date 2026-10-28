@@ -83,3 +83,6 @@ jobs:
 
       - name: Build Vite app
         run: npm run build
+
+      - name: Syntax check MCP server and SDK
+        run: node --check mcp-server/index.js && node --check sdk/index.js

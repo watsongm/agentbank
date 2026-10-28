@@ -2,7 +2,7 @@
 // See docs/adr/0001-backend-stack.md for stack rationale.
 // See docs/adr/0002-security-model.md for security layer rationale.
 
-import Fastify, { type FastifyInstance } from "fastify";
+import Fastify from "fastify";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import sensible from "@fastify/sensible";
@@ -10,7 +10,7 @@ import rateLimit from "@fastify/rate-limit";
 
 import { prisma } from "./lib/db.js";
 import { SEED } from "./lib/constants.js";
-import { errorHandler, BadRequest } from "./lib/errors.js";
+import { errorHandler } from "./lib/errors.js";
 import { fapiPlugin } from "./lib/fapi.js";
 import { authPlugin } from "./lib/auth.js";
 import {
@@ -18,8 +18,6 @@ import {
   ConsentScope,
   requiresScope,
   requiresAnyScope,
-  mapOAuthScopesToConsentScopes,
-  ALL_SCOPES,
 } from "./lib/consent.js";
 import {
   auditPlugin,
@@ -68,12 +66,12 @@ async function buildServer() {
     process.env.LOG_PRETTY === "1"
       ? {
           level: LOG_LEVEL,
-          serializers: loggerSerializers,
+          serializers: loggerSerializers as any,
           transport: { target: "pino-pretty", options: { colorize: true } },
         }
       : {
           level: LOG_LEVEL,
-          serializers: loggerSerializers,
+          serializers: loggerSerializers as any,
         };
 
   const app = Fastify({

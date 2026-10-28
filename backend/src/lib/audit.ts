@@ -165,41 +165,43 @@ export const auditPlugin = fp(async function (fastify: FastifyInstance) {
           recentAuditEvents.shift();
         }
 
-        // Write primary AuditEvent record
-        await prisma.auditEvent.create({
-          data: {
-            requestId: req.id,
-            customerId,
-            tool,
-            paramsHash: paramsHash ?? undefined,
-            statusCode: reply.statusCode,
-            latencyMs,
-          },
-        });
-
-        // Asynchronously write hash-chained AuditLog entry (non-blocking)
-        void prisma.auditLog
-          .create({
+        if (process.env.DATABASE_URL) {
+          // Write primary AuditEvent record
+          await prisma.auditEvent.create({
             data: {
-              ts: new Date(timestamp),
-              humanPrincipalId: customerId,
-              agentIdentity:
-                (req.headers["user-agent"] as string)?.slice(0, 120) ?? "agentbank-client",
-              method: req.method,
-              path,
-              scopeUsed: req.consent?.scopes?.join(" ") ?? null,
-              fapiInteractionId,
+              requestId: req.id,
+              customerId,
+              tool,
+              paramsHash: paramsHash ?? undefined,
               statusCode: reply.statusCode,
               latencyMs,
-              requestHash: paramsHash ?? sha256String(""),
-              responseHash: "",
-              prevHash,
-              rowHash,
             },
-          })
-          .catch(() => {
-            // Non-blocking secondary log
           });
+
+          // Asynchronously write hash-chained AuditLog entry (non-blocking)
+          void prisma.auditLog
+            .create({
+              data: {
+                ts: new Date(timestamp),
+                humanPrincipalId: customerId,
+                agentIdentity:
+                  (req.headers["user-agent"] as string)?.slice(0, 120) ?? "agentbank-client",
+                method: req.method,
+                path,
+                scopeUsed: req.consent?.scopes?.join(" ") ?? null,
+                fapiInteractionId,
+                statusCode: reply.statusCode,
+                latencyMs,
+                requestHash: paramsHash ?? sha256String(""),
+                responseHash: "",
+                prevHash,
+                rowHash,
+              },
+            })
+            .catch(() => {
+              // Non-blocking secondary log
+            });
+        }
       } catch (err) {
         // Never let audit failures break the response
         req.log.error({ err }, "audit: failed to write AuditEvent");

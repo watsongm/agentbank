@@ -83,33 +83,35 @@ export async function oauthRoutes(app: FastifyInstance) {
 
     // Non-blocking persistence of Consent if client + party exist in DB
     const clientId = input.client_id || "agentbank-sdk";
-    void (async () => {
-      try {
-        const [client, party] = await Promise.all([
-          prisma.client.findUnique({ where: { clientId } }),
-          prisma.party.findFirst({
-            where: { OR: [{ partyRef: customerId }, { id: customerId }] },
-          }),
-        ]);
-        if (client && party) {
-          const consentRef = `CNS-${Date.now().toString(36).toUpperCase()}-${Math.floor(
-            100 + Math.random() * 900,
-          )}`;
-          await prisma.consent.create({
-            data: {
-              consentRef,
-              partyId: party.id,
-              clientId: client.id,
-              scopes,
-              status: "ACTIVE",
-              expiresAt: expiresAtDate,
-            },
-          });
+    if (process.env.DATABASE_URL) {
+      void (async () => {
+        try {
+          const [client, party] = await Promise.all([
+            prisma.client.findUnique({ where: { clientId } }),
+            prisma.party.findFirst({
+              where: { OR: [{ partyRef: customerId }, { id: customerId }] },
+            }),
+          ]);
+          if (client && party) {
+            const consentRef = `CNS-${Date.now().toString(36).toUpperCase()}-${Math.floor(
+              100 + Math.random() * 900,
+            )}`;
+            await prisma.consent.create({
+              data: {
+                consentRef,
+                partyId: party.id,
+                clientId: client.id,
+                scopes,
+                status: "ACTIVE",
+                expiresAt: expiresAtDate,
+              },
+            });
+          }
+        } catch {
+          // Non-blocking audit/consent persistence
         }
-      } catch {
-        // Non-blocking audit/consent persistence
-      }
-    })();
+      })();
+    }
 
     return {
       access_token: accessToken,

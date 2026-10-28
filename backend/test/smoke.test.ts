@@ -5,7 +5,6 @@
 // break local typecheck-only runs or CI jobs that only typecheck the frontend.
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import type { FastifyInstance } from "fastify";
 import { SEED } from "../src/lib/constants.js";
 
 const HAS_DB = !!process.env.DATABASE_URL;
@@ -15,7 +14,7 @@ const HAS_DB = !!process.env.DATABASE_URL;
 const AUTH = { authorization: "Bearer demo-token" };
 
 describe.skipIf(!HAS_DB)("agentBANK backend smoke", () => {
-  let app: FastifyInstance;
+  let app: Awaited<ReturnType<(typeof import("../src/server.js"))["buildServer"]>>;
 
   beforeAll(async () => {
     const mod = await import("../src/server.js");
@@ -64,7 +63,7 @@ describe.skipIf(!HAS_DB)("agentBANK backend smoke", () => {
     expect(res.statusCode).toBe(401);
   });
 
-  // ── Party ──────────────────────────────────────────────────────────────────
+  // ── Domain 1: Party ────────────────────────────────────────────────────────
 
   it("GET /open-banking/v3.1/party returns the seeded authenticated party", async () => {
     const res = await app.inject({
@@ -78,7 +77,7 @@ describe.skipIf(!HAS_DB)("agentBANK backend smoke", () => {
     expect(body.Data.Party.kycStatus).toBe("VERIFIED");
   });
 
-  // ── Accounts ───────────────────────────────────────────────────────────────
+  // ── Domain 2: Accounts ─────────────────────────────────────────────────────
 
   it("GET /open-banking/v3.1/accounts lists at least one account", async () => {
     const res = await app.inject({
@@ -103,7 +102,46 @@ describe.skipIf(!HAS_DB)("agentBANK backend smoke", () => {
     expect(Number(body.accountBalance.available)).toBeGreaterThan(0);
   });
 
-  // ── Transactions ───────────────────────────────────────────────────────────
+  it("POST /bian/current-account/initiate and PUT /bian/current-account/:accountId/update create and update a current account", async () => {
+    const initRes = await app.inject({
+      method: "POST",
+      url: "/bian/current-account/initiate",
+      headers: AUTH,
+      payload: {
+        partyId: SEED.ARIA_PARTY_REF,
+        productName: "Agent Cash Management",
+        currency: "GBP",
+        overdraftLimit: 500,
+      },
+    });
+    expect(initRes.statusCode).toBe(201);
+    const created = (
+      initRes.json() as {
+        currentAccountFacility: { accountRef: string; overdraftLimit: string };
+      }
+    ).currentAccountFacility;
+    expect(created.accountRef).toMatch(/^ACC-/);
+
+    const updateRes = await app.inject({
+      method: "PUT",
+      url: `/bian/current-account/${created.accountRef}/update`,
+      headers: AUTH,
+      payload: {
+        productName: "Agent Cash Management Plus",
+        overdraftLimit: 1000,
+      },
+    });
+    expect(updateRes.statusCode).toBe(200);
+    const updated = (
+      updateRes.json() as {
+        currentAccountFacility: { productName: string; overdraftLimit: string };
+      }
+    ).currentAccountFacility;
+    expect(updated.productName).toBe("Agent Cash Management Plus");
+    expect(Number(updated.overdraftLimit)).toBe(1000);
+  });
+
+  // ── Domain 4: Transactions ─────────────────────────────────────────────────
 
   it("transactions list returns paginated items with cursor", async () => {
     const res = await app.inject({
@@ -117,7 +155,22 @@ describe.skipIf(!HAS_DB)("agentBANK backend smoke", () => {
     expect(body.Links.Next).toBeDefined();
   });
 
-  // ── Payments — Phase 4 ─────────────────────────────────────────────────────
+  it("GET /open-banking/v3.1/accounts/ACC-1829/transactions with fromBookingDateTime and limit=5 returns next_cursor", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: `/open-banking/v3.1/accounts/${SEED.ARIA_CURRENT_REF}/transactions?fromBookingDateTime=2020-01-01&limit=5`,
+      headers: AUTH,
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as {
+      Data: { Transaction: unknown[] };
+      next_cursor: string | null;
+    };
+    expect(body.Data.Transaction).toHaveLength(5);
+    expect(body.next_cursor).toBeTruthy();
+  });
+
+  // ── Domain 3: Payments — Phase 4 ───────────────────────────────────────────
 
   it("POST /open-banking/v3.1/domestic-payments initiates a payment and returns PAY ref", async () => {
     // Resolve debtor and creditor from seeded accounts
@@ -248,5 +301,247 @@ describe.skipIf(!HAS_DB)("agentBANK backend smoke", () => {
     });
     expect(res.statusCode).toBe(404);
     expect((res.json() as { Code: string }).Code).toBe("NotFound");
+  });
+
+  // ── Domain 5: Consumer Lending ─────────────────────────────────────────────
+
+  it("Domain 5 (Lending): retrieve loan, repayment-schedule, and initiate loan", async () => {
+    const retrieveRes = await app.inject({
+      method: "GET",
+      url: `/bian/consumer-loan/${SEED.MAHLI_LOAN_REF}/retrieve`,
+      headers: AUTH,
+    });
+    expect(retrieveRes.statusCode).toBe(200);
+    const loanBody = retrieveRes.json() as {
+      consumerLoanFacility: { loanRef: string };
+    };
+    expect(loanBody.consumerLoanFacility.loanRef).toBe(SEED.MAHLI_LOAN_REF);
+
+    const schedRes = await app.inject({
+      method: "GET",
+      url: `/bian/consumer-loan/${SEED.MAHLI_LOAN_REF}/repayment-schedule`,
+      headers: AUTH,
+    });
+    expect(schedRes.statusCode).toBe(200);
+    const schedBody = schedRes.json() as {
+      repaymentSchedule: { schedule: unknown[] };
+    };
+    expect(Array.isArray(schedBody.repaymentSchedule.schedule)).toBe(true);
+
+    const initRes = await app.inject({
+      method: "POST",
+      url: "/bian/consumer-loan/initiate",
+      headers: AUTH,
+      payload: {
+        partyId: SEED.ARIA_PARTY_REF,
+        requestedAmount: 5000,
+        currency: "GBP",
+        termMonths: 24,
+        purpose: "Home office upgrade",
+      },
+    });
+    expect(initRes.statusCode).toBe(201);
+    const initBody = initRes.json() as {
+      consumerLoanFacility: { loanRef: string };
+    };
+    expect(initBody.consumerLoanFacility.loanRef).toMatch(/^LOAN-/);
+  });
+
+  // ── Domain 6: Credit & Debit Cards ─────────────────────────────────────────
+
+  it("Domain 6 (Cards): retrieve card, BLOCK then UNBLOCK, and fetch statements", async () => {
+    const cardRes = await app.inject({
+      method: "GET",
+      url: `/bian/credit-card/${SEED.ARIA_CARD_REF}/retrieve`,
+      headers: AUTH,
+    });
+    expect(cardRes.statusCode).toBe(200);
+    const cardBody = cardRes.json() as {
+      creditCardFacility: { cardRef: string };
+    };
+    expect(cardBody.creditCardFacility.cardRef).toBe(SEED.ARIA_CARD_REF);
+
+    const blockRes = await app.inject({
+      method: "POST",
+      url: `/bian/credit-card/${SEED.ARIA_CARD_REF}/request`,
+      headers: AUTH,
+      payload: { action: "BLOCK", reason: "Smoke test block" },
+    });
+    expect(blockRes.statusCode).toBe(200);
+    expect(
+      (blockRes.json() as { creditCardFacility: { status: string } })
+        .creditCardFacility.status,
+    ).toBe("BLOCKED");
+
+    const unblockRes = await app.inject({
+      method: "POST",
+      url: `/bian/credit-card/${SEED.ARIA_CARD_REF}/request`,
+      headers: AUTH,
+      payload: { action: "UNBLOCK" },
+    });
+    expect(unblockRes.statusCode).toBe(200);
+    expect(
+      (unblockRes.json() as { creditCardFacility: { status: string } })
+        .creditCardFacility.status,
+    ).toBe("ACTIVE");
+
+    const stmtRes = await app.inject({
+      method: "GET",
+      url: `/open-banking/v3.1/accounts/${SEED.ARIA_CURRENT_REF}/statements`,
+      headers: AUTH,
+    });
+    expect(stmtRes.statusCode).toBe(200);
+    const stmtBody = stmtRes.json() as { Data: { Statement: unknown[] } };
+    expect(Array.isArray(stmtBody.Data.Statement)).toBe(true);
+  });
+
+  // ── Domain 7: Savings & Deposits ───────────────────────────────────────────
+
+  it("Domain 7 (Savings): retrieve savings account and interest projection", async () => {
+    const savRes = await app.inject({
+      method: "GET",
+      url: `/bian/savings-account/${SEED.ARIA_SAVINGS_REF}/retrieve`,
+      headers: AUTH,
+    });
+    expect(savRes.statusCode).toBe(200);
+    const savBody = savRes.json() as {
+      savingsAccountFacility: { accountRef: string };
+    };
+    expect(savBody.savingsAccountFacility.accountRef).toBe(SEED.ARIA_SAVINGS_REF);
+
+    const intRes = await app.inject({
+      method: "GET",
+      url: `/bian/savings-account/${SEED.ARIA_SAVINGS_REF}/interest`,
+      headers: AUTH,
+    });
+    expect(intRes.statusCode).toBe(200);
+    const intBody = intRes.json() as {
+      interestApplication: { annualRatePercent: number };
+    };
+    expect(intBody.interestApplication.annualRatePercent).toBeGreaterThan(0);
+  });
+
+  // ── Domain 8: Investment Portfolio ─────────────────────────────────────────
+
+  it("Domain 8 (Investments): retrieve portfolio, BUY 0.5 shares of AAPL, and get performance", async () => {
+    const portRes = await app.inject({
+      method: "GET",
+      url: `/bian/investment-portfolio/${SEED.ARIA_PORTFOLIO_REF}/retrieve`,
+      headers: AUTH,
+    });
+    expect(portRes.statusCode).toBe(200);
+    const portBody = portRes.json() as {
+      investmentPortfolio: { portfolioRef: string };
+    };
+    expect(portBody.investmentPortfolio.portfolioRef).toBe(
+      SEED.ARIA_PORTFOLIO_REF,
+    );
+
+    const orderRes = await app.inject({
+      method: "POST",
+      url: `/bian/investment-portfolio/${SEED.ARIA_PORTFOLIO_REF}/request`,
+      headers: AUTH,
+      payload: {
+        instrument: "AAPL",
+        quantity: 0.5,
+        direction: "BUY",
+      },
+    });
+    expect(orderRes.statusCode).toBe(201);
+    const orderBody = orderRes.json() as {
+      orderExecution: { instrument: string; direction: string };
+    };
+    expect(orderBody.orderExecution.instrument).toBe("AAPL");
+    expect(orderBody.orderExecution.direction).toBe("BUY");
+
+    const perfRes = await app.inject({
+      method: "GET",
+      url: `/bian/investment-portfolio/${SEED.ARIA_PORTFOLIO_REF}/performance`,
+      headers: AUTH,
+    });
+    expect(perfRes.statusCode).toBe(200);
+    const perfBody = perfRes.json() as {
+      portfolioPerformance: { portfolioRef: string };
+    };
+    expect(perfBody.portfolioPerformance.portfolioRef).toBe(
+      SEED.ARIA_PORTFOLIO_REF,
+    );
+  });
+
+  // ── Domain 9: Regulatory Compliance ────────────────────────────────────────
+
+  it("Domain 9 (Compliance): evaluate AML screen, retrieve CASE-9001, and initiate regulatory report", async () => {
+    const evalRes = await app.inject({
+      method: "POST",
+      url: "/bian/aml-screening/evaluate",
+      headers: AUTH,
+      payload: {
+        subjectType: "party",
+        subjectId: SEED.ARIA_PARTY_REF,
+      },
+    });
+    expect(evalRes.statusCode).toBe(200);
+    const evalBody = evalRes.json() as {
+      amlScreening: { outcome: string };
+    };
+    expect(evalBody.amlScreening.outcome).toBeDefined();
+
+    const caseRes = await app.inject({
+      method: "GET",
+      url: `/bian/aml-screening/${SEED.ARIA_CASE_REF}/retrieve`,
+      headers: AUTH,
+    });
+    expect(caseRes.statusCode).toBe(200);
+    const caseBody = caseRes.json() as {
+      amlScreening: { caseRef: string };
+    };
+    expect(caseBody.amlScreening.caseRef).toBe(SEED.ARIA_CASE_REF);
+
+    const repRes = await app.inject({
+      method: "POST",
+      url: "/bian/regulatory-reporting/initiate",
+      headers: AUTH,
+      payload: {
+        reportType: "SARReport",
+        jurisdiction: "UK-FCA",
+        subjectId: SEED.ARIA_PARTY_REF,
+      },
+    });
+    expect(repRes.statusCode).toBe(201);
+    const repBody = repRes.json() as {
+      regulatoryReport: { reportId: string };
+    };
+    expect(repBody.regulatoryReport.reportId).toBeDefined();
+  });
+
+  // ── Domain 10: Customer Notifications ──────────────────────────────────────
+
+  it("Domain 10 (Notifications): subscribe webhook and list event history for PAR-ARIA", async () => {
+    const subRes = await app.inject({
+      method: "POST",
+      url: "/bian/customer-event-history/webhook",
+      headers: AUTH,
+      payload: {
+        partyId: SEED.ARIA_PARTY_REF,
+        eventTypes: ["payment.completed", "balance.threshold"],
+        webhookUrl: "https://example.com/webhooks/agentbank",
+      },
+    });
+    expect(subRes.statusCode).toBe(201);
+    const subBody = subRes.json() as {
+      subscription: { subscriptionRef: string };
+    };
+    expect(subBody.subscription.subscriptionRef).toMatch(/^SUB-/);
+
+    const listRes = await app.inject({
+      method: "GET",
+      url: `/bian/customer-event-history/${SEED.ARIA_PARTY_REF}/list`,
+      headers: AUTH,
+    });
+    expect(listRes.statusCode).toBe(200);
+    const listBody = listRes.json() as {
+      customerEventHistory: { partyRef: string };
+    };
+    expect(listBody.customerEventHistory.partyRef).toBe(SEED.ARIA_PARTY_REF);
   });
 });

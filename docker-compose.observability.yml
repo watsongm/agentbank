@@ -2,12 +2,9 @@
 #
 # Extends the base docker-compose.yml with a full observability stack.
 # Run with:
-#   docker compose -f docker-compose.yml -f docker-compose.observability.yml up
+#   docker compose -f docker-compose.yml -f docker-compose.observability.yml --profile observability up
 #
-# Or use the convenience alias:
-#   docker compose -f docker-compose.observability.yml up   (pulls base automatically)
-#
-# Services added:
+# Services added (under --profile observability):
 #   prometheus  — scrapes /metrics from the backend every 15 s  → http://localhost:9090
 #   grafana     — pre-provisioned dashboard                     → http://localhost:3001
 #                 login: admin / agentbank

@@ -161,17 +161,17 @@ The diagram shows the target architecture. The backend currently implements the 
 | # | Domain | BIAN Service Domain | Endpoints | Agent Tools | Backend |
 |---|--------|---------------------|-----------|-------------|---------|
 | 1 | Party Reference Data | SD-PartyReferenceDataManagement | 4 | 4 | ✅ live |
-| 2 | Current Account | SD-CurrentAccount | 5 | 4 | ⚡ partial (3/5) |
+| 2 | Current Account | SD-CurrentAccount | 5 | 4 | ✅ live |
 | 3 | Payment Execution | SD-PaymentExecution | 6 | 5 | ✅ live |
 | 4 | Transaction Engine | SD-AccountingTransactions | 4 | 5 | ✅ live |
-| 5 | Consumer Lending | SD-ConsumerLoan | 5 | 5 | 🔲 pending |
-| 6 | Credit and Debit Cards | SD-CreditCard | 5 | 5 | 🔲 pending |
-| 7 | Savings and Deposits | SD-SavingsAccount | 4 | 5 | 🔲 pending |
-| 8 | Investment Portfolio | SD-InvestmentPortfolioManagement | 4 | 5 | 🔲 pending |
-| 9 | Regulatory Compliance | SD-RegulatoryReporting | 4 | 4 | 🔲 pending |
-| 10 | Customer Notifications | SD-CustomerEventHistory | 3 | 4 | 🔲 pending |
+| 5 | Consumer Lending | SD-ConsumerLoan | 5 | 5 | ✅ live |
+| 6 | Credit and Debit Cards | SD-CreditCard | 5 | 5 | ✅ live |
+| 7 | Savings and Deposits | SD-SavingsAccount | 4 | 5 | ✅ live |
+| 8 | Investment Portfolio | SD-InvestmentPortfolioManagement | 4 | 5 | ✅ live |
+| 9 | Regulatory Compliance | SD-RegulatoryReporting | 4 | 4 | ✅ live |
+| 10 | Customer Notifications | SD-CustomerEventHistory | 3 | 4 | ✅ live |
 
-**Target: 44 endpoints · 14 agent tool functions.** The frontend mock and MCP server expose all 14 tools; the backend currently implements 17 of 44 endpoints across 4 of 10 domains.
+**Target: 44 endpoints · 14 agent tool functions.** All 44 endpoints and 14 agent tool functions are implemented across all 10 BIAN service domains in the backend, MCP server, SDK, and frontend mock.
 
 ---
 
@@ -337,14 +337,16 @@ Distributed trace waterfall: **agent session → BIAN service domain → core ba
 
 | Mechanism | Purpose | Status |
 |-----------|---------|--------|
-| Bearer token auth | Gate all non-public API routes | ✅ live — `lib/auth.ts` validates `Authorization: Bearer <token>` on every request; accepts `AGENTBANK_TOKEN` env var or `demo-token` |
+| Bearer token auth | Gate all non-public API routes | ✅ live — `lib/auth.ts` validates `Authorization: Bearer <token>` on every request; accepts `AGENTBANK_TOKEN` env var, `demo-token`, or scoped consent tokens |
 | FAPI interaction ID | Correlate requests across agent sessions | ✅ live — `lib/fapi.ts` generates / echoes `x-fapi-interaction-id` on every response |
 | Payment idempotency | Prevent double-posting on retries | ✅ live — FAPI ID is `@unique` in DB; `paymentsService.initiate()` checks before posting |
+| OAuth `/open-banking/v3.1/oauth/token` | Mint scoped consent tokens for agents | ✅ live — `domains/oauth/routes.ts` issues base64-encoded JSON consent tokens with requested scopes |
+| Consent scopes | Fine-grained per-domain permissions (`accounts:read`, `payments:write`, etc.) | ✅ live — `lib/consent.ts` enforces 18 `ConsentScope` permissions across all 10 BIAN domains |
+| DPoP proof & `jti` replay verification | Binds tokens to the requesting agent instance & prevents replay | ✅ live — `lib/dpop.ts` validates RFC 9449 DPoP headers, `htm` claim, and `jti` TTL replay cache |
+| Per-customer payment rate limiting | Protect payment endpoints from runaway agent loops | ✅ live — `@fastify/rate-limit` enforces 10 req/min per `customerId` on payment initiation routes |
+| Immutable SHA-256 hash-chained audit log | Every agent action logged with cryptographic tamper detection | ✅ live — `lib/audit.ts` computes SHA-256 `rowHash`/`prevHash` chain and exposes `/observability/audit-verify` |
 | PAR (Pushed Authorisation Requests) | Consent initiation — prevents token interception | 🔲 pending |
-| DPoP (Demonstration of Proof of Possession) | Binds tokens to the requesting agent instance | 🔲 pending |
-| Consent scopes | Fine-grained per-domain permissions (`accounts:read`, `payments:write`, etc.) | 🔲 pending |
 | Step-up authentication | Required for high-value operations above configurable thresholds | 🔲 pending |
-| Immutable audit log | Every agent action logged with full parameter capture | Schema in place; hash-chain protocol in ADR-0002 (drafting) |
 
 ---
 
@@ -367,7 +369,8 @@ Distributed trace waterfall: **agent session → BIAN service domain → core ba
 ```
 agentbank/
 ├── .claude/skills/agentbank-build/   # /agentbank-build Claude Code skill
-├── .github/workflows/ci.yml          # frontend build + backend smoke + MCP lint
+├── .github/workflows/ci.yml          # frontend build + backend unit & smoke + MCP/SDK check
+├── Agents/                           # Multi-agent engineering role definitions & orchestration
 ├── backend/                          # Runnable backend — Fastify + Prisma + Postgres
 │   ├── prisma/
 │   │   ├── schema.prisma             # 10 BIAN domains + audit log + consent + metering
@@ -375,23 +378,38 @@ agentbank/
 │   │   └── migrations/               # SQL migration files
 │   ├── src/
 │   │   ├── server.ts                 # Fastify entrypoint
-│   │   └── lib/
-│   │       ├── auth.ts               # Bearer token validation plugin
-│   │       ├── constants.ts          # Canonical seeded entity refs
-│   │       ├── db.ts                 # Prisma singleton
-│   │       ├── errors.ts             # AgentBankError + OB error envelope
-│   │       ├── fapi.ts               # x-fapi-interaction-id plugin
-│   │       └── openapi.ts            # Serves openapi.yaml at /openapi.json
+│   │   ├── lib/
+│   │   │   ├── audit.ts              # SHA-256 hash-chained audit ring buffer + DB persistence
+│   │   │   ├── auth.ts               # Bearer token & consent validation plugin
+│   │   │   ├── consent.ts            # 18-scope FAPI 2.0 consent manager
+│   │   │   ├── constants.ts          # Canonical seeded entity refs
+│   │   │   ├── db.ts                 # Prisma singleton
+│   │   │   ├── dpop.ts               # RFC 9449 DPoP proof & jti replay protection
+│   │   │   ├── errors.ts             # AgentBankError + OB error envelope + ZodError 400
+│   │   │   ├── fapi.ts               # x-fapi-interaction-id plugin
+│   │   │   ├── logger.ts             # Structured pino serializers
+│   │   │   ├── metrics.ts            # Prometheus /metrics exporter
+│   │   │   └── openapi.ts            # Serves openapi.yaml at /openapi.json
 │   │   └── domains/
-│   │       ├── party/                # routes.ts · service.ts · schema.ts
-│   │       ├── accounts/
-│   │       ├── transactions/
-│   │       └── payments/
-│   ├── test/smoke.test.ts            # 14-test vitest smoke suite (CI gate)
+│   │       ├── party/                # SD-PartyReferenceDataManagement (4 endpoints)
+│   │       ├── accounts/             # SD-CurrentAccount (5 endpoints)
+│   │       ├── payments/             # SD-PaymentExecution (6 endpoints)
+│   │       ├── transactions/         # SD-AccountingTransactions (4 endpoints)
+│   │       ├── lending/              # SD-ConsumerLoan (5 endpoints)
+│   │       ├── cards/                # SD-CreditCard (5 endpoints)
+│   │       ├── savings/              # SD-SavingsAccount (4 endpoints)
+│   │       ├── investments/          # SD-InvestmentPortfolioManagement (4 endpoints)
+│   │       ├── compliance/           # SD-RegulatoryReporting (4 endpoints)
+│   │       ├── notifications/        # SD-CustomerEventHistory (3 endpoints)
+│   │       └── oauth/                # POST /open-banking/v3.1/oauth/token
+│   ├── test/
+│   │   ├── unit.test.ts              # Always-run unit & HTTP contract test suite (no DB required)
+│   │   └── smoke.test.ts             # Full Postgres integration smoke suite across all 10 domains
 │   ├── Dockerfile
 │   └── package.json
 ├── docs/adr/
-│   └── 0001-backend-stack.md
+│   ├── 0001-backend-stack.md
+│   └── 0002-security-model.md
 ├── mcp-server/
 │   ├── index.js                      # 14 MCP tools, retry + timeout, consent passthrough
 │   └── package.json
@@ -399,20 +417,27 @@ agentbank/
 │   └── index.js                      # AgentBankAgent class — all 14 tools, retry + timeout
 ├── src/                              # Frontend showcase (React + Vite)
 │   ├── main.jsx
-│   ├── App.jsx                       # Tabbed layout, API Console, agent flows
-│   ├── Observability.jsx             # LLM metrics + trace log + OTel waterfall
+│   ├── App.jsx                       # Tabbed layout shell
+│   ├── Observability.jsx             # LLM metrics + trace log + OTel waterfall + live polling
+│   ├── api/
+│   │   └── client.js                 # Unified API client (live backend with mock fallback)
+│   ├── context/
+│   │   └── RuntimeModeContext.jsx    # Live / Mock runtime toggle context
 │   ├── components/
 │   │   ├── McpTab.jsx
-│   │   └── SdkTab.jsx
+│   │   ├── SdkTab.jsx
+│   │   ├── tabs/                     # Modularized tab views (Overview, Domains, Tools, Console, etc.)
+│   │   └── observability/            # Modularized observability panels
 │   ├── data/
 │   └── mock/
-│       ├── api.js                    # Routing-table mock (swap for fetch() against backend)
+│       ├── api.js                    # Routing-table mock (44 endpoints)
 │       ├── constants.js              # Canonical seeded entity refs (mirrors backend/src/lib/constants.ts)
 │       └── sessions.js               # Simulated observability session data
 ├── public/favicon.svg
 ├── agentbank-executive-visuals.html  # Standalone exec deck (no build step)
 ├── docker-compose.yml
-├── openapi.yaml                      # Canonical OpenAPI v3.1.11 spec
+├── docker-compose.observability.yml
+├── openapi.yaml                      # Canonical OpenAPI v3.1.0 spec (44 endpoints + OAuth)
 ├── index.html
 ├── vite.config.js
 └── package.json
@@ -484,21 +509,22 @@ agentBANK is designed around a **developer-first, agent-builder revenue model**:
 - [x] MCP server — all 14 tools via `@modelcontextprotocol/sdk` stdio transport
 - [x] Executive visuals — five-exhibit standalone HTML deck
 - [x] Runnable backend — Fastify + Prisma + Postgres, OpenAPI at `/docs`
-- [x] Backend tier 1 domains — Party, Accounts (partial), Payments, Transactions
-- [x] CI — frontend build, backend smoke test against Postgres, MCP lint
+- [x] Backend tier 1 domains — Party, Accounts, Payments, Transactions
+- [x] CI — frontend build, backend unit & smoke test against Postgres, MCP/SDK syntax check
 - [x] Bearer auth plugin — `lib/auth.ts` gates all non-public routes
 - [x] Payment correctness — Decimal arithmetic, idempotency `@unique` constraint
 - [x] SDK resilience — timeout, retry, explicit auth failure
 - [x] Mock routing table — explicit `{ method, pattern, handler }` entries
 - [x] Shared seed constants — `src/mock/constants.js` + `backend/src/lib/constants.ts`
-- [ ] Backend tier 2 domains — Lending, Cards, Savings, Investments, Compliance, Notifications
-- [ ] FAPI 2.0 full profile — PAR + DPoP, consent scopes, step-up auth
-- [ ] Audit log hash-chain (ADR-0002 — drafting)
-- [ ] Wire observability dashboard to live OpenTelemetry from the backend
+- [x] Backend tier 2 domains — Lending, Cards, Savings, Investments, Compliance, Notifications
+- [x] Consent scopes & DPoP proof verification (`lib/consent.ts`, `lib/dpop.ts`)
+- [x] Audit log SHA-256 hash-chain (`lib/audit.ts`, ADR-0002)
+- [x] Wire observability dashboard to live backend telemetry (`/observability/sessions`, `/metrics`)
+- [x] Frontend `App.jsx` & `Observability.jsx` modularization (`src/components/tabs/`, `src/components/observability/`)
+- [x] OAuth 2.0 consent token issuance flow (`POST /open-banking/v3.1/oauth/token`)
+- [ ] FAPI 2.0 PAR (Pushed Authorisation Requests) & step-up authentication
 - [ ] WebSocket support for real-time event streaming
-- [ ] Frontend `App.jsx` component split
 - [ ] Additional BIAN domains (Trade Finance, Correspondent Banking)
-- [ ] Consent management flow
 
 ---
 
