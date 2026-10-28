@@ -930,7 +930,7 @@ export default function App() {
               <div className="hero-dot" />
               AGENTBANK CORE · BIAN v12 · OPEN BANKING v3.1 · FAPI 2.0 · MCP 1.0
             </div>
-            <h1>The Core Banking<br />Platform Built for<br /><em>AI Agents</em></h1>
+            <h1>The <em>Agent First</em><br />Banking Platform</h1>
             <p className="hero-p">
               agentBANK combines the UK Open Banking v3.1 API standard with the BIAN v12 Service Domain capability model — exposing 10 core banking domains and 14 typed primitives to AI agents as a cryptographically audited customer channel.
             </p>
