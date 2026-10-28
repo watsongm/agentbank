@@ -1,247 +1,111 @@
-# agentBANK
+# agentBANK — The Agent First Banking Platform
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Open%20Banking-v3.1-C9A84C?style=for-the-badge" alt="Open Banking v3.1"/>
-  <img src="https://img.shields.io/badge/BIAN-v12-0d0f14?style=for-the-badge" alt="BIAN v12"/>
-  <img src="https://img.shields.io/badge/MCP-1.0-4fc3f7?style=for-the-badge" alt="MCP 1.0"/>
-  <img src="https://img.shields.io/badge/React-18-61dafb?style=for-the-badge&logo=react" alt="React 18"/>
-  <img src="https://img.shields.io/badge/FAPI-2.0-4fc3f7?style=for-the-badge" alt="FAPI 2.0"/>
-  <img src="https://img.shields.io/badge/License-MIT-00e676?style=for-the-badge" alt="MIT"/>
-</p>
-
-<p align="center">
+  <img src="https://img.shields.io/badge/BIAN-v12%20(10%20Domains)-2563EB?style=for-the-badge" alt="BIAN v12"/>
+  <img src="https://img.shields.io/badge/Open%20Banking-v3.1%20(44%20Endpoints)-0B1120?style=for-the-badge" alt="Open Banking v3.1"/>
+  <img src="https://img.shields.io/badge/MCP%20%26%20SDK-14%20Tools-0EA5E9?style=for-the-badge" alt="MCP 1.0 & SDK"/>
+  <img src="https://img.shields.io/badge/Security-FAPI%202.0%20%2B%20DPoP%20%2B%20SHA256-10B981?style=for-the-badge" alt="FAPI 2.0 + SHA-256"/>
   <a href="https://github.com/watsongm/agentbank/actions/workflows/ci.yml">
-    <img src="https://github.com/watsongm/agentbank/actions/workflows/ci.yml/badge.svg" alt="CI"/>
+    <img src="https://github.com/watsongm/agentbank/actions/workflows/ci.yml/badge.svg?style=for-the-badge" alt="CI"/>
   </a>
 </p>
 
 <p align="center">
-  <strong>The AI-native reference bank — built on Open Banking API v3.1 and the BIAN Service Domain Model v12, with AI agents as a first-class customer channel.</strong>
+  <strong>An AI-native core banking reference platform combining UK Open Banking v3.1 and the BIAN v12 Service Domain model — built from the ground up with AI agents as a first-class, cryptographically audited customer channel.</strong>
 </p>
 
 ---
 
-## What is agentBANK?
+## Why Agent-First Banking?
 
-agentBANK answers a single architectural question:
+Traditional banking APIs were designed for mobile screen navigation. When a customer's primary interface is an AI agent, banking products stop being screens and become **composable, schema-validated primitives** sitting inside a four-layer stack:
 
-> *What would a bank look like if it were built from the ground up with AI agents as the primary customer channel?*
-
-Most banks designed their APIs for human-facing mobile apps and data aggregators — not for autonomous agents that call dozens of endpoints in a single session, require structured tool interfaces, and need auditable reasoning trails for regulatory compliance.
-
-agentBANK combines the **UK Open Banking API v3.1** and the **BIAN Service Domain Model v12** with a native agent interface layer: 14 typed tool functions, FAPI-grade bearer authentication, consent-scoped operations, real-time webhook subscriptions, a full observability stack, and a **Model Context Protocol (MCP) server** that exposes all banking tools directly to MCP-compatible AI clients.
+```text
+┌────────────────────────────────────────────────────────────────────────────┐
+│  L1 · CONSUMER INTENT       Plain-language financial goals & constraints   │
+├────────────────────────────────────────────────────────────────────────────┤
+│  L2 · AGENT RUNTIME         MCP 1.0 Server (stdio) · @agentbank/sdk        │
+│                             14 typed banking primitives with Zod schemas   │
+├────────────────────────────────────────────────────────────────────────────┤
+│  L3 · DOMAIN RAILS          10 BIAN v12 Service Domains · 44 REST Routes   │
+│                             UK Open Banking v3.1 (AISP / PISP / Statements)│
+├────────────────────────────────────────────────────────────────────────────┤
+│  L4 · TRUST FABRIC          FAPI 2.0 Scoped Consent · RFC 9449 DPoP Guard  │
+│                             SHA-256 Hash-Chained Audit Ledger · OTel Spans │
+└────────────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
 ## Quick Start
 
-### Prerequisites
+### 1 · Interactive Platform & Executive Briefing (Zero-Dependency Mock Mode)
 
-- **Node.js 20+** and **npm 9+**
-- **Docker** (optional) — for the one-command backend + Postgres spin-up
-
-```bash
-git clone https://github.com/watsongm/agentbank.git
-cd agentbank
-```
-
-### 1 · Frontend showcase (no backend needed)
+Run the React + Vite platform locally with an in-memory BIAN/Open Banking mock engine (and one-click toggle to a live backend):
 
 ```bash
 npm install
-npm run dev        # http://localhost:5173
+npm run dev
 ```
 
-A React + Vite app backed by an in-memory mock. Explore the agent UX, browse the API Console, and watch the observability dashboard — no backend required.
+- **Interactive Platform, API Console & Observability**: <http://localhost:5173>
+- **Executive Architecture Briefing (5 Interactive Exhibits)**: <http://localhost:5173/agentbank-executive-visuals.html> (or open `agentbank-executive-visuals.html` directly in any browser)
 
-### 2 · Runnable backend
+### 2 · Live Core Banking Backend (Fastify + Prisma + PostgreSQL 16)
+
+Spin up the full backend and seeded PostgreSQL database via Docker Compose:
 
 ```bash
-docker compose up --build   # backend + Postgres — http://localhost:3000
+docker compose up --build   # Runs on http://localhost:3000
 ```
 
-Or against an existing Postgres:
+Or run directly against a local PostgreSQL instance:
 
 ```bash
 cd backend
-cp .env.example .env        # set DATABASE_URL
+cp ../.env.example .env
 npm install && npm run db:generate
-npx prisma db push --accept-data-loss --skip-generate
-npm run db:seed
+npx prisma db push && npm run db:seed
 npm run dev                 # http://localhost:3000
 ```
 
-Key URLs once running:
+| Endpoint | Purpose |
+| :--- | :--- |
+| `GET /docs` | Interactive Scalar OpenAPI 3.1 Reference UI |
+| `GET /openapi.json` | Canonical OpenAPI 3.1 specification (44 domain endpoints + OAuth) |
+| `POST /open-banking/v3.1/oauth/token` | Mint scoped FAPI 2.0 consent tokens (`accounts:read payments:write ...`) |
+| `GET /observability/sessions` | Live audit ring buffer & session telemetry stream |
+| `GET /observability/audit-verify` | Verify cryptographic integrity of the SHA-256 audit hash chain |
+| `GET /metrics` | Prometheus metrics exporter (`http_requests_total`, latency histograms) |
 
-| URL | What |
-|-----|------|
-| `GET /health` | Liveness + Postgres reachability |
-| `GET /docs` | Scalar API reference UI |
-| `GET /openapi.json` | Canonical OpenAPI v3.1.11 spec |
-| `GET /open-banking/v3.1/...` | Open Banking endpoints |
-| `GET /bian/...` | BIAN service-domain endpoints |
-
-> **Auth:** All endpoints except `/health`, `/`, `/openapi.json`, and `/docs` require `Authorization: Bearer <token>`. Use `Authorization: Bearer demo-token` locally or in CI.
-
-### 3 · MCP server
-
-```bash
-cd mcp-server
-npm install
-AGENTBANK_BASE_URL=http://localhost:3000 \
-AGENTBANK_TOKEN="Bearer demo-token" \
-  node index.js
-```
-
-### 4 · Executive visuals
-
-```bash
-open agentbank-executive-visuals.html      # macOS
-xdg-open agentbank-executive-visuals.html  # Linux
-```
-
-No build step, no server — opens directly in any browser.
-
-### Deploying the frontend
-
-**Netlify:** `npm run build` then drag `dist/` to <https://app.netlify.com/drop>.  
-**Vercel:** `npx vercel --prod`.
+> **Authentication:** Pass `Authorization: Bearer demo-token` for full-scope sandbox access (`PAR-ARIA`), or mint a least-privilege token via `POST /open-banking/v3.1/oauth/token`.
 
 ---
 
-## What's in this repo
+## 10 BIAN v12 Domains & 14 Agent Tool Primitives
 
-| Artifact | Path | Description |
-|----------|------|-------------|
-| **Frontend showcase** | `src/`, `index.html`, `vite.config.js` | React + Vite SPA — agent UX, API Console, and observability dashboard, backed by `src/mock/`. |
-| **Backend** | `backend/` | Fastify 4 + Prisma 5 + Postgres 16 — runnable reference implementation of the full OpenAPI surface and BIAN service domains. |
-| **MCP server** | `mcp-server/` | Standalone `@modelcontextprotocol/sdk` server — all 14 tools over stdio. |
-| **SDK** | `sdk/` | Lightweight JS client wrapping all 14 tool functions with retry + timeout. |
-| **OpenAPI spec** | `openapi.yaml` | Single source of truth — served at `/openapi.json`, rendered at `/docs`. |
-| **Executive visuals** | `agentbank-executive-visuals.html` | Standalone, dependency-free HTML deck for non-technical audiences. |
-| **ADRs** | `docs/adr/` | Architecture decision records (e.g. `0001-backend-stack.md`). |
-| **Compose** | `docker-compose.yml` | One-command backend + Postgres spin-up. |
+Every BIAN v12 Service Domain is implemented end-to-end across `openapi.yaml`, the Fastify/Prisma backend (`backend/src/domains/`), the in-memory mock (`src/mock/api.js`), the MCP server (`mcp-server/`), and the JS/TS SDK (`sdk/`):
 
----
-
-## Architecture
-
-The diagram shows the target architecture. The backend currently implements the AI Agent API and MCP Server channels, the full OpenAPI v3.1.11 surface, BIAN service domains for four of ten domains, bearer auth, FAPI interaction-ID propagation, and a double-entry ledger. The gateway, event bus, PAR/DPoP, and MDM layers are stubbed or pending — see [Roadmap](#roadmap).
-
-```
-┌─────────────────────────────────────────────────────────┐
-│  CHANNELS                                               │
-│  [ AI Agent API ★ ]  [ MCP Server ★ ]  [ Mobile ]      │
-│  [ Web Banking ]      [ Partner APIs ]                  │
-├─────────────────────────────────────────────────────────┤
-│  API GATEWAY                                            │
-│  [ OAuth 2.0 / FAPI 2.0 ]  [ Consent Manager ]         │
-│  [ Rate Limiting ]          [ Immutable Audit Log ]     │
-├─────────────────────────────────────────────────────────┤
-│  OPEN BANKING LAYER  (v3.1)                             │
-│  [ Accounts ]  [ Payments ]  [ CoF ]  [ Events ]        │
-├─────────────────────────────────────────────────────────┤
-│  BIAN SERVICE DOMAINS  (v12)                            │
-│  [ CurrentAccount ]  [ PaymentExecution ]               │
-│  [ ConsumerLoan ]    [ InvestmentPortfolio ]  [ +6 ]    │
-├─────────────────────────────────────────────────────────┤
-│  CORE BANKING                                           │
-│  [ Ledger Engine ]  [ Product Engine ]                  │
-│  [ Customer MDM ]   [ Risk Engine ]                     │
-├─────────────────────────────────────────────────────────┤
-│  INFRASTRUCTURE                                         │
-│  [ Event Bus ]  [ Key Management ]  [ Data Warehouse ]  │
-└─────────────────────────────────────────────────────────┘
-```
+| Code | BIAN v12 Service Domain | REST Endpoints | Agent Tool Primitives (`MCP` & `SDK`) | Canonical Seed IDs |
+| :--- | :--- | :---: | :--- | :--- |
+| **`SD-01`** | `SD-PartyReferenceDataManagement` | 4 | `get_party()` | `PAR-ARIA`, `PAR-MAHLI`, `PAR-DEVON` |
+| **`SD-02`** | `SD-CurrentAccount` | 5 | `get_accounts()`, `get_balance()` | `ACC-1829` (Aria), `ACC-3310` (Devon) |
+| **`SD-03`** | `SD-PaymentExecution` | 6 | `initiate_payment()`, `get_payment_status()` | `PAY-70001` |
+| **`SD-04`** | `SD-AccountingTransactions` | 4 | `get_transactions()` | `TXN-48291` |
+| **`SD-05`** | `SD-ConsumerLoan` | 5 | `get_loan_details()`, `apply_for_loan()` | `LOAN-48291` (Mahliqa) |
+| **`SD-06`** | `SD-CreditCard` | 5 | `get_card_details()`, `block_card()` | `CRD-88421` (Aria Visa) |
+| **`SD-07`** | `SD-SavingsAccount` | 4 | *(queried/swept via `get_balance` & `initiate_payment`)* | `ACC-2041` (Aria Savings) |
+| **`SD-08`** | `SD-InvestmentPortfolioManagement` | 4 | `get_portfolio()`, `place_order()` | `PRT-29183` (`AAPL`, `MSFT`, `VWRL`) |
+| **`SD-09`** | `SD-RegulatoryReporting` | 4 | `run_aml_screen()` | `CASE-9001` |
+| **`SD-10`** | `SD-CustomerEventHistory` | 3 | `subscribe_events()` | `SUB-1001` |
 
 ---
 
-## Service Domains
+## Connecting AI Agents (MCP Server & SDK)
 
-| # | Domain | BIAN Service Domain | Endpoints | Agent Tools | Backend |
-|---|--------|---------------------|-----------|-------------|---------|
-| 1 | Party Reference Data | SD-PartyReferenceDataManagement | 4 | 4 | ✅ live |
-| 2 | Current Account | SD-CurrentAccount | 5 | 4 | ✅ live |
-| 3 | Payment Execution | SD-PaymentExecution | 6 | 5 | ✅ live |
-| 4 | Transaction Engine | SD-AccountingTransactions | 4 | 5 | ✅ live |
-| 5 | Consumer Lending | SD-ConsumerLoan | 5 | 5 | ✅ live |
-| 6 | Credit and Debit Cards | SD-CreditCard | 5 | 5 | ✅ live |
-| 7 | Savings and Deposits | SD-SavingsAccount | 4 | 5 | ✅ live |
-| 8 | Investment Portfolio | SD-InvestmentPortfolioManagement | 4 | 5 | ✅ live |
-| 9 | Regulatory Compliance | SD-RegulatoryReporting | 4 | 4 | ✅ live |
-| 10 | Customer Notifications | SD-CustomerEventHistory | 3 | 4 | ✅ live |
+### Option A · Model Context Protocol (`mcp-server/index.js`)
 
-**Target: 44 endpoints · 14 agent tool functions.** All 44 endpoints and 14 agent tool functions are implemented across all 10 BIAN service domains in the backend, MCP server, SDK, and frontend mock.
-
----
-
-## Agent Tool Registry
-
-All 14 tools are typed, consent-scoped, and callable via:
-
-- **Anthropic tool use** (Claude)
-- **OpenAI function calling**
-- **MCP stdio** — via `mcp-server/` (Claude Desktop, Cursor, or any MCP client)
-- **SDK** — `AgentBankAgent` class in `sdk/index.js`
-
-```
-get_party           get_accounts        get_balance
-get_transactions    initiate_payment    get_payment_status
-get_loan_details    apply_for_loan      get_card_details
-block_card          get_portfolio       place_order
-run_aml_screen      subscribe_events
-```
-
-### Example: Anthropic tool use
-
-```javascript
-import Anthropic from "@anthropic-ai/sdk";
-
-const client = new Anthropic();
-const response = await client.messages.create({
-  model: "claude-opus-4-5",
-  tools: [
-    {
-      name: "initiate_payment",
-      description: "Create and submit a payment between accounts",
-      input_schema: {
-        type: "object",
-        properties: {
-          debtor_account:   { type: "string" },
-          creditor_account: { type: "string" },
-          amount:           { type: "number" },
-          currency:         { type: "string" },
-          reference:        { type: "string" },
-        },
-        required: ["debtor_account", "creditor_account", "amount", "currency"],
-      },
-    },
-  ],
-  messages: [{ role: "user", content: "Pay £120 from my current account to my savings account." }],
-});
-```
-
-### Example: agentBANK SDK
-
-```javascript
-import { AgentBankAgent } from "./sdk/index.js";
-
-const agent = new AgentBankAgent({ scope: "accounts:read payments:write" });
-const token = await agent.authenticate();
-const balance = await agent.tools.get_balance({ account_id: "ACC-1829", consent_token: token });
-```
-
-The SDK's `_fetch()` method includes a 10 s timeout and 2 retries with exponential backoff.
-
----
-
-## MCP Server
-
-The `mcp-server/` directory contains a standalone MCP server exposing all 14 tools to any MCP-compatible client over stdio.
-
-### Connect Claude Desktop
-
-Add this to `~/.claude/claude_desktop_config.json` and restart Claude Desktop:
+Add `agentbank` to `~/.claude/claude_desktop_config.json` (or Cursor MCP settings) to expose all 14 Zod-validated tools over stdio JSON-RPC 2.0:
 
 ```json
 {
@@ -258,276 +122,86 @@ Add this to `~/.claude/claude_desktop_config.json` and restart Claude Desktop:
 }
 ```
 
-Once connected, you can prompt Claude directly:
+### Option B · TypeScript / JavaScript SDK (`sdk/index.js`)
 
-> *"What is the balance on account ACC-1829?"*  
-> *"Run an AML screen on transaction TXN-48291."*  
-> *"Apply for a £10,000 home improvement loan over 36 months."*
+```javascript
+import { AgentBankAgent } from "./sdk/index.js";
 
-Each tool is registered with full Zod input schema validation. The HTTP helper includes a 10 s timeout and 2 retries with 500 ms exponential backoff. Every call sends a fresh `x-fapi-interaction-id` header.
+const agent = new AgentBankAgent({
+  scope: "party:read accounts:read transactions:read payments:write",
+  baseUrl: "http://localhost:3000",
+});
+
+// 1. Mint a scoped FAPI 2.0 consent token
+const token = await agent.authenticate();
+
+// 2. Verify customer identity & inspect real-time balance
+const party   = await agent.tools.get_party({ consent_token: token });
+const balance = await agent.tools.get_balance({ account_id: "ACC-1829" });
+
+// 3. Execute an idempotent savings sweep
+const payment = await agent.tools.initiate_payment({
+  debtor_account:   "ACC-1829",
+  creditor_account: "ACC-2041",
+  amount:           120.00,
+  currency:         "GBP",
+  reference:        "AGENT-SAVINGS-SWEEP",
+});
+```
+
+Both the MCP server and SDK generate a UUIDv4 `x-fapi-interaction-id` per operation (reused across 5xx/429 exponential-backoff retries to guarantee payment idempotency) and support per-call `consent_token` overrides.
 
 ---
 
-## Example Use Case — Smart Savings Agent
+## Security, Audit & Observability Architecture
 
-A six-step agentic loop that analyses spending, calculates a safe transfer, executes the payment, and automates the process monthly — touching five BIAN service domains in a single session:
+Detailed in [ADR-0001 (Backend Stack)](docs/adr/0001-backend-stack.md) and [ADR-0002 (Security Model)](docs/adr/0002-security-model.md):
 
-```
-Step 1  get_party            →  Authenticate and verify customer identity
-Step 2  get_transactions     →  Fetch 90 days of transactions, categorise spend
-Step 3  get_balance (savings)→  Check savings balance and goal progress
-Step 4  get_balance (current)→  Confirm available funds, calculate safe transfer
-Step 5  initiate_payment     →  Sweep surplus to savings account
-Step 6  subscribe_events     →  Subscribe to salary credits for monthly automation
-```
-
-The full interaction is captured in the observability layer — reasoning trace, span waterfall, and token usage metrics.
+- **Scoped Consent Enforcement (`backend/src/lib/consent.ts`)**: Validates `demo-token`, base64-encoded JSON consent tokens, and 3-part JWTs across 15 granular `ConsentScope` permissions. Insufficient scope returns `403 UK.OBIE.Rules.AfterCutoffDateTime / Forbidden`.
+- **RFC 9449 DPoP & Replay Guard (`backend/src/lib/dpop.ts`)**: Validates `dpop+jwt` headers, HTTP method binding (`htm`), and rejects replayed `jti` identifiers with `401 Unauthorized`.
+- **Tamper-Evident SHA-256 Audit Chain (`backend/src/lib/audit.ts`)**: Every API call computes `rowHash = sha256(timestamp + customerId + tool + prevHash + paramsHash + statusCode)` in an in-memory ring buffer and persists to PostgreSQL (`AuditEvent` & `AuditLog`).
+- **Live Telemetry Control Plane (`src/Observability.jsx`)**: Real-time LLM/tool latency charts, step-by-step agent reasoning trace replay, OpenTelemetry span waterfalls, and cryptographic hash-chain inspection.
 
 ---
 
-## Agent Builds
+## Repository Structure & Testing
 
-The **Agent Builds** tab provides five ready-to-adapt code recipes using the `AgentBankAgent` SDK class:
+```text
+agentbank/
+├── src/                              # React 18 + Vite 5 interactive platform
+│   ├── App.jsx                       # Precision Core Banking showcase & API Console
+│   ├── Observability.jsx             # Live & simulated telemetry + OTel waterfall
+│   ├── components/{McpTab,SdkTab}.jsx# Interactive MCP & SDK workbenches
+│   ├── api/{index,client,mockClient}.js # Runtime switchable Mock / Live API client
+│   ├── data/                         # Canonical BIAN domains, tools, steps & recipes
+│   └── mock/{api,constants,sessions}.js # 44-endpoint in-memory mock engine
+├── agentbank-executive-visuals.html  # Standalone 5-exhibit executive briefing deck
+├── openapi.yaml                      # Canonical OpenAPI 3.1 contract (44 endpoints + OAuth)
+├── mcp-server/index.js               # Stdio MCP 1.0 server (14 Zod-validated tools)
+├── sdk/index.js                      # AgentBankAgent client library
+├── backend/                          # Fastify 4 + Prisma 5 + PostgreSQL 16 core bank
+│   ├── prisma/{schema.prisma,seed.ts}# 10 BIAN domain models & 3 seeded customer personas
+│   ├── src/lib/                      # Auth, Consent, DPoP, FAPI, SHA-256 Audit, Metrics
+│   ├── src/domains/                  # 10 BIAN domains + OAuth token endpoint
+│   └── test/{unit,smoke}.test.ts     # 17 unit/contract tests + 21 DB integration tests
+└── docs/                             # Architecture Decision Records (ADRs) & UX reviews
+```
 
-| Build | Domains | What it does |
-|-------|---------|--------------|
-| **Loan Pre-qualification** | lending, accounts, transactions | Analyses income and obligations to pre-qualify without a hard credit check |
-| **Fraud Sentinel** | transactions, compliance, cards | Webhook-triggered AML screening with autonomous card block on threshold breach |
-| **Portfolio Rebalancer** | investments | Detects allocation drift and places buy/sell orders to rebalance |
-| **Wealth Summary** | accounts, savings, investments, transactions | Parallel balance aggregation with LLM-generated financial health insights |
-| **Bill Pay Automator** | transactions, payments, accounts | Detects recurring bills and schedules forward payments with a configurable buffer |
-
-### Claude Code skill
-
-A project-level Claude Code skill at `.claude/skills/agentbank-build/` lets you add new recipes from the terminal:
+### Running Tests & Verification
 
 ```bash
-/agentbank-build KYC onboarding agent
-/agentbank-build FX payment with sanctions check
-/agentbank-build spending insights with nudge to save
+# 1. Build frontend & executive briefing deck
+npm run build
+
+# 2. Run backend TypeScript type-check & unit/contract suite (no DB required — 17 tests)
+cd backend && npm run type-check && npm test
+
+# 3. Run full 38-test suite (17 unit + 21 Postgres integration smoke tests)
+DATABASE_URL="postgresql://agentbank:agentbank@localhost:5432/agentbank?schema=public" npm test
 ```
-
-The skill knows the `AGENT_BUILDS` data shape, all 14 available tools, and the code style — it picks a non-duplicate id and colour and inserts the new snippet directly into `App.jsx`.
-
----
-
-## Observability
-
-`src/Observability.jsx` demonstrates the three dimensions required for production agent deployments. It currently runs against simulated session data; wiring it to live OpenTelemetry / pino output from the backend is on the roadmap.
-
-### LLM Metrics
-Live-updating time-series charts (2.4 s refresh) tracking session latency, token consumption (input/output separately), tool call frequency, error rates, and model utilisation.
-
-### Agent Trace Log
-Structured, timestamped replay of every reasoning step. Colour-coded by step type:
-
-| Colour | Step Type |
-|--------|-----------|
-| Blue   | Authentication |
-| Amber  | Tool call |
-| Green  | Tool result / Completion |
-| Grey   | System / Reasoning |
-
-### OpenTelemetry Spans
-Distributed trace waterfall: **agent session → BIAN service domain → core banking**. Spans carry FAPI interaction IDs, HTTP status codes, service names, and durations.
-
----
-
-## Security Model
-
-| Mechanism | Purpose | Status |
-|-----------|---------|--------|
-| Bearer token auth | Gate all non-public API routes | ✅ live — `lib/auth.ts` validates `Authorization: Bearer <token>` on every request; accepts `AGENTBANK_TOKEN` env var, `demo-token`, or scoped consent tokens |
-| FAPI interaction ID | Correlate requests across agent sessions | ✅ live — `lib/fapi.ts` generates / echoes `x-fapi-interaction-id` on every response |
-| Payment idempotency | Prevent double-posting on retries | ✅ live — FAPI ID is `@unique` in DB; `paymentsService.initiate()` checks before posting |
-| OAuth `/open-banking/v3.1/oauth/token` | Mint scoped consent tokens for agents | ✅ live — `domains/oauth/routes.ts` issues base64-encoded JSON consent tokens with requested scopes |
-| Consent scopes | Fine-grained per-domain permissions (`accounts:read`, `payments:write`, etc.) | ✅ live — `lib/consent.ts` enforces 18 `ConsentScope` permissions across all 10 BIAN domains |
-| DPoP proof & `jti` replay verification | Binds tokens to the requesting agent instance & prevents replay | ✅ live — `lib/dpop.ts` validates RFC 9449 DPoP headers, `htm` claim, and `jti` TTL replay cache |
-| Per-customer payment rate limiting | Protect payment endpoints from runaway agent loops | ✅ live — `@fastify/rate-limit` enforces 10 req/min per `customerId` on payment initiation routes |
-| Immutable SHA-256 hash-chained audit log | Every agent action logged with cryptographic tamper detection | ✅ live — `lib/audit.ts` computes SHA-256 `rowHash`/`prevHash` chain and exposes `/observability/audit-verify` |
-| PAR (Pushed Authorisation Requests) | Consent initiation — prevents token interception | 🔲 pending |
-| Step-up authentication | Required for high-value operations above configurable thresholds | 🔲 pending |
-
----
-
-## API Standards Compliance
-
-| Standard | Version | Coverage |
-|----------|---------|----------|
-| Open Banking (OBIE) | v3.1.11 | Accounts, Payments, Party, CoF, Event Notifications |
-| BIAN Service Domain Model | v12 | 10 Service Domains (4 live, 6 pending) |
-| Model Context Protocol (MCP) | 1.0 | All 14 agent tools via `mcp-server/` |
-| Financial-grade API (FAPI) | 2.0 | Bearer auth + interaction-ID live; PAR/DPoP pending |
-| ISO 20022 | 2019 | Payment message format |
-| OAuth 2.0 | RFC 6749 | Authorisation framework |
-| OpenID Connect | 1.0 | Identity layer |
-
----
-
-## Project Structure
-
-```
-agentbank/
-├── .claude/skills/agentbank-build/   # /agentbank-build Claude Code skill
-├── .github/workflows/ci.yml          # frontend build + backend unit & smoke + MCP/SDK check
-├── Agents/                           # Multi-agent engineering role definitions & orchestration
-├── backend/                          # Runnable backend — Fastify + Prisma + Postgres
-│   ├── prisma/
-│   │   ├── schema.prisma             # 10 BIAN domains + audit log + consent + metering
-│   │   ├── seed.ts                   # 3 personas × accounts × 90 days of transactions
-│   │   └── migrations/               # SQL migration files
-│   ├── src/
-│   │   ├── server.ts                 # Fastify entrypoint
-│   │   ├── lib/
-│   │   │   ├── audit.ts              # SHA-256 hash-chained audit ring buffer + DB persistence
-│   │   │   ├── auth.ts               # Bearer token & consent validation plugin
-│   │   │   ├── consent.ts            # 18-scope FAPI 2.0 consent manager
-│   │   │   ├── constants.ts          # Canonical seeded entity refs
-│   │   │   ├── db.ts                 # Prisma singleton
-│   │   │   ├── dpop.ts               # RFC 9449 DPoP proof & jti replay protection
-│   │   │   ├── errors.ts             # AgentBankError + OB error envelope + ZodError 400
-│   │   │   ├── fapi.ts               # x-fapi-interaction-id plugin
-│   │   │   ├── logger.ts             # Structured pino serializers
-│   │   │   ├── metrics.ts            # Prometheus /metrics exporter
-│   │   │   └── openapi.ts            # Serves openapi.yaml at /openapi.json
-│   │   └── domains/
-│   │       ├── party/                # SD-PartyReferenceDataManagement (4 endpoints)
-│   │       ├── accounts/             # SD-CurrentAccount (5 endpoints)
-│   │       ├── payments/             # SD-PaymentExecution (6 endpoints)
-│   │       ├── transactions/         # SD-AccountingTransactions (4 endpoints)
-│   │       ├── lending/              # SD-ConsumerLoan (5 endpoints)
-│   │       ├── cards/                # SD-CreditCard (5 endpoints)
-│   │       ├── savings/              # SD-SavingsAccount (4 endpoints)
-│   │       ├── investments/          # SD-InvestmentPortfolioManagement (4 endpoints)
-│   │       ├── compliance/           # SD-RegulatoryReporting (4 endpoints)
-│   │       ├── notifications/        # SD-CustomerEventHistory (3 endpoints)
-│   │       └── oauth/                # POST /open-banking/v3.1/oauth/token
-│   ├── test/
-│   │   ├── unit.test.ts              # Always-run unit & HTTP contract test suite (no DB required)
-│   │   └── smoke.test.ts             # Full Postgres integration smoke suite across all 10 domains
-│   ├── Dockerfile
-│   └── package.json
-├── docs/adr/
-│   ├── 0001-backend-stack.md
-│   └── 0002-security-model.md
-├── mcp-server/
-│   ├── index.js                      # 14 MCP tools, retry + timeout, consent passthrough
-│   └── package.json
-├── sdk/
-│   └── index.js                      # AgentBankAgent class — all 14 tools, retry + timeout
-├── src/                              # Frontend showcase (React + Vite)
-│   ├── main.jsx
-│   ├── App.jsx                       # Tabbed layout shell
-│   ├── Observability.jsx             # LLM metrics + trace log + OTel waterfall + live polling
-│   ├── api/
-│   │   └── client.js                 # Unified API client (live backend with mock fallback)
-│   ├── context/
-│   │   └── RuntimeModeContext.jsx    # Live / Mock runtime toggle context
-│   ├── components/
-│   │   ├── McpTab.jsx
-│   │   ├── SdkTab.jsx
-│   │   ├── tabs/                     # Modularized tab views (Overview, Domains, Tools, Console, etc.)
-│   │   └── observability/            # Modularized observability panels
-│   ├── data/
-│   └── mock/
-│       ├── api.js                    # Routing-table mock (44 endpoints)
-│       ├── constants.js              # Canonical seeded entity refs (mirrors backend/src/lib/constants.ts)
-│       └── sessions.js               # Simulated observability session data
-├── public/favicon.svg
-├── agentbank-executive-visuals.html  # Standalone exec deck (no build step)
-├── docker-compose.yml
-├── docker-compose.observability.yml
-├── openapi.yaml                      # Canonical OpenAPI v3.1.0 spec (44 endpoints + OAuth)
-├── index.html
-├── vite.config.js
-└── package.json
-```
-
----
-
-## Technology Stack
-
-**Frontend** (`src/`)
-
-| Layer | Technology | Notes |
-|-------|-----------|-------|
-| UI Framework | React 18 | Hooks-based, no class components |
-| Build tool | Vite 5 | Fast HMR, ESM-native |
-| Charts | Recharts 2.x | Observability dashboard |
-| Styling | Plain CSS | CSS variables, no framework |
-| Fonts | Google Fonts | IBM Plex Sans, Fira Code, Syne |
-| Mock API | `src/mock/api.js` | Routing-table mock — swap for `fetch()` against the backend |
-
-**Backend** (`backend/`)
-
-| Layer | Technology | Notes |
-|-------|-----------|-------|
-| Runtime | Node.js 20 LTS | Strict TypeScript, NodeNext modules |
-| HTTP | Fastify 4 | `@fastify/helmet`, `cors`, `sensible` |
-| Auth | `lib/auth.ts` | Bearer token plugin; JWT-ready for Tier 2 |
-| Validation | Zod | Shared schemas across backend, SDK, and MCP server |
-| ORM | Prisma 5 | Typed client; `db push` in dev, migrations in CI |
-| Database | Postgres 16 | Container in `docker-compose.yml` |
-| API docs | `@scalar/fastify-api-reference` | Renders `openapi.yaml` at `/docs` |
-| Logging | pino | JSON by default; pretty-print via `LOG_PRETTY=1` |
-| Tests | vitest | 14-test smoke suite gates CI |
-
-**MCP server** (`mcp-server/`)
-
-| Layer | Technology | Notes |
-|-------|-----------|-------|
-| Protocol | `@modelcontextprotocol/sdk` | stdio transport |
-| Validation | Zod | Full input schema per tool |
-| Resilience | AbortController + retry | 10 s timeout, 2 retries, 500 ms backoff |
-
----
-
-## Background — The Case for Agent-First Banking
-
-*Summarised from the agentBANK White Paper, April 2026.*
-
-AI agents — autonomous software capable of reasoning, planning, and executing multi-step tasks — are creating a new class of banking customer that sits between the human account holder and the traditional API consumer. These agents do not just query data: they initiate payments, apply for credit, monitor portfolios, and respond to market events in real time on behalf of customers who have granted explicit consent.
-
-agentBANK is designed around a **developer-first, agent-builder revenue model**:
-
-| Revenue Stream | Customer | Mechanism |
-|----------------|----------|-----------|
-| **API Access Tiers** | Agent builders | Starter / Growth / Enterprise monthly subscription |
-| **Per-Call Metering** | Agent builders | Billed per 1,000 API calls above tier limit |
-| **Premium Tool Access** | Regulated builders | AML screening, credit scoring, FX locking add-ons |
-| **Marketplace Listing** | ISVs | Revenue share on agent template sales |
-| **Compliance-as-a-Service** | Regulated builders | Managed regulatory reporting bundle |
-| **White-Label Platform** | Financial institutions | Full platform licence and co-branding |
-| Account Fees *(secondary)* | Account holders | Optional premium account tier |
-| Payment Rails Margin *(secondary)* | Account holders | FX spread and faster payment surcharge |
-
----
-
-## Roadmap
-
-- [x] Tab-based frontend layout — six focused sections
-- [x] MCP server — all 14 tools via `@modelcontextprotocol/sdk` stdio transport
-- [x] Executive visuals — five-exhibit standalone HTML deck
-- [x] Runnable backend — Fastify + Prisma + Postgres, OpenAPI at `/docs`
-- [x] Backend tier 1 domains — Party, Accounts, Payments, Transactions
-- [x] CI — frontend build, backend unit & smoke test against Postgres, MCP/SDK syntax check
-- [x] Bearer auth plugin — `lib/auth.ts` gates all non-public routes
-- [x] Payment correctness — Decimal arithmetic, idempotency `@unique` constraint
-- [x] SDK resilience — timeout, retry, explicit auth failure
-- [x] Mock routing table — explicit `{ method, pattern, handler }` entries
-- [x] Shared seed constants — `src/mock/constants.js` + `backend/src/lib/constants.ts`
-- [x] Backend tier 2 domains — Lending, Cards, Savings, Investments, Compliance, Notifications
-- [x] Consent scopes & DPoP proof verification (`lib/consent.ts`, `lib/dpop.ts`)
-- [x] Audit log SHA-256 hash-chain (`lib/audit.ts`, ADR-0002)
-- [x] Wire observability dashboard to live backend telemetry (`/observability/sessions`, `/metrics`)
-- [x] Frontend `App.jsx` & `Observability.jsx` modularization (`src/components/tabs/`, `src/components/observability/`)
-- [x] OAuth 2.0 consent token issuance flow (`POST /open-banking/v3.1/oauth/token`)
-- [ ] FAPI 2.0 PAR (Pushed Authorisation Requests) & step-up authentication
-- [ ] WebSocket support for real-time event streaming
-- [ ] Additional BIAN domains (Trade Finance, Correspondent Banking)
 
 ---
 
 ## Disclaimer
 
-agentBANK is a **reference implementation** for educational and architectural purposes. It is not a regulated bank, does not hold real funds, and should not be used in production without appropriate regulatory authorisation, security audit, and compliance sign-off.
+agentBANK is an open-source **reference implementation** for architectural and educational exploration. It is not a regulated financial institution and does not hold real customer funds.
