@@ -1,5 +1,5 @@
 export const DOMAINS = [
-  { id:"party", icon:"◈", color:"#4fc3f7", name:"Party Reference Data", bian:"SD-PartyReferenceDataManagement",
+  { id:"party", icon:"SD-01", color:"#2563EB", name:"Party Reference Data", bian:"SD-PartyReferenceDataManagement",
     desc:"Manage customer identity, KYC, and relationship profiles.",
     endpoints:[
       {m:"GET",  p:"/open-banking/v3.1/party",                       d:"Retrieve authenticated party details"},
@@ -9,7 +9,7 @@ export const DOMAINS = [
     ],
     caps:["Query customer profile","Initiate KYC refresh","Verify identity attributes","Retrieve party relationships"],
   },
-  { id:"accounts", icon:"⬡", color:"#81c784", name:"Current Account", bian:"SD-CurrentAccount",
+  { id:"accounts", icon:"SD-02", color:"#059669", name:"Current Account", bian:"SD-CurrentAccount",
     desc:"Full lifecycle management of current/checking accounts.",
     endpoints:[
       {m:"GET",  p:"/open-banking/v3.1/accounts",                    d:"List all accounts for consent scope"},
@@ -20,7 +20,7 @@ export const DOMAINS = [
     ],
     caps:["Check balances","Open accounts","Update account settings","Retrieve account terms"],
   },
-  { id:"payments", icon:"⟳", color:"#ffb74d", name:"Payment Execution", bian:"SD-PaymentExecution",
+  { id:"payments", icon:"SD-03", color:"#D97706", name:"Payment Execution", bian:"SD-PaymentExecution",
     desc:"Orchestrate domestic, international, and instant payment rails.",
     endpoints:[
       {m:"POST", p:"/open-banking/v3.1/domestic-payments",           d:"Initiate domestic payment"},
@@ -32,7 +32,7 @@ export const DOMAINS = [
     ],
     caps:["Initiate payments","Check payment status","Cancel pending payments","Retrieve payment history","Schedule future payments"],
   },
-  { id:"transactions", icon:"≡", color:"#ce93d8", name:"Transaction Engine", bian:"SD-AccountingTransactions",
+  { id:"transactions", icon:"SD-04", color:"#7C3AED", name:"Transaction Engine", bian:"SD-AccountingTransactions",
     desc:"Retrieve, categorise and enrich transaction data.",
     endpoints:[
       {m:"GET",  p:"/open-banking/v3.1/accounts/{id}/transactions",  d:"Paginated transaction history"},
@@ -42,7 +42,7 @@ export const DOMAINS = [
     ],
     caps:["Retrieve transaction history","Categorise spending","Detect anomalies","Export statements","Analyse patterns"],
   },
-  { id:"lending", icon:"◆", color:"#ef9a9a", name:"Consumer Lending", bian:"SD-ConsumerLoan",
+  { id:"lending", icon:"SD-05", color:"#DC2626", name:"Consumer Lending", bian:"SD-ConsumerLoan",
     desc:"End-to-end loan origination, servicing and closure.",
     endpoints:[
       {m:"POST", p:"/bian/consumer-loan/initiate",                   d:"Originate new loan application"},
@@ -53,7 +53,7 @@ export const DOMAINS = [
     ],
     caps:["Apply for loans","Check eligibility","Retrieve repayment schedules","Request restructuring","Monitor loan health"],
   },
-  { id:"cards", icon:"▭", color:"#80cbc4", name:"Credit and Debit Cards", bian:"SD-CreditCard",
+  { id:"cards", icon:"SD-06", color:"#0891B2", name:"Credit and Debit Cards", bian:"SD-CreditCard",
     desc:"Card issuance, authorisation, dispute management and rewards.",
     endpoints:[
       {m:"GET",  p:"/open-banking/v3.1/accounts/{id}/statements",    d:"Card statements"},
@@ -64,7 +64,7 @@ export const DOMAINS = [
     ],
     caps:["Check card limits","Block and unblock cards","Retrieve statements","Raise disputes","Manage rewards"],
   },
-  { id:"savings", icon:"◉", color:"#fff176", name:"Savings and Deposits", bian:"SD-SavingsAccount",
+  { id:"savings", icon:"SD-07", color:"#0284C7", name:"Savings and Deposits", bian:"SD-SavingsAccount",
     desc:"Savings account management, term deposits and interest calculations.",
     endpoints:[
       {m:"POST", p:"/bian/savings-account/initiate",                 d:"Open savings account or term deposit"},
@@ -74,7 +74,7 @@ export const DOMAINS = [
     ],
     caps:["Open savings accounts","Check interest rates","Set savings goals","Transfer to savings","Retrieve maturity dates"],
   },
-  { id:"investments", icon:"△", color:"#b39ddb", name:"Investment Portfolio", bian:"SD-InvestmentPortfolioManagement",
+  { id:"investments", icon:"SD-08", color:"#4F46E5", name:"Investment Portfolio", bian:"SD-InvestmentPortfolioManagement",
     desc:"Portfolio construction, order management and performance reporting.",
     endpoints:[
       {m:"GET",  p:"/bian/investment-portfolio/{portId}/retrieve",   d:"Portfolio holdings and valuation"},
@@ -84,7 +84,7 @@ export const DOMAINS = [
     ],
     caps:["Check portfolio value","Place orders","Retrieve performance","Analyse allocation","Rebalance portfolios"],
   },
-  { id:"compliance", icon:"⬟", color:"#ffcc80", name:"Regulatory Compliance", bian:"SD-RegulatoryReporting",
+  { id:"compliance", icon:"SD-09", color:"#EA580C", name:"Regulatory Compliance", bian:"SD-RegulatoryReporting",
     desc:"AML screening, sanctions checking and regulatory reporting.",
     endpoints:[
       {m:"POST", p:"/bian/regulatory-reporting/initiate",            d:"Initiate regulatory report"},
@@ -94,7 +94,7 @@ export const DOMAINS = [
     ],
     caps:["Screen transactions","Run KYC checks","Generate regulatory reports","Monitor compliance status"],
   },
-  { id:"notifications", icon:"◌", color:"#f48fb1", name:"Customer Notifications", bian:"SD-CustomerEventHistory",
+  { id:"notifications", icon:"SD-10", color:"#DB2777", name:"Customer Notifications", bian:"SD-CustomerEventHistory",
     desc:"Event-driven notification delivery and customer communication history.",
     endpoints:[
       {m:"POST", p:"/bian/customer-event-history/initiate",          d:"Register notification preference"},

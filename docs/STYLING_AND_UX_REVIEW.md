@@ -1,8 +1,26 @@
 # agentBANK — Styling, Narrative & UX Design Review
 
 **Author**: Agent 7 (`styling-ux-agent`) — Styling, Narrative & UX Design Engineer  
-**Archive Location**: `/old mock/` (contains both `v1-original/` and pre-refactor snapshots of `src/` and `agentbank-executive-visuals.html`)  
+**Archive Location**: `/old mock/` (contains `v1-original/`, pre-refactor snapshots, and `v2-editorial/` snapshots of `src/` and `agentbank-executive-visuals.html`)  
 **Scope**: Main Showcase (`src/App.jsx`, `src/components/McpTab.jsx`, `src/components/SdkTab.jsx`), Interactive API Console (`src/App.jsx`, `src/mock/api.js`), Observability Dashboard (`src/Observability.jsx`, `src/mock/sessions.js`), and Executive Briefing Deck (`agentbank-executive-visuals.html`).
+
+---
+
+## v3 Rework: Precision Core Banking Aesthetic & Progressive Disclosure (Thought Machine Reference)
+
+Following a comprehensive review of enterprise core-banking design systems (referencing **Thought Machine** `thoughtmachine.net` without direct copying), all human-facing surfaces were reworked from scratch around two guiding principles:
+
+1. **Institutional Precision Core Banking Aesthetic**:
+   - **Color System**: Replaced the retro beige/gold brutalist palette (`#f8f7f4` / `#c9a84c`) and cartoon emojis with a crisp, architectural fintech palette: cool alabaster canvas (`#F8FAFC`), elevated pure white cards (`#FFFFFF`) with `1px solid #E2E8F0` structural hairlines and subtle shadows, deep slate-navy ink (`#0B1120`), electric cobalt primary accents (`#2563EB`), cyan/emerald semantic indicators (`#0EA5E9` / `#10B981`), and deep slate-navy engineering control planes (`#090D16` / `#0F172A`).
+   - **Typography**: Paired **`Plus Jakarta Sans`** (`600`/`700`/`800`) for geometric, authoritative display headlines with **`Inter`** (`400`/`500`/`600`) for body/UI legibility and **`JetBrains Mono`** (`400`/`500`/`600`) strictly for code, BIAN domain identifiers (`SD-01`..`SD-10`), REST paths, and SHA-256 hashes.
+2. **Progressive Disclosure ("Clean by Default, Surface Detail When Desired")**:
+   - **Hero (`src/App.jsx`)**: 2-column enterprise layout pairing the value proposition and 4 KPI cards on the left with an **Interactive 4-Layer Core Stack Schematic** on the right (clicking `L1`–`L4` expands live protocol details and navigates to the backing tab).
+   - **AI Channel (`src/App.jsx`)**: Replaced static feature blocks with an **Interactive 5-Pillar Accordion** (surfacing FAPI 2.0, MCP 1.0, SHA-256, Consent Scopes, and Webhook specifications on demand) alongside the live Agent Runtime terminal.
+   - **Services & APIs (`src/App.jsx`)**: Added a **Segmented View Switcher** (`10 BIAN Service Domains` | `14 Agent Tool Primitives` | `Combined View`), **Vertical Filter Pills** (`Core Retail`, `Payments & Transactions`, `Lending & Cards`, `Wealth, Compliance & Events`), and expandable tool parameter drawers.
+   - **Architecture (`src/App.jsx`)**: Replaced the long vertical wall with **3 Progressive Sub-Tabs** (`01 · Interactive 7-Layer Stack` with a right-hand Layer Specification Inspector, `02 · BIAN Capability Matrix`, and `03 · Standards & Security`).
+   - **MCP Server & SDK (`McpTab.jsx`, `SdkTab.jsx`)**: Consolidated code blocks into **Tabbed Integration Workbenches** and added filterable/expandable 14-tool schema inspectors.
+   - **API Console & Observability (`App.jsx`, `Observability.jsx`)**: Added collapsible FAPI/Auth header drawers in the API Console and progressive toggles for Secondary Telemetry Charts, Cryptographic Audit Hashes, and OpenTelemetry Span Attributes in Observability.
+   - **Executive Briefing (`agentbank-executive-visuals.html`)**: Rebuilt all 5 exhibits with interactive progressive disclosure — clickable 4-layer stack inspector in Exhibit 1, interactive 4-recipe primitive composer in Exhibit 2, clickable 5-stage customer vs. core-banking comparator in Exhibit 3, orbital schematic + 5-card strategic accordion in Exhibit 4, and filterable scenario cards with expandable tool-chain drawers in Exhibit 5.
 
 ---
 

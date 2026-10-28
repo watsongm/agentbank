@@ -1,7 +1,7 @@
 export const AGENT_BUILDS = [
   {
     id:"loan-prequalify",
-    icon:"◆", color:"#ef9a9a",
+    icon:"BP-01", color:"#DC2626",
     name:"Loan Pre-qualification",
     desc:"Analyses account health, income patterns, and existing obligations to pre-qualify a customer — without a hard credit check.",
     tags:["lending","accounts","transactions"],
@@ -39,7 +39,7 @@ const result = await agent.tools.apply_for_loan({
   },
   {
     id:"fraud-sentinel",
-    icon:"⬟", color:"#ffcc80",
+    icon:"BP-02", color:"#EA580C",
     name:"Fraud Sentinel",
     desc:"Monitors real-time transactions for anomalous patterns, runs AML screening, and autonomously blocks the card when risk threshold is breached.",
     tags:["transactions","compliance","cards"],
@@ -76,7 +76,7 @@ export async function onTransactionEvent(event) {
   },
   {
     id:"portfolio-rebalancer",
-    icon:"△", color:"#b39ddb",
+    icon:"BP-03", color:"#4F46E5",
     name:"Portfolio Rebalancer",
     desc:"Retrieves current allocation, compares against target weights, and places buy/sell orders to rebalance within configured drift thresholds.",
     tags:["investments","accounts"],
@@ -112,7 +112,7 @@ await agent.tools.place_order({
   },
   {
     id:"wealth-summary",
-    icon:"◉", color:"#fff176",
+    icon:"BP-04", color:"#0284C7",
     name:"Wealth Summary",
     desc:"Aggregates balances across current, savings, and investment accounts to produce a structured financial health report with actionable insights.",
     tags:["accounts","savings","investments","transactions"],
@@ -150,7 +150,7 @@ const [current, savings, portfolio, txns] = await Promise.all([
   },
   {
     id:"bill-pay-automator",
-    icon:"⟳", color:"#ffb74d",
+    icon:"BP-05", color:"#D97706",
     name:"Bill Pay Automator",
     desc:"Detects recurring bill patterns from transaction history, verifies sufficient balance, and schedules forward payments with a configurable buffer.",
     tags:["transactions","payments","accounts"],

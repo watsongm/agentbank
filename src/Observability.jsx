@@ -6,10 +6,10 @@ import { apiFetch } from "./api/index.js";
 function CT({ active, payload, label, unit = "" }) {
   if (!active || !payload?.length) return null;
   return (
-    <div style={{ background: "#0d1520", border: "1px solid #263849", padding: "8px 12px", fontFamily: "var(--mono)", fontSize: 11 }}>
-      <div style={{ color: "#8b9bb4", marginBottom: 4 }}>{label}</div>
+    <div style={{ background: "#0F172A", border: "1px solid #334155", borderRadius: 6, padding: "8px 12px", fontFamily: "var(--mono)", fontSize: 11, boxShadow: "0 8px 20px rgba(0,0,0,0.35)" }}>
+      <div style={{ color: "#94A3B8", marginBottom: 4 }}>{label}</div>
       {payload.map((p, i) => (
-        <div key={i} style={{ color: p.color }}>
+        <div key={i} style={{ color: p.color, fontWeight: 500 }}>
           {p.name}: {p.value}{unit}
         </div>
       ))}
@@ -49,37 +49,38 @@ function QuickSessionBar({ sessions, selSess, onSelect }) {
         display: "flex",
         alignItems: "center",
         gap: 8,
-        marginBottom: 14,
-        padding: "8px 12px",
-        background: "#0c121b",
-        border: "1px solid #1e293b",
+        marginBottom: 16,
+        padding: "10px 14px",
+        background: "#0F172A",
+        border: "1px solid #1E293B",
+        borderRadius: 8,
         overflowX: "auto",
       }}
     >
       <span
         style={{
-          fontFamily: "var(--sans)",
+          fontFamily: "var(--mono)",
           fontSize: 10.5,
           fontWeight: 600,
           letterSpacing: "0.06em",
-          color: "#8b9bb4",
+          color: "#94A3B8",
           textTransform: "uppercase",
           flexShrink: 0,
           marginRight: 4,
         }}
       >
-        ACTIVE SESSIONS:
+        SELECT SESSION:
       </span>
       {sessions.slice(0, 6).map(s => {
         const isSel = selSess?.id === s.id;
         const srcBadge =
           s.source === "console"
-            ? { label: "CONSOLE", color: "var(--blue)" }
+            ? { label: "CONSOLE", color: "#38BDF8" }
             : s.source === "backend"
-            ? { label: "LIVE", color: "var(--green)" }
-            : { label: "AGENT", color: "#8b9bb4" };
+            ? { label: "LIVE", color: "#34D399" }
+            : { label: "AGENT", color: "#94A3B8" };
         const dotColor =
-          s.status === "success" ? "var(--green)" : s.status === "error" ? "var(--red)" : "var(--orange)";
+          s.status === "success" ? "#10B981" : s.status === "error" ? "#EF4444" : "#F59E0B";
         return (
           <button
             key={s.id}
@@ -88,32 +89,33 @@ function QuickSessionBar({ sessions, selSess, onSelect }) {
             style={{
               display: "inline-flex",
               alignItems: "center",
-              gap: 6,
-              padding: "5px 10px",
+              gap: 7,
+              padding: "6px 11px",
+              borderRadius: 6,
               fontFamily: "var(--sans)",
               fontSize: 11.5,
-              background: isSel ? "rgba(201,168,76,0.14)" : "rgba(255,255,255,0.03)",
+              background: isSel ? "rgba(37, 99, 235, 0.2)" : "rgba(255, 255, 255, 0.03)",
               border: "1px solid",
-              borderColor: isSel ? "var(--gold)" : "rgba(255,255,255,0.1)",
-              color: isSel ? "#fff" : "#94a3b8",
+              borderColor: isSel ? "#3B82F6" : "rgba(255, 255, 255, 0.08)",
+              color: isSel ? "#FFFFFF" : "#94A3B8",
               cursor: "pointer",
               flexShrink: 0,
               transition: "all 0.15s",
             }}
           >
             <span style={{ width: 6, height: 6, borderRadius: "50%", background: dotColor, flexShrink: 0 }} />
-            <span style={{ fontFamily: "var(--mono)", color: isSel ? "var(--gold)" : "#cbd5e1", fontWeight: 600 }}>{s.id}</span>
-            <span style={{ color: "#94a3b8", fontWeight: 500 }}>{s.customer.split(" ")[0]}</span>
-            <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "#64748b" }}>· {s.tool}</span>
+            <span style={{ fontFamily: "var(--mono)", color: isSel ? "#60A5FA" : "#E2E8F0", fontWeight: 600 }}>{s.id}</span>
+            <span style={{ color: "#CBD5E1", fontWeight: 500 }}>{s.customer.split(" ")[0]}</span>
+            <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "#64748B" }}>· {s.tool}</span>
             <span
               style={{
-                fontFamily: "var(--sans)",
+                fontFamily: "var(--mono)",
                 fontSize: 9.5,
                 fontWeight: 600,
                 padding: "1px 5px",
+                borderRadius: 3,
                 border: `1px solid ${srcBadge.color}`,
                 color: srcBadge.color,
-                letterSpacing: "0.04em",
               }}
             >
               {srcBadge.label}
@@ -148,9 +150,11 @@ export function ObservabilityOverlay({
   const [traceLines, setTraceLines] = useState([]);
   const [spans, setSpans] = useState([]);
   const [backendSyncStatus, setBackendSyncStatus] = useState(apiMode === "live" ? "syncing" : "mock");
+  const [showSecondaryCharts, setShowSecondaryCharts] = useState(false);
+  const [showAuditHashes, setShowAuditHashes] = useState(true);
+  const [showSpanAttrs, setShowSpanAttrs] = useState(false);
   const traceRef = useRef(null);
 
-  /* Ensure selSess is never null when sessions exist, or update when initialSessionId changes */
   useEffect(() => {
     if (initialSessionId) {
       const target = sessions.find(s => s.id === initialSessionId);
@@ -164,7 +168,6 @@ export function ObservabilityOverlay({
     }
   }, [initialSessionId, sessions, selSess]);
 
-  /* Poll live backend /observability/sessions when apiMode === "live" */
   useEffect(() => {
     if (apiMode !== "live" || obsPaused) {
       setBackendSyncStatus(apiMode === "live" ? "paused" : "mock");
@@ -207,8 +210,6 @@ export function ObservabilityOverlay({
   }, [apiMode, obsPaused, token, setSessions]);
 
   const activeSession = selSess || sessions[0] || null;
-
-  /* Animate reasoning trace when a session is selected */
   const fullTraceSteps = useMemo(() => (activeSession ? makeTraceSteps(activeSession) : []), [activeSession]);
 
   useEffect(() => {
@@ -224,7 +225,7 @@ export function ObservabilityOverlay({
       } else {
         clearInterval(t);
       }
-    }, 140);
+    }, 120);
     return () => clearInterval(t);
   }, [activeSession, fullTraceSteps]);
 
@@ -232,7 +233,6 @@ export function ObservabilityOverlay({
     if (traceRef.current) traceRef.current.scrollTop = traceRef.current.scrollHeight;
   }, [traceLines]);
 
-  /* Derived observability metrics (deterministic, memoized) */
   const rec = useMemo(() => sessions.slice(0, 30), [sessions]);
   const avgLat = useMemo(
     () => (rec.length ? Math.round(rec.reduce((a, s) => a + s.latency, 0) / rec.length) : 0),
@@ -263,51 +263,52 @@ export function ObservabilityOverlay({
   }, [rec]);
 
   const spanMax = spans.length ? Math.max(...spans.map(s => s.start + s.dur)) || 1 : 1;
-  const spColors = ["#4fc3f7", "#81c784", "#ffb74d", "#ce93d8", "#ef9a9a", "#80cbc4"];
-
-  const tickStyle = { fill: "#64748b", fontSize: 9.5, fontFamily: "monospace" };
+  const spColors = ["#38BDF8", "#34D399", "#FBBF24", "#818CF8", "#F87171", "#2DD4BF"];
+  const tickStyle = { fill: "#64748B", fontSize: 10, fontFamily: "var(--mono)" };
 
   return (
     <div className="obs-wrap" role="dialog" aria-modal="true" aria-label="Observability Dashboard">
       <div className="obs-top">
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          <div className="obs-logo">AGENT<span>BANK</span></div>
-          <span className="obs-sub">OBSERVABILITY</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <div className="obs-logo">agent<span>BANK</span></div>
+          <span className="obs-sub">Telemetry &amp; Audit Control Plane</span>
           <span
             style={{
               fontFamily: "var(--mono)",
-              fontSize: 9.5,
-              padding: "3px 8px",
+              fontSize: 10,
+              fontWeight: 600,
+              padding: "3px 9px",
+              borderRadius: 999,
               border: "1px solid",
-              borderColor: apiMode === "live" ? "rgba(79,195,247,.45)" : "rgba(201,168,76,.4)",
-              color: apiMode === "live" ? "var(--blue)" : "var(--gold)",
-              background: apiMode === "live" ? "rgba(79,195,247,.1)" : "rgba(201,168,76,.1)",
-              letterSpacing: 1,
+              borderColor: apiMode === "live" ? "rgba(56, 189, 248, 0.4)" : "rgba(99, 102, 241, 0.4)",
+              color: apiMode === "live" ? "#38BDF8" : "#818CF8",
+              background: apiMode === "live" ? "rgba(56, 189, 248, 0.1)" : "rgba(99, 102, 241, 0.1)",
             }}
           >
             {apiMode === "live"
               ? `LIVE BACKEND (${backendSyncStatus.toUpperCase()})`
-              : "MOCK TELEMETRY"}
+              : "SIMULATED TELEMETRY"}
           </span>
           <span
             style={{
               fontFamily: "var(--mono)",
-              fontSize: 9.5,
-              padding: "3px 8px",
-              border: "1px solid rgba(0,230,118,.35)",
-              color: "var(--green)",
-              background: "rgba(0,230,118,.08)",
-              letterSpacing: 0.8,
+              fontSize: 10,
+              fontWeight: 600,
+              padding: "3px 9px",
+              borderRadius: 999,
+              border: "1px solid rgba(16, 185, 129, 0.35)",
+              color: "#34D399",
+              background: "rgba(16, 185, 129, 0.1)",
             }}
             title="ADR-0002: Every session and tool execution is recorded in a tamper-evident SHA-256 hash chain"
           >
-            🔒 SHA-256 AUDIT CHAIN VERIFIED
+            SHA-256 AUDIT CHAIN VERIFIED
           </span>
         </div>
         <div className="obs-right">
           <div className="live-pill">
             <div className="ldot" />
-            <span className="ltext">LIVE · {sessions.length} SESSIONS</span>
+            <span className="ltext">STREAMING · {sessions.length} SESSIONS</span>
           </div>
           <button
             className={`pause-btn ${obsPaused ? "paused" : ""}`}
@@ -320,7 +321,11 @@ export function ObservabilityOverlay({
       </div>
 
       <div className="obs-tabs" role="tablist">
-        {[["metrics", "LLM METRICS"], ["trace", "AGENT TRACE"], ["otel", "OTEL SPANS"]].map(([id, lbl]) => (
+        {[
+          ["metrics", "01 · LLM & Tool Metrics"],
+          ["trace", "02 · Agent Reasoning Trace"],
+          ["otel", "03 · OpenTelemetry Waterfall"],
+        ].map(([id, lbl]) => (
           <button
             key={id}
             role="tab"
@@ -340,12 +345,12 @@ export function ObservabilityOverlay({
         <div className="obs-page">
           <div className="kpi-row">
             {[
-              { l: "AVG LATENCY",    v: `${avgLat}ms`,                   c: "var(--orange)" },
-              { l: "TOTAL TOKENS",   v: `${(totTok / 1000).toFixed(1)}k`, c: "var(--blue)" },
-              { l: "AVG TOOL CALLS", v: avgTool,                          c: "var(--purple)" },
-              { l: "ERROR RATE",     v: `${errPct}%`,                     c: errPct > 5 ? "var(--red)" : "var(--green)" },
-              { l: "LIVE SESSIONS",  v: sessions.length,                  c: "var(--green)" },
-              { l: "TOOLS REGISTERED", v: OBS_TOOLS.length,               c: "var(--gold)" },
+              { l: "AVG LATENCY",      v: `${avgLat}ms`,                   c: "#F59E0B" },
+              { l: "TOTAL TOKENS",     v: `${(totTok / 1000).toFixed(1)}k`, c: "#38BDF8" },
+              { l: "AVG TOOL CALLS",   v: avgTool,                          c: "#818CF8" },
+              { l: "ERROR RATE",       v: `${errPct}%`,                     c: errPct > 5 ? "#EF4444" : "#10B981" },
+              { l: "ACTIVE SESSIONS",  v: sessions.length,                  c: "#10B981" },
+              { l: "REGISTERED TOOLS", v: OBS_TOOLS.length,                 c: "#60A5FA" },
             ].map(k => (
               <div key={k.l} className="kpi">
                 <div className="kpi-lbl">{k.l}</div>
@@ -354,102 +359,126 @@ export function ObservabilityOverlay({
             ))}
           </div>
 
-          <div className="chart-row">
+          <div className="chart-row-3">
             <div className="chart-card">
               <div className="chart-hdr">AGENT LATENCY (ms)</div>
-              <ResponsiveContainer width="100%" height={160}>
+              <ResponsiveContainer width="100%" height={155}>
                 <AreaChart data={history} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="gl1" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#ffb74d" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#ffb74d" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.28} />
+                      <stop offset="95%" stopColor="#F59E0B" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,.06)" />
                   <XAxis dataKey="t" tick={tickStyle} tickLine={false} axisLine={false} />
                   <YAxis tick={tickStyle} tickLine={false} axisLine={false} />
                   <Tooltip content={<CT unit="ms" />} />
-                  <Area type="monotone" dataKey="latency" stroke="#ffb74d" strokeWidth={2} fill="url(#gl1)" name="latency" dot={false} />
+                  <Area type="monotone" dataKey="latency" stroke="#F59E0B" strokeWidth={2} fill="url(#gl1)" name="latency" dot={false} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
 
             <div className="chart-card">
-              <div className="chart-hdr">TOKEN USAGE (in / out)</div>
-              <ResponsiveContainer width="100%" height={160}>
+              <div className="chart-hdr">TOKEN THROUGHPUT (input / output)</div>
+              <ResponsiveContainer width="100%" height={155}>
                 <AreaChart data={history} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="gl2" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#4fc3f7" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#4fc3f7" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#38BDF8" stopOpacity={0.28} />
+                      <stop offset="95%" stopColor="#38BDF8" stopOpacity={0} />
                     </linearGradient>
                     <linearGradient id="gl3" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#ce93d8" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#ce93d8" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#818CF8" stopOpacity={0.28} />
+                      <stop offset="95%" stopColor="#818CF8" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,.06)" />
                   <XAxis dataKey="t" tick={tickStyle} tickLine={false} axisLine={false} />
                   <YAxis tick={tickStyle} tickLine={false} axisLine={false} />
                   <Tooltip content={<CT unit=" tok" />} />
-                  <Area type="monotone" dataKey="inputTok" stroke="#4fc3f7" strokeWidth={2} fill="url(#gl2)" name="input" dot={false} />
-                  <Area type="monotone" dataKey="outputTok" stroke="#ce93d8" strokeWidth={2} fill="url(#gl3)" name="output" dot={false} />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          <div className="chart-row-3">
-            <div className="chart-card">
-              <div className="chart-hdr">TOOL CALLS / SESSION</div>
-              <ResponsiveContainer width="100%" height={140}>
-                <AreaChart data={history} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="gl4" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#00e676" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#00e676" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,.06)" />
-                  <XAxis dataKey="t" tick={tickStyle} tickLine={false} axisLine={false} />
-                  <YAxis tick={tickStyle} tickLine={false} axisLine={false} />
-                  <Tooltip content={<CT />} />
-                  <Area type="monotone" dataKey="toolCalls" stroke="#00e676" strokeWidth={2} fill="url(#gl4)" name="calls" dot={false} />
+                  <Area type="monotone" dataKey="inputTok" stroke="#38BDF8" strokeWidth={2} fill="url(#gl2)" name="input" dot={false} />
+                  <Area type="monotone" dataKey="outputTok" stroke="#818CF8" strokeWidth={2} fill="url(#gl3)" name="output" dot={false} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
 
             <div className="chart-card">
-              <div className="chart-hdr">TOP TOOLS BY VOLUME (ALL 14 PRIMITIVES)</div>
-              <ResponsiveContainer width="100%" height={140}>
-                <BarChart data={toolDist.slice(0, 6)} layout="vertical" margin={{ top: 0, right: 4, left: 85, bottom: 0 }}>
+              <div className="chart-hdr">TOP PRIMITIVES BY VOLUME</div>
+              <ResponsiveContainer width="100%" height={155}>
+                <BarChart data={toolDist.slice(0, 6)} layout="vertical" margin={{ top: 0, right: 8, left: 85, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,.06)" horizontal={false} />
                   <XAxis type="number" tick={tickStyle} tickLine={false} axisLine={false} />
-                  <YAxis type="category" dataKey="name" tick={{ fill: "#94a3b8", fontSize: 9.5, fontFamily: "monospace" }} tickLine={false} axisLine={false} />
+                  <YAxis type="category" dataKey="name" tick={{ fill: "#94A3B8", fontSize: 10, fontFamily: "var(--mono)" }} tickLine={false} axisLine={false} />
                   <Tooltip content={<CT />} />
-                  <Bar dataKey="calls" fill="#ce93d8" radius={[0, 2, 2, 0]} name="calls" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-
-            <div className="chart-card">
-              <div className="chart-hdr">ERRORS AND SESSIONS</div>
-              <ResponsiveContainer width="100%" height={140}>
-                <BarChart data={history.slice(-10)} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,.06)" />
-                  <XAxis dataKey="t" tick={tickStyle} tickLine={false} axisLine={false} />
-                  <YAxis tick={tickStyle} tickLine={false} axisLine={false} />
-                  <Tooltip content={<CT />} />
-                  <Bar dataKey="sessions" fill="rgba(79,195,247,.5)" name="sessions" radius={[2, 2, 0, 0]} />
-                  <Bar dataKey="errors" fill="rgba(255,82,82,.75)" name="errors" radius={[2, 2, 0, 0]} />
+                  <Bar dataKey="calls" fill="#3B82F6" radius={[0, 4, 4, 0]} name="calls" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
+
+          {/* Progressive Disclosure for Secondary Charts */}
+          <div style={{ marginBottom: 16 }}>
+            <button
+              type="button"
+              onClick={() => setShowSecondaryCharts(s => !s)}
+              style={{
+                fontFamily: "var(--mono)",
+                fontSize: 11,
+                padding: "7px 14px",
+                borderRadius: 6,
+                background: "#0F172A",
+                border: "1px solid #1E293B",
+                color: "#93C5FD",
+                cursor: "pointer",
+              }}
+            >
+              {showSecondaryCharts
+                ? "Hide Secondary Telemetry Charts (Tool Calls & Error Breakdown) ▴"
+                : "Surface Secondary Telemetry Charts (Tool Calls & Error Breakdown) ▾"}
+            </button>
+          </div>
+
+          {showSecondaryCharts && (
+            <div className="chart-row" style={{ marginBottom: 18 }}>
+              <div className="chart-card">
+                <div className="chart-hdr">TOOL CALLS / SESSION</div>
+                <ResponsiveContainer width="100%" height={140}>
+                  <AreaChart data={history} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="gl4" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10B981" stopOpacity={0.28} />
+                        <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,.06)" />
+                    <XAxis dataKey="t" tick={tickStyle} tickLine={false} axisLine={false} />
+                    <YAxis tick={tickStyle} tickLine={false} axisLine={false} />
+                    <Tooltip content={<CT />} />
+                    <Area type="monotone" dataKey="toolCalls" stroke="#10B981" strokeWidth={2} fill="url(#gl4)" name="calls" dot={false} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+
+              <div className="chart-card">
+                <div className="chart-hdr">SESSIONS VS. ERRORS</div>
+                <ResponsiveContainer width="100%" height={140}>
+                  <BarChart data={history.slice(-10)} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,.06)" />
+                    <XAxis dataKey="t" tick={tickStyle} tickLine={false} axisLine={false} />
+                    <YAxis tick={tickStyle} tickLine={false} axisLine={false} />
+                    <Tooltip content={<CT />} />
+                    <Bar dataKey="sessions" fill="rgba(56, 189, 248, 0.55)" name="sessions" radius={[3, 3, 0, 0]} />
+                    <Bar dataKey="errors" fill="rgba(239, 68, 68, 0.8)" name="errors" radius={[3, 3, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
 
           <div className="sess-table">
             <div className="srow srow-hdr">
-              <span>SESSION</span><span>MODEL</span><span>CUSTOMER · PARTY ID</span><span>LATENCY</span><span>TOKENS</span><span>STATUS</span><span>PRIMARY TOOL</span>
+              <span>SESSION ID</span><span>MODEL</span><span>CUSTOMER · PARTY REF</span><span>LATENCY</span><span>TOKENS</span><span>STATUS</span><span>PRIMARY PRIMITIVE</span>
             </div>
             {sessions.slice(0, 14).map(s => (
               <div
@@ -458,15 +487,15 @@ export function ObservabilityOverlay({
                 onClick={() => { setSelSess(s); setObsTab("trace"); }}
                 title="Click to inspect reasoning trace and OpenTelemetry waterfall"
               >
-                <span style={{ color: "var(--gold)", fontFamily: "monospace", fontWeight: 600 }}>{s.id}</span>
-                <span style={{ color: "var(--blue)", fontSize: 10.5 }}>{s.model.replace("claude-", "")}</span>
-                <span style={{ color: s.source === "console" || s.source === "backend" ? "var(--blue)" : "#e2e8f0" }}>
+                <span style={{ color: "#60A5FA", fontFamily: "var(--mono)", fontWeight: 600 }}>{s.id}</span>
+                <span style={{ color: "#94A3B8", fontFamily: "var(--mono)", fontSize: 11 }}>{s.model.replace("claude-", "")}</span>
+                <span style={{ color: s.source === "console" || s.source === "backend" ? "#38BDF8" : "#F1F5F9", fontWeight: 500 }}>
                   {s.customer}
                 </span>
-                <span style={{ color: "var(--orange)" }}>{s.latency}ms</span>
-                <span style={{ color: "#cbd5e1" }}>{((s.inputTok + s.outputTok) / 1000).toFixed(1)}k</span>
+                <span style={{ color: "#F59E0B", fontFamily: "var(--mono)" }}>{s.latency}ms</span>
+                <span style={{ color: "#CBD5E1", fontFamily: "var(--mono)" }}>{((s.inputTok + s.outputTok) / 1000).toFixed(1)}k</span>
                 <span><span className={`sbadge sb-${s.status}`}>{s.status}</span></span>
-                <span style={{ color: "#94a3b8", fontSize: 10.5 }}>{s.tool}()</span>
+                <span style={{ color: "#93C5FD", fontFamily: "var(--mono)", fontSize: 11 }}>{s.tool}()</span>
               </div>
             ))}
           </div>
@@ -480,7 +509,7 @@ export function ObservabilityOverlay({
             <div className="trace-layout">
               <div className="trace-panel">
                 <div className="panel-hdr">
-                  <span className="panel-hdr-lbl">AGENT REASONING TRACE · {activeSession.id}</span>
+                  <span className="panel-hdr-lbl">AGENT REASONING &amp; TOOL EXECUTION STREAM · {activeSession.id}</span>
                   <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                     <span className="panel-tid">trace: {activeSession.traceId.slice(0, 18)}…</span>
                     <button
@@ -488,15 +517,16 @@ export function ObservabilityOverlay({
                       onClick={() => setObsTab("otel")}
                       style={{
                         fontFamily: "var(--mono)",
-                        fontSize: 9.5,
-                        padding: "3px 8px",
-                        background: "rgba(79,195,247,0.1)",
-                        border: "1px solid rgba(79,195,247,0.35)",
-                        color: "var(--blue)",
+                        fontSize: 10.5,
+                        padding: "4px 10px",
+                        borderRadius: 5,
+                        background: "rgba(56, 189, 248, 0.12)",
+                        border: "1px solid rgba(56, 189, 248, 0.35)",
+                        color: "#38BDF8",
                         cursor: "pointer",
                       }}
                     >
-                      View OTel Waterfall →
+                      Open OTel Waterfall →
                     </button>
                   </div>
                 </div>
@@ -508,25 +538,23 @@ export function ObservabilityOverlay({
                     </div>
                   ))}
                   {traceLines.length < fullTraceSteps.length && (
-                    <span style={{ color: "rgba(201,168,76,.65)", animation: "pulse 1s infinite" }}>▌</span>
+                    <span style={{ color: "#38BDF8", animation: "pulse 1s infinite" }}>▌</span>
                   )}
                 </div>
               </div>
+
               <div className="detail-panel">
                 <div className="detail-sec">
-                  <div className="dlbl">Session &amp; Cryptographic Audit</div>
+                  <div className="dlbl">Session Metadata</div>
                   {[
-                    ["Session ID", activeSession.id, "gold"],
+                    ["Session ID", activeSession.id, "blue"],
                     ["Customer", activeSession.customer, ""],
-                    ["Primary Tool", `${activeSession.tool}()`, "blue"],
-                    ["Model", activeSession.model, "blue"],
+                    ["Primary Tool", `${activeSession.tool}()`, "gold"],
+                    ["Model", activeSession.model, ""],
                     ["Status", activeSession.status, activeSession.status === "success" ? "green" : "red"],
                     ["Latency", activeSession.latency + "ms", ""],
                     ["Tool Calls", activeSession.toolCalls, ""],
-                    ["Source", activeSession.source ?? "simulated", ""],
-                    ["FAPI Interaction", (activeSession.fapiInteractionId || activeSession.traceId).slice(0, 18) + "…", ""],
-                    ["Prev Hash", (activeSession.prevHash || "0".repeat(64)).slice(0, 16) + "…", ""],
-                    ["Row Hash (SHA-256)", (activeSession.rowHash || activeSession.traceId).slice(0, 16) + "…", "green"],
+                    ["Channel Source", activeSession.source ?? "agent-runtime", ""],
                   ].map(([k, v, c]) => (
                     <div key={k} className="drow">
                       <span className="dk">{k}</span>
@@ -534,31 +562,44 @@ export function ObservabilityOverlay({
                     </div>
                   ))}
                 </div>
+
                 <div className="detail-sec">
-                  <div className="dlbl">Token Usage</div>
-                  {[["Input", activeSession.inputTok, "#4fc3f7"], ["Output", activeSession.outputTok, "#ce93d8"]].map(([k, v, col]) => (
+                  <div
+                    style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}
+                    onClick={() => setShowAuditHashes(h => !h)}
+                  >
+                    <div className="dlbl" style={{ marginBottom: 0 }}>Cryptographic Audit Chain</div>
+                    <span style={{ fontFamily: "var(--mono)", fontSize: 10.5, color: "#38BDF8" }}>
+                      {showAuditHashes ? "Hide ▴" : "Inspect ▾"}
+                    </span>
+                  </div>
+                  {showAuditHashes && (
+                    <div style={{ marginTop: 10 }}>
+                      {[
+                        ["FAPI Interaction ID", (activeSession.fapiInteractionId || activeSession.traceId).slice(0, 20) + "…", ""],
+                        ["Prev Block Hash", (activeSession.prevHash || "0".repeat(64)).slice(0, 18) + "…", ""],
+                        ["Row Hash (SHA-256)", (activeSession.rowHash || activeSession.traceId).slice(0, 18) + "…", "green"],
+                      ].map(([k, v, c]) => (
+                        <div key={k} className="drow">
+                          <span className="dk">{k}</span>
+                          <span className={`dv ${c}`}>{v}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="detail-sec">
+                  <div className="dlbl">Token Distribution</div>
+                  {[["Input", activeSession.inputTok, "#38BDF8"], ["Output", activeSession.outputTok, "#818CF8"]].map(([k, v, col]) => (
                     <div key={k} className="tok-wrap">
                       <div className="tok-row">
                         <span>{k} tokens</span>
-                        <span style={{ color: col }}>{v.toLocaleString()}</span>
+                        <span style={{ color: col, fontFamily: "var(--mono)" }}>{v.toLocaleString()}</span>
                       </div>
                       <div className="tok-track">
                         <div className="tok-fill" style={{ width: (v / ((activeSession.inputTok + activeSession.outputTok) || 1) * 100) + "%", background: col }} />
                       </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="detail-sec">
-                  <div className="dlbl">Recent Sessions</div>
-                  {sessions.slice(0, 6).map(s => (
-                    <div
-                      key={s.id}
-                      style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: "1px solid rgba(255,255,255,.05)", cursor: "pointer" }}
-                      onClick={() => setSelSess(s)}
-                    >
-                      <span style={{ fontFamily: "monospace", fontSize: 10.5, color: activeSession.id === s.id ? "var(--gold)" : "#8b9bb4" }}>{s.id}</span>
-                      <span style={{ fontFamily: "monospace", fontSize: 10.5, color: "#cbd5e1" }}>{s.customer.split(" ")[0]}</span>
-                      <span className={`sbadge sb-${s.status}`}>{s.status}</span>
                     </div>
                   ))}
                 </div>
@@ -573,30 +614,31 @@ export function ObservabilityOverlay({
           <QuickSessionBar sessions={sessions} selSess={activeSession} onSelect={setSelSess} />
           {activeSession && (
             <>
-              <div className="kpi-row" style={{ marginBottom: 14 }}>
+              <div className="kpi-row" style={{ marginBottom: 16 }}>
                 {[
-                  ["TRACE ID", activeSession.traceId.slice(0, 16) + "…", ""],
-                  ["TOTAL SPANS", spans.length, "var(--blue)"],
-                  ["ROOT DURATION", spanMax + "ms", "var(--orange)"],
-                  ["SERVICES", [...new Set(spans.map(s => s.service))].length, "var(--green)"],
-                  ["ERRORS", spans.filter(s => s.status === "error").length, spans.some(s => s.status === "error") ? "var(--red)" : "var(--green)"],
+                  ["TRACE ID", activeSession.traceId.slice(0, 16) + "…", "#E2E8F0"],
+                  ["TOTAL SPANS", spans.length, "#38BDF8"],
+                  ["ROOT DURATION", spanMax + "ms", "#F59E0B"],
+                  ["SERVICES TRAVERSED", [...new Set(spans.map(s => s.service))].length, "#10B981"],
+                  ["SPAN ERRORS", spans.filter(s => s.status === "error").length, spans.some(s => s.status === "error") ? "#EF4444" : "#10B981"],
                 ].map(([l, v, c]) => (
-                  <div key={l} className="kpi" style={{ padding: "11px 13px" }}>
+                  <div key={l} className="kpi" style={{ padding: "12px 14px" }}>
                     <div className="kpi-lbl">{l}</div>
-                    <div className="kpi-val" style={{ fontSize: 15, color: c || "#e2e8f0" }}>{v}</div>
+                    <div className="kpi-val" style={{ fontSize: 16, color: c }}>{v}</div>
                   </div>
                 ))}
               </div>
+
               <div className="span-panel">
                 <div className="panel-hdr">
-                  <span className="panel-hdr-lbl">OpenTelemetry Trace Waterfall · {activeSession.id}</span>
+                  <span className="panel-hdr-lbl">OpenTelemetry Distributed Trace Waterfall · {activeSession.id}</span>
                   <span className="panel-tid">{activeSession.traceId}</span>
-                  <span style={{ fontFamily: "monospace", fontSize: 10.5, color: "#8b9bb4", marginLeft: "auto" }}>{activeSession.model}</span>
+                  <span style={{ fontFamily: "var(--mono)", fontSize: 10.5, color: "#94A3B8", marginLeft: "auto" }}>{activeSession.model}</span>
                 </div>
                 <div className="span-body">
-                  <div style={{ display: "flex", paddingLeft: 220, paddingBottom: 6, minWidth: 500 }}>
+                  <div style={{ display: "flex", paddingLeft: 230, paddingBottom: 8, minWidth: 520 }}>
                     {[0, 25, 50, 75, 100].map(p => (
-                      <span key={p} style={{ fontFamily: "monospace", fontSize: 9.5, color: "#64748b", flex: 1 }}>
+                      <span key={p} style={{ fontFamily: "var(--mono)", fontSize: 10, color: "#64748B", flex: 1 }}>
                         {Math.round(spanMax * p / 100)}ms
                       </span>
                     ))}
@@ -615,8 +657,8 @@ export function ObservabilityOverlay({
                           className="span-bar"
                           style={{
                             left: (sp.start / spanMax * 100) + "%",
-                            width: Math.max(sp.dur / spanMax * 100, 0.5) + "%",
-                            background: sp.status === "ok" ? spColors[i % spColors.length] + "b3" : "rgba(255,82,82,.8)",
+                            width: Math.max(sp.dur / spanMax * 100, 0.8) + "%",
+                            background: sp.status === "ok" ? spColors[i % spColors.length] : "#EF4444",
                           }}
                         >
                           {sp.dur > spanMax * 0.08 ? sp.dur + "ms" : ""}
@@ -627,31 +669,55 @@ export function ObservabilityOverlay({
                   ))}
                 </div>
               </div>
-              <div className="span-panel">
-                <div className="panel-hdr">
-                  <span className="panel-hdr-lbl">Span Attributes &amp; BIAN / FAPI Context</span>
-                </div>
-                <div className="attr-grid">
-                  {spans.map((sp, i) => (
-                    <div key={sp.name + i} className="attr-card">
-                      <div className="attr-name" style={{ color: spColors[i % spColors.length] }}>{sp.name}</div>
-                      {[
-                        ["service.name", sp.service],
-                        ["otel.status_code", sp.status.toUpperCase()],
-                        ["span.duration_ms", sp.dur + "ms"],
-                        ["http.status_code", sp.status === "error" ? "500" : "200"],
-                        ["fapi.interaction_id", (activeSession.fapiInteractionId || activeSession.traceId).slice(0, 14) + "…"],
-                        ["audit.sha256_head", (activeSession.rowHash || activeSession.traceId).slice(0, 14) + "…"],
-                      ].map(([k, v]) => (
-                        <div key={k} className="attr-row">
-                          <span className="attr-k">{k}</span>
-                          <span className="attr-v" style={{ color: k === "otel.status_code" && sp.status === "error" ? "var(--red)" : undefined }}>{v}</span>
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-                </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <button
+                  type="button"
+                  onClick={() => setShowSpanAttrs(s => !s)}
+                  style={{
+                    fontFamily: "var(--mono)",
+                    fontSize: 11,
+                    padding: "8px 14px",
+                    borderRadius: 6,
+                    background: "#0F172A",
+                    border: "1px solid #1E293B",
+                    color: "#38BDF8",
+                    cursor: "pointer",
+                  }}
+                >
+                  {showSpanAttrs
+                    ? `Hide Span Attributes & BIAN / FAPI Context (${spans.length} Spans) ▴`
+                    : `Surface Span Attributes & BIAN / FAPI Context (${spans.length} Spans) ▾`}
+                </button>
               </div>
+
+              {showSpanAttrs && (
+                <div className="span-panel">
+                  <div className="panel-hdr">
+                    <span className="panel-hdr-lbl">Span Attributes &amp; BIAN / FAPI Context</span>
+                  </div>
+                  <div className="attr-grid">
+                    {spans.map((sp, i) => (
+                      <div key={sp.name + i} className="attr-card">
+                        <div className="attr-name" style={{ color: spColors[i % spColors.length] }}>{sp.name}</div>
+                        {[
+                          ["service.name", sp.service],
+                          ["otel.status_code", sp.status.toUpperCase()],
+                          ["span.duration_ms", sp.dur + "ms"],
+                          ["http.status_code", sp.status === "error" ? "500" : "200"],
+                          ["fapi.interaction_id", (activeSession.fapiInteractionId || activeSession.traceId).slice(0, 14) + "…"],
+                          ["audit.sha256_head", (activeSession.rowHash || activeSession.traceId).slice(0, 14) + "…"],
+                        ].map(([k, v]) => (
+                          <div key={k} className="attr-row">
+                            <span className="attr-k">{k}</span>
+                            <span className="attr-v" style={{ color: k === "otel.status_code" && sp.status === "error" ? "#EF4444" : undefined }}>{v}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>

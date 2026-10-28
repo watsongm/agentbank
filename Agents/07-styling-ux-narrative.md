@@ -18,10 +18,18 @@ Own the visual design system, typographic hierarchy, color contrast, narrative c
 
 ## Review Pillars & Design Standards
 
-### 1. Visual & Brand Consistency (Unified Design System)
-- **Typography**: `Syne` (800 display headings), `IBM Plex Sans` (300/400/500/600 UI & editorial body), and `Fira Code` (400/500 technical/code/telemetry) across **both** the React app and `agentbank-executive-visuals.html`.
-- **Editorial Light Palette**: `--bg: #f8f7f4`, `--cream: #f0ede6`, `--ink: #0d0f14`, `--mid: #5a6270`, `--line: #e2e0da`, `--gold: #c9a84c`, `--gold-dark: #9a7b2c`.
-- **Technical Dark Palette (API Console & Observability)**: `--dbg: #07090d`, `--dsurf: #0c1018`, `--dcard: #101620`, `--dborder: #1e293b`, with elevated muted text tokens (`#7c8ea6` and `#94a3b8` instead of unreadable `#2a3a4a` / `#445566`) to meet WCAG AA contrast ratios.
+### 1. Visual & Brand Consistency (Precision Core Banking Design System)
+- **Aesthetic Reference**: Enterprise cloud-native core banking platforms (e.g., Thought Machine) — institutional authority, architectural schematics, crisp hairline borders, subtle elevation, and zero visual clutter.
+- **Typography**: `Plus Jakarta Sans` (600/700/800 display headings), `Inter` (400/500/600 UI & body), and `JetBrains Mono` (400/500/600 strictly for code, REST paths, BIAN domain codes, and cryptographic hashes) across **both** the React app and `agentbank-executive-visuals.html`.
+- **Institutional Light Surface Palette**: `--bg: #F8FAFC`, `--surface: #FFFFFF`, `--cream: #F1F5F9`, `--ink: #0B1120`, `--ink-2: #334155`, `--mid: #64748B`, `--line: #E2E8F0`, `--accent: #2563EB` (Electric Cobalt), `--accent-soft: #EFF6FF`.
+- **Technical Dark Control Plane (API Console, Observability, Code Workbenches)**: `--dbg: #090D16`, `--dsurf: #0F172A`, `--dcard: #131C31`, `--dborder: #1E293B`, with semantic accents (`#38BDF8` cyan, `#10B981` emerald, `#818CF8` indigo, `#F59E0B` amber) meeting WCAG AA contrast ratios.
+- **Progressive Disclosure ("Clean by Default, Surface Detail on Demand")**:
+  - Interactive 4-layer schematic in the Hero section.
+  - 5-pillar interactive accordion in the AI Channel tab.
+  - Segmented view switcher (`10 BIAN Service Domains` | `14 Agent Tool Primitives` | `Combined View`) + vertical category filters in Services & APIs.
+  - 3-sub-tab interactive architecture inspector (`Interactive 7-Layer Stack` | `BIAN Capability Matrix` | `Standards & Security`).
+  - Tabbed integration workbenches and expandable tool schemas in MCP Server and SDK tabs.
+  - Interactive layer inspector, recipe composer, 5-stage journey comparator, strategic implications accordion, and expandable cross-ecosystem tool-chain drawers across all 5 exhibits in `agentbank-executive-visuals.html`.
 
 ### 2. Narrative Cohesion ("The Golden Thread")
 - **Unified Personas & Canonical References**: All four surfaces tell a connected story around the three seeded banking personas:

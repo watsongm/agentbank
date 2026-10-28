@@ -6,8 +6,8 @@ const CLAUDE_DESKTOP_CONFIG = `{
       "command": "node",
       "args": ["/path/to/agentbank/mcp-server/index.js"],
       "env": {
-        "AGENTBANK_BASE_URL": "https://your-agentbank.example.com",
-        "AGENTBANK_TOKEN": "Bearer eyJhbGci..."
+        "AGENTBANK_BASE_URL": "http://localhost:3000",
+        "AGENTBANK_TOKEN": "Bearer demo-token"
       }
     }
   }
@@ -22,11 +22,13 @@ const server = new McpServer({ name: "agentbank", version: "1.0.0" });
 server.tool(
   "get_balance",
   "Retrieve real-time account balance.",
-  { account_id: z.string() },
-  async ({ account_id }) => {
-    const res = await fetch(\`\${BASE_URL}/bian/current-account/\${account_id}/balance\`,
-      { headers: { Authorization: TOKEN } });
-    return { content: [{ type: "text", text: JSON.stringify(await res.json(), null, 2) }] };
+  {
+    account_id: z.string().describe("Account ID (e.g. ACC-1829)"),
+    consent_token: z.string().optional().describe("Optional FAPI consent token override")
+  },
+  async ({ account_id, consent_token }) => {
+    const res = await apiCall("GET", \`/bian/current-account/\${account_id}/balance\`, null, consentHeaders(consent_token));
+    return { content: [{ type: "text", text: JSON.stringify(res, null, 2) }] };
   }
 );
 // ... 13 more tools — see mcp-server/index.js
@@ -43,14 +45,26 @@ const MCP_HANDSHAKE = [
   {dir:"server", text:'{"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"text","text":"{\\"accountId\\":\\"ACC-1829\\",\\"available\\":4821.50,\\"currency\\":\\"GBP\\",\\"dateTime\\":\\"2026-04-11T09:14:22Z\\"}"}]}}'},
 ];
 
+const GROUP_MAP = {
+  all: null,
+  core: ["party", "accounts", "savings"],
+  payments: ["payments", "transactions"],
+  credit: ["lending", "cards"],
+  wealth: ["investments", "compliance", "notifications"],
+};
+
 export default function McpTab({ tools, domains, onTryTool }) {
   const [copied, setCopied] = useState(null);
+  const [workbenchTab, setWorkbenchTab] = useState("config");
   const [msgIdx, setMsgIdx] = useState(0);
-  const termRef             = useRef(null);
+  const [groupFilter, setGroupFilter] = useState("all");
+  const [expandedTools, setExpandedTools] = useState(() => new Set(["get_balance", "initiate_payment"]));
+  const [expandAll, setExpandAll] = useState(false);
+  const termRef = useRef(null);
 
   useEffect(() => {
     if (msgIdx < MCP_HANDSHAKE.length) {
-      const t = setTimeout(() => setMsgIdx(i => i + 1), 900);
+      const t = setTimeout(() => setMsgIdx(i => i + 1), 750);
       return () => clearTimeout(t);
     }
   }, [msgIdx]);
@@ -65,127 +79,228 @@ export default function McpTab({ tools, domains, onTryTool }) {
     setTimeout(() => setCopied(null), 1800);
   }
 
+  function toggleToolExpand(name) {
+    setExpandedTools(prev => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  }
+
+  function handleExpandAll() {
+    if (expandAll) {
+      setExpandAll(false);
+      setExpandedTools(new Set());
+    } else {
+      setExpandAll(true);
+      setExpandedTools(new Set(tools.map(t => t.name)));
+    }
+  }
+
+  const visibleTools = tools.filter(t => {
+    const allowed = GROUP_MAP[groupFilter];
+    return !allowed || allowed.includes(t.domain);
+  });
+
   return (
     <section className="mcp-sec">
-      <span className="sec-tag">MODEL CONTEXT PROTOCOL</span>
-      <h2 className="sec-h">agentBANK as<br/>an MCP Server</h2>
-      <p className="sec-p">The reference MCP server (<code style={{fontFamily:"var(--mono)",fontSize:13}}>mcp-server/</code>) exposes all 14 agentBANK tools over stdio transport — connect any MCP-compatible client in minutes.</p>
-
-      <div className="mcp-grid">
-        <div className="mcp-card">
-          <div className="mcp-card-hdr">
-            <span className="mcp-card-icon" style={{color:"var(--gold)"}}>⚙</span>
-            <span className="mcp-card-title">Claude Desktop Config</span>
+      <div className="sec-inner">
+        <div className="sec-hdr-split">
+          <div>
+            <span className="sec-tag">MODEL CONTEXT PROTOCOL · MCP 1.0</span>
+            <h2 className="sec-h">agentBANK as an MCP Server</h2>
+            <p className="sec-p" style={{ marginBottom: 0 }}>
+              The reference MCP server (<code className="inline-code">mcp-server/index.js</code>) exposes all 14 agentBANK primitives over stdio JSON-RPC 2.0 transport with strict Zod schema validation and per-call FAPI consent overrides.
+            </p>
           </div>
-          <p className="mcp-card-sub">Add this to <code style={{fontFamily:"var(--mono)"}}>~/.claude/claude_desktop_config.json</code> to connect Claude Desktop to agentBANK instantly.</p>
-          <div className="mcp-copy-block">
-            <pre className="mcp-code">{CLAUDE_DESKTOP_CONFIG}</pre>
-            <button className="mcp-copy-btn" onClick={() => copy("cfg", CLAUDE_DESKTOP_CONFIG)}>{copied === "cfg" ? "✓ COPIED" : "COPY"}</button>
-          </div>
-        </div>
-
-        <div className="mcp-card">
-          <div className="mcp-card-hdr">
-            <span className="mcp-card-icon" style={{color:"var(--blue)"}}>◈</span>
-            <span className="mcp-card-title">Server Implementation</span>
-          </div>
-          <p className="mcp-card-sub">Built with <code style={{fontFamily:"var(--mono)"}}>@modelcontextprotocol/sdk</code> + Zod. Each agentBANK tool is a typed MCP tool with full schema validation.</p>
-          <div className="mcp-copy-block">
-            <pre className="mcp-code">{SERVER_SNIPPET}</pre>
-            <button className="mcp-copy-btn" onClick={() => copy("srv", SERVER_SNIPPET)}>{copied === "srv" ? "✓ COPIED" : "COPY"}</button>
+          <div className="sec-meta-pill">
+            <span>STDIO TRANSPORT</span>
+            <span>·</span>
+            <span>14 ZOD SCHEMAS</span>
           </div>
         </div>
-      </div>
 
-      <div className="mcp-term">
-        <div className="term">
-          <div className="term-bar">
-            <div className="tdot" style={{background:"#ff5f57"}}/><div className="tdot" style={{background:"#ffbd2e"}}/><div className="tdot" style={{background:"#28c840"}}/>
-            <span className="term-lbl">MCP STDIO PROTOCOL TRACE</span>
-            <button style={{marginLeft:"auto",fontFamily:"var(--mono)",fontSize:10,padding:"3px 9px",background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.18)",color:"#cbd5e1",cursor:"pointer"}} onClick={() => setMsgIdx(0)}>↺ REPLAY</button>
-          </div>
-          <div className="term-body" ref={termRef} style={{maxHeight:280}}>
-            {MCP_HANDSHAKE.slice(0, msgIdx).map((m, i) => (
-              <div key={i} style={{marginBottom:8}}>
-                <div style={{color: m.dir === "client" ? "#4fc3f7" : "#81c784", fontSize:10, marginBottom:2, letterSpacing:1}}>
-                  {m.dir === "client" ? "▶ CLIENT →" : "◀ SERVER ←"}
-                </div>
-                <div style={{color:"#cbd5e1", fontSize:10.5, wordBreak:"break-all", lineHeight:1.6}}>{m.text}</div>
-              </div>
+        {/* Interactive Integration Workbench */}
+        <div className="workbench-shell" style={{ marginTop: 32, marginBottom: 56 }}>
+          <div className="workbench-tabs" role="tablist">
+            {[
+              { id: "config", label: "01 · Claude Desktop Config" },
+              { id: "server", label: "02 · Server Implementation" },
+              { id: "trace",  label: "03 · Live Stdio JSON-RPC Trace" },
+              { id: "setup",  label: "04 · 5-Step Quickstart" },
+            ].map(tab => (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={workbenchTab === tab.id}
+                className={`wb-tab ${workbenchTab === tab.id ? "on" : ""}`}
+                onClick={() => setWorkbenchTab(tab.id)}
+              >
+                {tab.label}
+              </button>
             ))}
-            {msgIdx < MCP_HANDSHAKE.length && <span style={{color:"var(--gold)"}}>▌</span>}
           </div>
-        </div>
-      </div>
 
-      <div style={{marginTop:48}}>
-        <span className="sec-tag">MCP TOOL MANIFEST</span>
-        <h3 className="sec-h" style={{fontSize:"clamp(22px,3vw,34px)",marginBottom:12}}>14 Tools · Full Schema</h3>
-        <p style={{fontSize:14,color:"var(--mid)",marginBottom:24}}>Every agentBANK tool maps 1-to-1 to an MCP tool definition with Zod-validated inputSchema.</p>
-        <div className="mcp-tools-grid">
-          {tools.map(t => {
-            const dom = domains.find(d => d.id === t.domain);
-            return (
-              <div key={t.name} className="mcp-tool" style={{display:"flex",flexDirection:"column",justifyContent:"space-between"}}>
-                <div>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,marginBottom:4}}>
-                    <div className="mcp-tool-name" style={{color: dom?.color, marginBottom:0}}>{t.name}</div>
-                    <span style={{fontFamily:"var(--mono)",fontSize:9.5,color:"var(--mid)",textTransform:"uppercase"}}>{t.domain}</span>
-                  </div>
-                  <div className="mcp-tool-desc">{t.desc}</div>
-                  <div className="mcp-schema">
-                    {t.params.map((p) => {
-                      const cleanParam = p.replace(/\?$/, "");
-                      const isReq = Array.isArray(t.required) ? t.required.includes(cleanParam) : !p.endsWith("?");
-                      return (
-                        <span key={p} className={`mcp-param ${isReq ? "req" : ""}`}>{p}</span>
-                      );
-                    })}
-                  </div>
-                </div>
-                {onTryTool && (
-                  <button
-                    type="button"
-                    onClick={() => onTryTool(t.name)}
-                    style={{
-                      marginTop: 12,
-                      alignSelf: "flex-start",
-                      fontFamily: "var(--mono)",
-                      fontSize: 10,
-                      padding: "4px 9px",
-                      background: "var(--bg)",
-                      border: "1px solid var(--line)",
-                      color: "var(--ink)",
-                      cursor: "pointer",
-                    }}
-                  >
-                    Try in Console →
-                  </button>
-                )}
+          {workbenchTab === "config" && (
+            <div className="wb-body">
+              <div className="wb-info-bar">
+                <span>Add to <code style={{ color: "#93C5FD" }}>~/.claude/claude_desktop_config.json</code> to register all 14 banking tools with Claude Desktop or Cursor.</span>
+                <button className="mcp-copy-btn" style={{ position: "static" }} onClick={() => copy("cfg", CLAUDE_DESKTOP_CONFIG)}>
+                  {copied === "cfg" ? "✓ COPIED" : "COPY JSON"}
+                </button>
               </div>
-            );
-          })}
-        </div>
-      </div>
+              <pre className="mcp-code" style={{ border: "none", borderRadius: 0 }}>{CLAUDE_DESKTOP_CONFIG}</pre>
+            </div>
+          )}
 
-      <div style={{marginTop:48,padding:28,border:"1px solid var(--line)",background:"var(--cream)"}}>
-        <span className="sec-tag" style={{marginBottom:14}}>QUICK START</span>
-        <div style={{display:"flex",flexDirection:"column",gap:12}}>
-          {[
-            {n:"1", cmd:"cp .env.example .env && nano .env", label:"Configure environment variables"},
-            {n:"2", cmd:"cd mcp-server && npm install", label:"Install MCP server dependencies"},
-            {n:"3", cmd:"AGENTBANK_BASE_URL=http://localhost:3000 node index.js", label:"Start the MCP server"},
-            {n:"4", cmd:"# Add Claude Desktop config (see above), restart Claude Desktop", label:"Connect Claude Desktop"},
-            {n:"5", cmd:'# Ask Claude: "What is the balance on account ACC-1829?"', label:"Start using agentBANK tools"},
-          ].map(s => (
-            <div key={s.n} style={{display:"flex",alignItems:"flex-start",gap:14}}>
-              <div style={{width:24,height:24,borderRadius:"50%",background:"var(--ink)",color:"var(--bg)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"var(--mono)",fontSize:11,fontWeight:700,flexShrink:0,marginTop:2}}>{s.n}</div>
-              <div>
-                <div style={{fontSize:12,fontWeight:600,marginBottom:4}}>{s.label}</div>
-                <code style={{fontFamily:"var(--mono)",fontSize:11,color:"var(--mid)"}}>{s.cmd}</code>
+          {workbenchTab === "server" && (
+            <div className="wb-body">
+              <div className="wb-info-bar">
+                <span>Built on <code style={{ color: "#93C5FD" }}>@modelcontextprotocol/sdk</code> + Zod. Includes automatic UUIDv4 <code style={{ color: "#93C5FD" }}>x-fapi-interaction-id</code> and 5xx retry logic.</span>
+                <button className="mcp-copy-btn" style={{ position: "static" }} onClick={() => copy("srv", SERVER_SNIPPET)}>
+                  {copied === "srv" ? "✓ COPIED" : "COPY CODE"}
+                </button>
+              </div>
+              <pre className="mcp-code" style={{ border: "none", borderRadius: 0 }}>{SERVER_SNIPPET}</pre>
+            </div>
+          )}
+
+          {workbenchTab === "trace" && (
+            <div className="wb-body">
+              <div className="wb-info-bar">
+                <span>JSON-RPC 2.0 handshake and tool invocation stream between MCP Host and <code style={{ color: "#93C5FD" }}>agentbank</code> server:</span>
+                <button
+                  type="button"
+                  className="mcp-copy-btn"
+                  style={{ position: "static" }}
+                  onClick={() => setMsgIdx(0)}
+                >
+                  ↺ REPLAY HANDSHAKE
+                </button>
+              </div>
+              <div className="term-body" ref={termRef} style={{ maxHeight: 300, background: "#090D16" }}>
+                {MCP_HANDSHAKE.slice(0, msgIdx).map((m, i) => (
+                  <div key={i} style={{ marginBottom: 10 }}>
+                    <div style={{ color: m.dir === "client" ? "#38BDF8" : "#34D399", fontSize: 10, fontWeight: 600, marginBottom: 2, letterSpacing: "0.06em" }}>
+                      {m.dir === "client" ? "▶ MCP CLIENT → SERVER" : "◀ MCP SERVER → CLIENT"}
+                    </div>
+                    <div style={{ color: "#CBD5E1", fontSize: 11, wordBreak: "break-all", lineHeight: 1.6 }}>{m.text}</div>
+                  </div>
+                ))}
+                {msgIdx < MCP_HANDSHAKE.length && <span style={{ color: "#38BDF8" }}>▌</span>}
               </div>
             </div>
-          ))}
+          )}
+
+          {workbenchTab === "setup" && (
+            <div className="wb-body" style={{ background: "var(--surface)", color: "var(--ink)", padding: 24 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 14 }}>
+                {[
+                  { n: "01", cmd: "cp .env.example .env", label: "Configure environment variables" },
+                  { n: "02", cmd: "cd mcp-server && npm install", label: "Install MCP server dependencies" },
+                  { n: "03", cmd: "AGENTBANK_BASE_URL=http://localhost:3000 node index.js", label: "Start the stdio MCP server" },
+                  { n: "04", cmd: "# Paste config into claude_desktop_config.json", label: "Register with Claude Desktop / Cursor" },
+                  { n: "05", cmd: '"What is the balance on account ACC-1829?"', label: "Invoke tools via natural language" },
+                ].map(s => (
+                  <div key={s.n} style={{ padding: 16, borderRadius: 8, border: "1px solid var(--line)", background: "var(--cream)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                      <span style={{ fontFamily: "var(--mono)", fontSize: 11, fontWeight: 600, color: "var(--accent)", background: "var(--accent-soft)", padding: "2px 7px", borderRadius: 4 }}>{s.n}</span>
+                      <span style={{ fontSize: 13, fontWeight: 600 }}>{s.label}</span>
+                    </div>
+                    <code style={{ fontFamily: "var(--mono)", fontSize: 11.5, color: "var(--mid)", display: "block", marginTop: 4 }}>{s.cmd}</code>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Progressive Disclosure Tool Manifest */}
+        <div>
+          <div className="sec-hdr-split" style={{ marginBottom: 20 }}>
+            <div>
+              <span className="sec-tag">MCP TOOL MANIFEST · PROGRESSIVE SCHEMA VIEW</span>
+              <h3 className="sec-h" style={{ fontSize: "clamp(22px, 2.6vw, 30px)", marginBottom: 6 }}>14 Typed Tool Definitions</h3>
+              <p style={{ fontSize: 14, color: "var(--mid)" }}>Click any tool card to surface its Zod input schema and test it live in the API Console.</p>
+            </div>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              {[
+                ["all", "All (14)"],
+                ["core", "Core Retail"],
+                ["payments", "Payments & Txns"],
+                ["credit", "Lending & Cards"],
+                ["wealth", "Wealth & Risk"],
+              ].map(([id, lbl]) => (
+                <button
+                  key={id}
+                  type="button"
+                  className={`filter-chip ${groupFilter === id ? "on" : ""}`}
+                  onClick={() => setGroupFilter(id)}
+                >
+                  {lbl}
+                </button>
+              ))}
+              <button type="button" className="filter-chip" onClick={handleExpandAll}>
+                {expandAll ? "Collapse Schemas ▴" : "Expand All Schemas ▾"}
+              </button>
+            </div>
+          </div>
+
+          <div className="mcp-tools-grid" style={{ marginTop: 16 }}>
+            {visibleTools.map(t => {
+              const dom = domains.find(d => d.id === t.domain);
+              const isExp = expandedTools.has(t.name);
+              return (
+                <div key={t.name} className={`mcp-tool ${isExp ? "expanded" : ""}`}>
+                  <div
+                    style={{ cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}
+                    onClick={() => toggleToolExpand(t.name)}
+                  >
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                        <span className="mcp-tool-name" style={{ color: dom?.color || "var(--accent)", marginBottom: 0 }}>{t.name}()</span>
+                        <span className="dom-code-pill">{dom?.icon || "SD"}</span>
+                      </div>
+                      <div className="mcp-tool-desc" style={{ marginBottom: 0 }}>{t.desc}</div>
+                    </div>
+                    <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--accent)", flexShrink: 0 }}>
+                      {isExp ? "Hide ▴" : "Schema ▾"}
+                    </span>
+                  </div>
+
+                  {isExp && (
+                    <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid var(--line)" }}>
+                      <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--mid)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                        Input Parameters ({t.params.length}) · <span style={{ color: "var(--accent)" }}>{dom?.bian}</span>
+                      </div>
+                      <div className="mcp-schema" style={{ marginBottom: 12 }}>
+                        {t.params.map(p => {
+                          const cleanParam = p.replace(/\?$/, "");
+                          const isReq = Array.isArray(t.required) ? t.required.includes(cleanParam) : !p.endsWith("?");
+                          return (
+                            <span key={p} className={`mcp-param ${isReq ? "req" : ""}`} title={isReq ? "Required parameter" : "Optional parameter"}>
+                              {p}
+                            </span>
+                          );
+                        })}
+                      </div>
+                      {onTryTool && (
+                        <button
+                          type="button"
+                          className="try-tool-btn"
+                          onClick={() => onTryTool(t.name)}
+                        >
+                          Try in Console →
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
     </section>
