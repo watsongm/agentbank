@@ -53,7 +53,7 @@ const payment = await agent.tools.initiate_payment({
    desc:"Agent sets up a webhook to repeat the sweep automatically on each salary credit.",
    code:`// Step 6: Subscribe to salary credit events for monthly automation
 const sub = await agent.tools.subscribe_events({
-  party_id:    "P-00291847",
+  party_id:    "PAR-ARIA",
   event_types: ["transaction.credit", "balance.threshold"],
   webhook_url: "https://savings-agent.agentbank.io/webhook"
 });

@@ -39,7 +39,8 @@ const server = new McpServer({
 /* ─────────────────────────────────────────────
    HTTP helper — 10s timeout per attempt, 2 retries with 500ms backoff
 ───────────────────────────────────────────── */
-async function apiCall(method, path, body, extraHeaders = {}) {
+async function apiCall(method, path, body = null, extraHeaders = {}) {
+  const interactionId = crypto.randomUUID();
   let lastError;
   for (let attempt = 0; attempt <= 2; attempt++) {
     const controller = new AbortController();
@@ -50,7 +51,7 @@ async function apiCall(method, path, body, extraHeaders = {}) {
         headers: {
           "Authorization": TOKEN.startsWith("Bearer ") ? TOKEN : `Bearer ${TOKEN}`,
           "Content-Type": "application/json",
-          "x-fapi-interaction-id": crypto.randomUUID(),
+          "x-fapi-interaction-id": interactionId,
           ...extraHeaders,
         },
         ...(body ? { body: JSON.stringify(body) } : {}),
@@ -59,14 +60,17 @@ async function apiCall(method, path, body, extraHeaders = {}) {
       clearTimeout(timeoutId);
       if (!res.ok) {
         const text = await res.text();
-        throw new Error(`agentBANK API error ${res.status}: ${text}`);
+        const err = new Error(`agentBANK API error ${res.status}: ${text}`);
+        err.status = res.status;
+        throw err;
       }
       return res.json();
     } catch (err) {
       clearTimeout(timeoutId);
       lastError = err;
-      if (err.name === "AbortError" || attempt === 2) break;
-      await new Promise(r => setTimeout(r, 500));
+      const isClientError = err.status >= 400 && err.status < 500 && err.status !== 429;
+      if (isClientError || err.name === "AbortError" || attempt === 2) break;
+      await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
     }
   }
   throw lastError;
@@ -77,6 +81,7 @@ function ok(data) {
 }
 
 function consentHeaders(consent_token) {
+  if (!consent_token) return {};
   const auth = consent_token.startsWith("Bearer ") ? consent_token : `Bearer ${consent_token}`;
   return { "Authorization": auth };
 }
@@ -87,7 +92,7 @@ function consentHeaders(consent_token) {
 server.tool(
   "get_party",
   "Retrieve the authenticated customer profile including KYC status and risk rating.",
-  { consent_token: z.string().describe("FAPI consent token obtained during OAuth flow") },
+  { consent_token: z.string().optional().describe("Optional FAPI consent token override") },
   async ({ consent_token }) => {
     const data = await apiCall("GET", "/open-banking/v3.1/party", null, consentHeaders(consent_token));
     return ok(data);
@@ -100,7 +105,7 @@ server.tool(
 server.tool(
   "get_accounts",
   "List all accounts in scope for the given consent token.",
-  { consent_token: z.string().describe("FAPI consent token") },
+  { consent_token: z.string().optional().describe("Optional FAPI consent token override") },
   async ({ consent_token }) => {
     const data = await apiCall("GET", "/open-banking/v3.1/accounts", null, consentHeaders(consent_token));
     return ok(data);
@@ -112,7 +117,7 @@ server.tool(
   "Retrieve the real-time available balance for a specific account.",
   {
     account_id:    z.string().describe("The account identifier, e.g. ACC-1829"),
-    consent_token: z.string().describe("FAPI consent token obtained during OAuth flow"),
+    consent_token: z.string().optional().describe("Optional FAPI consent token override"),
   },
   async ({ account_id, consent_token }) => {
     const data = await apiCall(
@@ -132,16 +137,30 @@ server.tool(
   "get_transactions",
   "Retrieve paginated transaction history for an account within a date range.",
   {
-    account_id: z.string().describe("Account identifier"),
-    from_date:  z.string().describe("Start date in YYYY-MM-DD format"),
-    to_date:    z.string().describe("End date in YYYY-MM-DD format"),
-    limit:      z.number().int().min(1).max(500).default(100).describe("Maximum number of transactions to return"),
-    cursor:     z.string().optional().describe("Pagination cursor from previous response's next_cursor field"),
+    account_id:    z.string().describe("Account identifier, e.g. ACC-1829"),
+    from_date:     z.string().describe("Start date in YYYY-MM-DD format"),
+    to_date:       z.string().describe("End date in YYYY-MM-DD format"),
+    limit:         z.number().int().min(1).max(500).default(100).describe("Maximum number of transactions to return"),
+    cursor:        z.string().optional().describe("Pagination cursor from previous response's next_cursor field"),
+    consent_token: z.string().optional().describe("Optional FAPI consent token override"),
   },
-  async ({ account_id, from_date, to_date, limit, cursor }) => {
-    const params = new URLSearchParams({ fromBookingDateTime: from_date, toBookingDateTime: to_date, limit });
+  async ({ account_id, from_date, to_date, limit, cursor, consent_token }) => {
+    const params = new URLSearchParams({ limit: String(limit) });
+    if (from_date) {
+      params.set("fromBookingDateTime", from_date);
+      params.set("from_date", from_date);
+    }
+    if (to_date) {
+      params.set("toBookingDateTime", to_date);
+      params.set("to_date", to_date);
+    }
     if (cursor) params.set("cursor", cursor);
-    const data = await apiCall("GET", `/open-banking/v3.1/accounts/${account_id}/transactions?${params}`, null);
+    const data = await apiCall(
+      "GET",
+      `/open-banking/v3.1/accounts/${account_id}/transactions?${params}`,
+      null,
+      consentHeaders(consent_token),
+    );
     return ok(data);
   }
 );
@@ -153,25 +172,31 @@ server.tool(
   "initiate_payment",
   "Create and submit a domestic payment instruction.",
   {
-    debtor_account:    z.string().describe("Source account identifier"),
-    creditor_account:  z.string().describe("Destination account identifier or IBAN"),
+    debtor_account:    z.string().describe("Source account identifier, e.g. ACC-1829"),
+    creditor_account:  z.string().describe("Destination account identifier or IBAN, e.g. ACC-2041"),
     amount:            z.number().positive().describe("Payment amount"),
     currency:          z.string().length(3).describe("ISO 4217 currency code, e.g. GBP"),
     reference:         z.string().describe("Payment reference / narrative"),
+    consent_token:     z.string().optional().describe("Optional FAPI consent token override"),
   },
-  async ({ debtor_account, creditor_account, amount, currency, reference }) => {
-    const data = await apiCall("POST", "/open-banking/v3.1/domestic-payments", {
-      Data: {
-        Initiation: {
-          InstructionIdentification: `MCP-${Date.now()}`,
-          InstructedAmount: { Amount: String(amount), Currency: currency },
-          DebtorAccount:    { Identification: debtor_account,   SchemeName: "IBAN" },
-          CreditorAccount:  { Identification: creditor_account, SchemeName: "IBAN" },
-          RemittanceInformation: { Reference: reference },
+  async ({ debtor_account, creditor_account, amount, currency, reference, consent_token }) => {
+    const data = await apiCall(
+      "POST",
+      "/open-banking/v3.1/domestic-payments",
+      {
+        Data: {
+          Initiation: {
+            InstructionIdentification: `MCP-${Date.now()}`,
+            InstructedAmount: { Amount: String(amount), Currency: currency },
+            DebtorAccount:    { Identification: debtor_account,   SchemeName: "IBAN" },
+            CreditorAccount:  { Identification: creditor_account, SchemeName: "IBAN" },
+            RemittanceInformation: { Reference: reference, Unstructured: reference },
+          },
         },
+        Risk: {},
       },
-      Risk: {},
-    });
+      consentHeaders(consent_token),
+    );
     return ok(data);
   }
 );
@@ -179,9 +204,17 @@ server.tool(
 server.tool(
   "get_payment_status",
   "Check the execution status of a previously submitted payment.",
-  { payment_id: z.string().describe("Payment identifier returned by initiate_payment") },
-  async ({ payment_id }) => {
-    const data = await apiCall("GET", `/open-banking/v3.1/domestic-payments/${payment_id}`, null);
+  {
+    payment_id:    z.string().describe("Payment identifier returned by initiate_payment"),
+    consent_token: z.string().optional().describe("Optional FAPI consent token override"),
+  },
+  async ({ payment_id, consent_token }) => {
+    const data = await apiCall(
+      "GET",
+      `/open-banking/v3.1/domestic-payments/${payment_id}`,
+      null,
+      consentHeaders(consent_token),
+    );
     return ok(data);
   }
 );
@@ -192,9 +225,17 @@ server.tool(
 server.tool(
   "get_loan_details",
   "Retrieve loan account details and full repayment schedule.",
-  { loan_id: z.string().describe("Loan identifier, e.g. LN-48291") },
-  async ({ loan_id }) => {
-    const data = await apiCall("GET", `/bian/consumer-loan/${loan_id}/retrieve`, null);
+  {
+    loan_id:       z.string().describe("Loan identifier, e.g. LOAN-48291"),
+    consent_token: z.string().optional().describe("Optional FAPI consent token override"),
+  },
+  async ({ loan_id, consent_token }) => {
+    const data = await apiCall(
+      "GET",
+      `/bian/consumer-loan/${loan_id}/retrieve`,
+      null,
+      consentHeaders(consent_token),
+    );
     return ok(data);
   }
 );
@@ -203,20 +244,26 @@ server.tool(
   "apply_for_loan",
   "Submit a new loan application for a customer.",
   {
-    party_id:     z.string().describe("Customer party identifier"),
-    amount:       z.number().positive().describe("Requested loan amount"),
-    currency:     z.string().length(3).default("GBP").describe("ISO 4217 currency code (default: GBP)"),
-    term_months:  z.number().int().min(1).max(360).describe("Loan term in months"),
-    purpose:      z.string().describe("Loan purpose, e.g. HomeImprovement, CarPurchase, Consolidation"),
+    party_id:      z.string().describe("Customer party identifier, e.g. PAR-ARIA"),
+    amount:        z.number().positive().describe("Requested loan amount"),
+    currency:      z.string().length(3).default("GBP").describe("ISO 4217 currency code (default: GBP)"),
+    term_months:   z.number().int().min(1).max(360).describe("Loan term in months"),
+    purpose:       z.string().describe("Loan purpose, e.g. HomeImprovement, CarPurchase, Consolidation"),
+    consent_token: z.string().optional().describe("Optional FAPI consent token override"),
   },
-  async ({ party_id, amount, currency, term_months, purpose }) => {
-    const data = await apiCall("POST", "/bian/consumer-loan/initiate", {
-      partyId: party_id,
-      requestedAmount: amount,
-      currency,
-      termMonths: term_months,
-      purpose,
-    });
+  async ({ party_id, amount, currency, term_months, purpose, consent_token }) => {
+    const data = await apiCall(
+      "POST",
+      "/bian/consumer-loan/initiate",
+      {
+        partyId: party_id,
+        requestedAmount: amount,
+        currency,
+        termMonths: term_months,
+        purpose,
+      },
+      consentHeaders(consent_token),
+    );
     return ok(data);
   }
 );
@@ -227,9 +274,17 @@ server.tool(
 server.tool(
   "get_card_details",
   "Retrieve card information including type, status, credit limit, and available credit.",
-  { card_id: z.string().describe("Card identifier, e.g. CRD-88421") },
-  async ({ card_id }) => {
-    const data = await apiCall("GET", `/bian/credit-card/${card_id}/retrieve`, null);
+  {
+    card_id:       z.string().describe("Card identifier, e.g. CRD-88421"),
+    consent_token: z.string().optional().describe("Optional FAPI consent token override"),
+  },
+  async ({ card_id, consent_token }) => {
+    const data = await apiCall(
+      "GET",
+      `/bian/credit-card/${card_id}/retrieve`,
+      null,
+      consentHeaders(consent_token),
+    );
     return ok(data);
   }
 );
@@ -238,11 +293,17 @@ server.tool(
   "block_card",
   "Block or unblock a payment card. Use action='block' to freeze, 'unblock' to restore.",
   {
-    card_id: z.string().describe("Card identifier"),
-    action:  z.enum(["block", "unblock"]).describe("The action to perform on the card"),
+    card_id:       z.string().describe("Card identifier, e.g. CRD-88421"),
+    action:        z.enum(["block", "unblock"]).describe("The action to perform on the card"),
+    consent_token: z.string().optional().describe("Optional FAPI consent token override"),
   },
-  async ({ card_id, action }) => {
-    const data = await apiCall("POST", `/bian/credit-card/${card_id}/request`, { action });
+  async ({ card_id, action, consent_token }) => {
+    const data = await apiCall(
+      "POST",
+      `/bian/credit-card/${card_id}/request`,
+      { action },
+      consentHeaders(consent_token),
+    );
     return ok(data);
   }
 );
@@ -253,9 +314,17 @@ server.tool(
 server.tool(
   "get_portfolio",
   "Retrieve investment portfolio holdings, total value, and year-to-date performance.",
-  { portfolio_id: z.string().describe("Portfolio identifier, e.g. PRT-29183") },
-  async ({ portfolio_id }) => {
-    const data = await apiCall("GET", `/bian/investment-portfolio/${portfolio_id}/retrieve`, null);
+  {
+    portfolio_id:  z.string().describe("Portfolio identifier, e.g. PRT-29183"),
+    consent_token: z.string().optional().describe("Optional FAPI consent token override"),
+  },
+  async ({ portfolio_id, consent_token }) => {
+    const data = await apiCall(
+      "GET",
+      `/bian/investment-portfolio/${portfolio_id}/retrieve`,
+      null,
+      consentHeaders(consent_token),
+    );
     return ok(data);
   }
 );
@@ -264,15 +333,21 @@ server.tool(
   "place_order",
   "Place a buy or sell order for a financial instrument within a portfolio. Supports fractional quantities.",
   {
-    portfolio_id: z.string().describe("Portfolio identifier"),
-    instrument:   z.string().describe("Instrument ticker or ISIN, e.g. AAPL or GB00B16GWD56"),
-    quantity:     z.number().positive().describe("Number of units to buy or sell (fractional quantities supported)"),
-    direction:    z.enum(["buy", "sell"]).describe("Order direction"),
+    portfolio_id:  z.string().describe("Portfolio identifier, e.g. PRT-29183"),
+    instrument:    z.string().describe("Instrument ticker or ISIN, e.g. AAPL or GB00B16GWD56"),
+    quantity:      z.number().positive().describe("Number of units to buy or sell (fractional quantities supported)"),
+    direction:     z.enum(["buy", "sell"]).describe("Order direction"),
+    consent_token: z.string().optional().describe("Optional FAPI consent token override"),
   },
-  async ({ portfolio_id, instrument, quantity, direction }) => {
-    const data = await apiCall("POST", `/bian/investment-portfolio/${portfolio_id}/request`, {
-      instrument, quantity, direction,
-    });
+  async ({ portfolio_id, instrument, quantity, direction, consent_token }) => {
+    const data = await apiCall(
+      "POST",
+      `/bian/investment-portfolio/${portfolio_id}/request`,
+      {
+        instrument, quantity, direction,
+      },
+      consentHeaders(consent_token),
+    );
     return ok(data);
   }
 );
@@ -284,14 +359,20 @@ server.tool(
   "run_aml_screen",
   "Run AML and sanctions screening against a party or transaction.",
   {
-    subject_type: z.enum(["party", "transaction"]).describe("What is being screened"),
-    subject_id:   z.string().describe("The party or transaction identifier to screen"),
+    subject_type:  z.enum(["party", "transaction"]).describe("What is being screened"),
+    subject_id:    z.string().describe("The party or transaction identifier to screen, e.g. PAR-ARIA"),
+    consent_token: z.string().optional().describe("Optional FAPI consent token override"),
   },
-  async ({ subject_type, subject_id }) => {
-    const data = await apiCall("POST", "/bian/aml-screening/evaluate", {
-      subjectType: subject_type,
-      subjectId:   subject_id,
-    });
+  async ({ subject_type, subject_id, consent_token }) => {
+    const data = await apiCall(
+      "POST",
+      "/bian/aml-screening/evaluate",
+      {
+        subjectType: subject_type,
+        subjectId:   subject_id,
+      },
+      consentHeaders(consent_token),
+    );
     return ok(data);
   }
 );
@@ -303,21 +384,27 @@ server.tool(
   "subscribe_events",
   "Subscribe an agent webhook to real-time account events such as credits, debits, and balance alerts.",
   {
-    party_id:    z.string().describe("Customer party identifier"),
-    event_types: z.array(z.string()).describe("Event types to subscribe to, e.g. ['transaction.credit', 'balance.threshold']"),
-    webhook_url: z.string().url().describe("HTTPS endpoint that will receive event payloads"),
+    party_id:      z.string().describe("Customer party identifier, e.g. PAR-ARIA"),
+    event_types:   z.array(z.string()).describe("Event types to subscribe to, e.g. ['transaction.credit', 'balance.threshold']"),
+    webhook_url:   z.string().url().describe("HTTPS endpoint that will receive event payloads"),
+    consent_token: z.string().optional().describe("Optional FAPI consent token override"),
   },
-  async ({ party_id, event_types, webhook_url }) => {
+  async ({ party_id, event_types, webhook_url, consent_token }) => {
     // FAPI webhook ownership verification: generate a challenge token and include
     // it in the subscription request. The server is expected to POST the challenge
     // to webhook_url and verify the echo before activating the subscription.
     const verificationToken = crypto.randomUUID();
-    const data = await apiCall("POST", "/bian/customer-event-history/webhook", {
-      partyId: party_id,
-      eventTypes: event_types,
-      webhookUrl: webhook_url,
-      verificationToken,
-    });
+    const data = await apiCall(
+      "POST",
+      "/bian/customer-event-history/webhook",
+      {
+        partyId: party_id,
+        eventTypes: event_types,
+        webhookUrl: webhook_url,
+        verificationToken,
+      },
+      consentHeaders(consent_token),
+    );
     return ok(data);
   }
 );

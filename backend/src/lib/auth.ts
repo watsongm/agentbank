@@ -1,37 +1,39 @@
-// FAPI bearer-token validation plugin.
-// Phase 3 stub: validates that every non-public request carries a well-formed
-// Authorization: Bearer <token> header. Accepted tokens are:
-//   • the value of AGENTBANK_TOKEN env var (the service-level token)
+// FAPI 2.0 bearer-token & consent validation plugin.
+// Validates that every non-public request carries a well-formed
+// Authorization: Bearer <token> header and resolves the token into a
+// scoped Consent object via parseConsent(). Accepted tokens are:
 //   • the literal string "demo-token" (CI smoke tests, local dev)
-//
-// Phase 4 (Tier 2): replace the static-set check with JWT signature
-// verification + scope extraction from the token claims.
+//   • the value of AGENTBANK_TOKEN env var (the service-level token)
+//   • base64/base64url-encoded JSON consent payloads ({ customerId, scopes, expiresAt })
+//   • 3-part JWT tokens (header.payload.signature)
 
 import fp from "fastify-plugin";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { Unauthorized } from "./errors.js";
+import { parseConsent, type Consent } from "./consent.js";
 
-// Routes that bypass auth — docs, health, and the root index
-const PUBLIC_PREFIXES = ["/docs", "/openapi.json", "/health", "/"] as const;
+// Routes that bypass auth — docs, OpenAPI spec, health, metrics, OAuth token endpoint, observability, and root
+export const PUBLIC_PREFIXES = [
+  "/docs",
+  "/openapi.json",
+  "/health",
+  "/metrics",
+  "/open-banking/v3.1/oauth/token",
+  "/observability",
+] as const;
 
-function isPublic(url: string): boolean {
-  return PUBLIC_PREFIXES.some((p) => url === p || url.startsWith(p + "?"));
-}
-
-// Build the set of accepted tokens once at startup
-function buildValidTokens(): Set<string> {
-  const tokens = new Set(["demo-token"]);
-  const envToken = process.env.AGENTBANK_TOKEN;
-  if (envToken) {
-    // Accept the raw value and the value without a "Bearer " prefix
-    tokens.add(envToken);
-    tokens.add(envToken.replace(/^Bearer\s+/i, ""));
-  }
-  return tokens;
+export function isPublic(url: string): boolean {
+  const path = url.split("?")[0];
+  if (path === "/") return true;
+  return PUBLIC_PREFIXES.some(
+    (p) => url === p || path === p || url.startsWith(p + "/") || url.startsWith(p + "?"),
+  );
 }
 
 export const authPlugin = fp(async function (fastify: FastifyInstance) {
-  const validTokens = buildValidTokens();
+  if (!fastify.hasRequestDecorator("consent")) {
+    fastify.decorateRequest("consent", null as unknown as Consent);
+  }
 
   fastify.addHook("onRequest", async (req: FastifyRequest) => {
     if (isPublic(req.url)) return;
@@ -42,11 +44,11 @@ export const authPlugin = fp(async function (fastify: FastifyInstance) {
     }
 
     const token = header.slice(7).trim();
-    if (!validTokens.has(token)) {
-      throw Unauthorized("Invalid or expired token");
+    if (!token) {
+      throw Unauthorized("Missing or malformed Authorization header — expected: Bearer <token>");
     }
 
-    // Phase 4 (Tier 2): extract sub, scope, and party claims from JWT here
-    // and attach them to req for downstream scope enforcement.
+    // Verify token and attach parsed consent for downstream scope enforcement
+    req.consent = parseConsent(token);
   });
 });

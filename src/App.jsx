@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from "react";
-import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from "recharts";
 
 import { DOMAINS } from "./data/domains.js";
 import { TOOLS } from "./data/tools.js";
 import { AGENT_BUILDS } from "./data/agentBuilds.js";
 import { AGENT_STEPS } from "./data/agentSteps.js";
 import { CONVERSATION } from "./data/conversation.js";
-import { mockApi, defaultBody } from "./mock/api.js";
-import { OBS_TOOLS, OBS_MODELS, rnd, makeSession, makeHistory, makeSpans, makeTraceSteps } from "./mock/sessions.js";
+import { apiConsoleRequest, resolveEndpointPath, defaultBody, getApiMode, setApiMode } from "./api/index.js";
+import { useAuth } from "./context/AuthContext.jsx";
+import { OBS_MODELS, rnd, makeSession, makeHistory } from "./mock/sessions.js";
+import ObservabilityOverlay from "./Observability.jsx";
 import McpTab from "./components/McpTab.jsx";
 import SdkTab from "./components/SdkTab.jsx";
 
@@ -249,6 +250,11 @@ h1 em{font-style:normal;color:var(--gold);}
 .res-empty-text{font-family:var(--mono);font-size:11px;letter-spacing:1px;}
 .res-meta{display:flex;gap:12px;margin-bottom:12px;align-items:center;}
 .res-status{font-family:var(--mono);font-size:12px;font-weight:700;padding:3px 9px;background:rgba(76,175,80,.1);border:1px solid rgba(76,175,80,.3);color:#4caf50;}
+.res-status.err{background:rgba(255,82,82,.1);border-color:rgba(255,82,82,.35);color:var(--red);}
+.mode-toggle{display:inline-flex;border:1px solid #1e2c3a;background:#070a0e;margin-left:14px;}
+.mode-btn{font-family:var(--mono);font-size:10px;padding:4px 10px;background:transparent;border:none;color:#445566;cursor:pointer;letter-spacing:.8px;transition:all .15s;}
+.mode-btn.on-mock{background:rgba(201,168,76,.14);color:var(--gold);}
+.mode-btn.on-live{background:rgba(0,230,118,.12);color:var(--green);}
 .res-time{font-family:var(--mono);font-size:11px;color:#2a3a4a;}
 .res-json{font-family:var(--mono);font-size:11px;line-height:1.7;color:#a5d6a7;white-space:pre-wrap;word-break:break-all;}
 .res-loading{display:flex;align-items:center;gap:9px;color:var(--gold);font-family:var(--mono);font-size:12px;padding:18px 0;}
@@ -384,23 +390,13 @@ footer{padding:56px 40px 36px;border-top:1px solid var(--line);display:flex;flex
 .footer-bar{padding:20px 40px;border-top:1px solid var(--line);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;font-family:var(--mono);font-size:11px;color:var(--mid);}
 @media(max-width:768px){.tab-bar{padding:0 20px;overflow-x:auto;}.tab-btn{padding:12px 14px;font-size:11px;}}
 @media(max-width:1100px){.chart-row-3{grid-template-columns:1fr 1fr;}.trace-layout{grid-template-columns:1fr;}}
-@media(max-width:900px){.agent-grid,.uc-grid,.workspace{grid-template-columns:1fr;}.detail-panel,.res-pane{display:none;}}
+@media(max-width:900px){.agent-grid,.uc-grid{grid-template-columns:1fr;}.workspace{display:flex;flex-direction:column;overflow-y:auto;}.req-pane{border-right:none;border-bottom:1px solid #18222e;flex-shrink:0;}.res-pane{flex-shrink:0;min-height:240px;}.trace-layout{grid-template-columns:1fr;}}
 @media(max-width:768px){.nav{padding:0 20px;}.nav-links{display:none;}.sec,.tools-sec,.uc-sec{padding:60px 20px;}.hero{padding:100px 20px 60px;}.hero-stats{gap:26px;}footer,.footer-bar{padding-left:20px;padding-right:20px;}.srow{grid-template-columns:80px 1fr 65px 60px;}.srow>*:nth-child(n+5){display:none;}}
 `;
 
-function CT({active,payload,label,unit=""}) {
-  if (!active || !payload?.length) return null;
-  return (
-    <div style={{background:"#0d1520",border:"1px solid #1e2c3a",padding:"8px 12px",fontFamily:"monospace",fontSize:11}}>
-      <div style={{color:"#445566",marginBottom:4}}>{label}</div>
-      {payload.map((p,i)=>(
-        <div key={i} style={{color:p.color}}>{p.name}: {p.value}{unit}</div>
-      ))}
-    </div>
-  );
-}
-
 export default function App() {
+  const { token, setToken }       = useAuth();
+  const [apiMode, setApiModeState]= useState(() => getApiMode());
   const [activeTab, setActiveTab] = useState("channel");
   const tabBarRef                  = useRef(null);
   const [modal, setModal]          = useState(null);
@@ -416,27 +412,43 @@ export default function App() {
   /* console state */
   const [cDomain, setCDomain]  = useState(DOMAINS[0].id);
   const [cEpIdx, setCEpIdx]    = useState(0);
+  const [cPath, setCPath]      = useState(() => resolveEndpointPath(DOMAINS[0].endpoints[0].p));
   const [cBody, setCBody]      = useState("");
-  const [cAuth, setCAuth]      = useState("Bearer eyJhbGciOiJQUzI1NiIsInR5cCI6IkpXVCJ9...");
   const [cResp, setCResp]      = useState(null);
+  const [cStatus, setCStatus]  = useState("200 OK");
+  const [cOk, setCOk]          = useState(true);
+  const [cFapiId, setCFapiId]  = useState("3f785c72-b4a1-4b9c-9221-8d6c3f0e1294");
   const [cLoading, setCLoading]= useState(false);
   const [cTime, setCTime]      = useState(null);
 
   /* observability state */
-  const [obsTab, setObsTab]        = useState("metrics");
   const [obsPaused, setObsPaused]  = useState(false);
   const [sessions, setSessions]    = useState(()=>Array.from({length:12},(_,i)=>makeSession(i+1)));
   const [history, setHistory]      = useState(makeHistory);
-  const [selSess, setSelSess]      = useState(null);
-  const [traceLines, setTraceLines]= useState([]);
-  const [spans, setSpans]          = useState([]);
   const sessCounter                = useRef(13);
-  const traceRef                   = useRef(null);
+
+  function toggleMode(nextMode) {
+    setApiMode(nextMode);
+    setApiModeState(nextMode);
+  }
 
   function switchTab(id) {
     setActiveTab(id);
     window.scrollTo({ top: (tabBarRef.current?.offsetTop ?? 0) - 60, behavior: "smooth" });
   }
+
+  /* Escape key closes active modal or overlay */
+  useEffect(() => {
+    function onKeyDown(e) {
+      if (e.key === "Escape") {
+        if (modal) setModal(null);
+        else if (showConsole) setShowConsole(false);
+        else if (showObs) setShowObs(false);
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [modal, showConsole, showObs]);
 
   /* terminal animation */
   useEffect(()=>{
@@ -460,74 +472,80 @@ export default function App() {
     return ()=>clearInterval(t);
   },[obsPaused,showObs]);
 
-  /* obs trace animation */
-  useEffect(()=>{
-    if (!selSess) return;
-    const steps = makeTraceSteps(selSess);
-    setTraceLines([]); setSpans(makeSpans(selSess));
-    let i=0;
-    const t = setInterval(()=>{ if(i<steps.length){setTraceLines(p=>[...p,steps[i]]);i++;}else clearInterval(t); },190);
-    return ()=>clearInterval(t);
-  },[selSess?.id]);
-  useEffect(()=>{ if(traceRef.current) traceRef.current.scrollTop=traceRef.current.scrollHeight; },[traceLines]);
-
   /* console helpers */
   const cDom = DOMAINS.find(d=>d.id===cDomain);
   const cEp  = cDom?.endpoints[cEpIdx];
   function pickDomain(id) {
     const d=DOMAINS.find(x=>x.id===id);
+    const ep = d.endpoints[0];
     setCDomain(id); setCEpIdx(0); setCResp(null);
-    setCBody(defaultBody(d.endpoints[0].m, d.endpoints[0].p));
+    setCPath(resolveEndpointPath(ep.p));
+    setCBody(defaultBody(ep.m, ep.p));
   }
   function pickEp(i) {
+    const ep = cDom.endpoints[i];
     setCEpIdx(i); setCResp(null);
-    setCBody(defaultBody(cDom.endpoints[i].m, cDom.endpoints[i].p));
+    setCPath(resolveEndpointPath(ep.p));
+    setCBody(defaultBody(ep.m, ep.p));
+  }
+  function openConsole() {
+    const ep = cDom?.endpoints[cEpIdx] || DOMAINS[0].endpoints[0];
+    setCPath(resolveEndpointPath(ep.p));
+    setCBody(defaultBody(ep.m, ep.p));
+    setShowConsole(true);
   }
 
   /* API Console → Observability: real calls appear as sessions with a blue left border */
   async function sendReq() {
     if (!cEp) return;
     setCLoading(true); setCResp(null);
-    const t0 = Date.now();
-    await new Promise(r=>setTimeout(r, 350+Math.random()*450));
-    const elapsed = Date.now()-t0;
-    setCTime(elapsed);
-    const resp = mockApi(cEp.m, cEp.p);
-    setCResp(resp);
+
+    let parsedBody = null;
+    if (cEp.m !== "GET" && cBody.trim()) {
+      try {
+        parsedBody = JSON.parse(cBody);
+      } catch (err) {
+        setCTime(1);
+        setCStatus("400 Bad Request");
+        setCOk(false);
+        setCResp({ error: "InvalidJSON", message: err.message });
+        setCLoading(false);
+        return;
+      }
+    }
+
+    const res = await apiConsoleRequest(cEp.m, cPath, parsedBody, token, apiMode);
+    setCTime(res.latencyMs);
+    setCStatus(`${res.status} ${res.statusText}`);
+    setCOk(res.ok);
+    if (res.fapiId) setCFapiId(res.fapiId);
+    setCResp(res.data);
     setCLoading(false);
 
     const matchedTool = TOOLS.find(t=>t.domain===cDomain) ?? TOOLS[0];
     const consoleSess = {
       id: `SES-${String(sessCounter.current++).padStart(5,"0")}`,
-      traceId: Array.from({length:16},()=>Math.floor(Math.random()*16).toString(16)).join(""),
-      customer: "API Console",
+      traceId: (res.fapiId || Array.from({length:16},()=>Math.floor(Math.random()*16).toString(16)).join("")).replace(/-/g, ""),
+      customer: apiMode === "live" ? "API Console (Live)" : "API Console",
       model: OBS_MODELS[0],
       tool: matchedTool.name,
-      latency: elapsed,
+      latency: res.latencyMs,
       inputTok: rnd(200,600),
       outputTok: rnd(40,180),
       toolCalls: 1,
-      status: "success",
+      status: res.ok ? "success" : "error",
       ts: Date.now(),
       source: "console",
     };
     setSessions(p=>[consoleSess, ...p].slice(0,40));
     setHistory(p=>{
-      const pt={t:new Date().toLocaleTimeString("en",{hour:"2-digit",minute:"2-digit"}),latency:elapsed,inputTok:consoleSess.inputTok,outputTok:consoleSess.outputTok,toolCalls:1,errors:0,sessions:1};
+      const pt={t:new Date().toLocaleTimeString("en",{hour:"2-digit",minute:"2-digit"}),latency:res.latencyMs,inputTok:consoleSess.inputTok,outputTok:consoleSess.outputTok,toolCalls:1,errors:res.ok?0:1,sessions:1};
       return [...p.slice(-19),pt];
     });
   }
 
-  /* derived obs metrics */
-  const rec    = sessions.slice(0,30);
-  const avgLat = Math.round(rec.reduce((a,s)=>a+s.latency,0)/rec.length);
-  const totTok = rec.reduce((a,s)=>a+s.inputTok+s.outputTok,0);
-  const errPct = +(rec.filter(s=>s.status!=="success").length/rec.length*100).toFixed(1);
-  const avgTool= +(rec.reduce((a,s)=>a+s.toolCalls,0)/rec.length).toFixed(1);
-  const toolDist=OBS_TOOLS.map(n=>({name:n.replace(/_/g," "),calls:rec.filter(s=>s.tool===n).length*rnd(1,4)||rnd(1,8)})).sort((a,b)=>b.calls-a.calls);
-  const spanMax=spans.length?Math.max(...spans.map(s=>s.start+s.dur))||1:1;
-  const spColors=["#4fc3f7","#81c784","#ffb74d","#ce93d8","#ef9a9a","#80cbc4"];
   const modalDomain = modal ? DOMAINS.find(d=>d.id===modal) : null;
+  const authDisplayValue = token ? (token.startsWith("Bearer ") ? token : `Bearer ${token}`) : "Bearer demo-token";
 
   return (
     <>
@@ -543,11 +561,12 @@ export default function App() {
           <span className="nl" onClick={()=>switchTab("arch")}>Architecture</span>
           <span className="nl" onClick={()=>switchTab("mcp")}>MCP Server</span>
           <span className="nl" onClick={()=>switchTab("sdk")}>SDK</span>
+          <a className="nl" href="/agentbank-executive-visuals.html" target="_blank" rel="noreferrer">Exec Deck ↗</a>
           <a className="nl" href="https://github.com/watsongm/agentbank" target="_blank" rel="noreferrer">GitHub ↗</a>
         </div>
         <div style={{display:"flex",gap:8}}>
           <button className="nav-btn" style={{background:"transparent",color:"var(--ink)",border:"1.5px solid var(--ink)"}} onClick={()=>setShowObs(true)}>Observability</button>
-          <button className="nav-btn" onClick={()=>{ setShowConsole(true); setCBody(defaultBody(cDom.endpoints[0].m,cDom.endpoints[0].p)); }}>API Console →</button>
+          <button className="nav-btn" onClick={openConsole}>API Console →</button>
         </div>
       </nav>
 
@@ -599,6 +618,7 @@ export default function App() {
             <div className="term-bar">
               <div className="tdot" style={{background:"#ff5f57"}}/><div className="tdot" style={{background:"#ffbd2e"}}/><div className="tdot" style={{background:"#28c840"}}/>
               <span className="term-lbl">AGENTBANK-AGENT-RUNTIME v2.4</span>
+              <button style={{marginLeft:"auto",fontFamily:"var(--mono)",fontSize:10,padding:"3px 9px",background:"rgba(255,255,255,.05)",border:"1px solid rgba(255,255,255,.1)",color:"rgba(255,255,255,.35)",cursor:"pointer"}} onClick={()=>setTermIdx(0)}>↺ REPLAY</button>
             </div>
             <div className="term-body" ref={termRef}>
               {CONVERSATION.slice(0,termIdx).map((m,i)=>(
@@ -795,7 +815,7 @@ export default function App() {
         <div>
           <div className="footer-col-hdr">Developer</div>
           <div className="footer-links">
-            <span className="fl" onClick={()=>{ setShowConsole(true); setCBody(defaultBody(DOMAINS[0].endpoints[0].m, DOMAINS[0].endpoints[0].p)); }}>API Console</span>
+            <span className="fl" onClick={openConsole}>API Console</span>
             <span className="fl" onClick={()=>setShowObs(true)}>Observability</span>
             <span className="fl" onClick={()=>switchTab("sdk")}>Agent SDK</span>
             <a className="fl" href="https://github.com/watsongm/agentbank/blob/main/openapi.yaml" target="_blank" rel="noreferrer">OpenAPI Spec ↗</a>
@@ -805,6 +825,7 @@ export default function App() {
           <div className="footer-col-hdr">Project</div>
           <div className="footer-links">
             <a className="fl" href="https://github.com/watsongm/agentbank" target="_blank" rel="noreferrer">GitHub ↗</a>
+            <a className="fl" href="/agentbank-executive-visuals.html" target="_blank" rel="noreferrer">Exec Deck ↗</a>
             <span className="fl" onClick={()=>switchTab("mcp")}>MCP Server</span>
             <span className="fl" onClick={()=>switchTab("arch")}>Architecture</span>
           </div>
@@ -817,17 +838,17 @@ export default function App() {
 
       {/* DOMAIN MODAL */}
       {modalDomain && (
-        <div className="overlay" onClick={e=>e.target===e.currentTarget&&setModal(null)}>
+        <div className="overlay" role="dialog" aria-modal="true" aria-label={modalDomain.name} onClick={e=>e.target===e.currentTarget&&setModal(null)}>
           <div className="modal">
             <div className="modal-hdr">
               <div><div className="modal-title" style={{color:modalDomain.color}}>{modalDomain.icon} {modalDomain.name}</div><div className="modal-bian">{modalDomain.bian}</div></div>
-              <button className="modal-x" onClick={()=>setModal(null)}>✕</button>
+              <button className="modal-x" onClick={()=>setModal(null)} aria-label="Close modal">✕</button>
             </div>
             <div className="modal-body">
               <p style={{fontSize:14,color:"var(--mid)",lineHeight:1.7,marginBottom:22}}>{modalDomain.desc}</p>
-              <div className="modal-tabs">
-                <button className={`mtab ${modalTab==="ep"?"on":""}`} onClick={()=>setModalTab("ep")}>Endpoints ({modalDomain.endpoints.length})</button>
-                <button className={`mtab ${modalTab==="caps"?"on":""}`} onClick={()=>setModalTab("caps")}>Agent Capabilities ({modalDomain.caps.length})</button>
+              <div className="modal-tabs" role="tablist">
+                <button role="tab" aria-selected={modalTab==="ep"} className={`mtab ${modalTab==="ep"?"on":""}`} onClick={()=>setModalTab("ep")}>Endpoints ({modalDomain.endpoints.length})</button>
+                <button role="tab" aria-selected={modalTab==="caps"} className={`mtab ${modalTab==="caps"?"on":""}`} onClick={()=>setModalTab("caps")}>Agent Capabilities ({modalDomain.caps.length})</button>
               </div>
               {modalTab==="ep" && <div className="ep-list">{modalDomain.endpoints.map((ep,i)=><div key={i} className="ep-row"><span className={`ep-badge badge-${ep.m}`}>{ep.m}</span><div><div className="ep-path">{ep.p}</div><div className="ep-desc">{ep.d}</div></div></div>)}</div>}
               {modalTab==="caps" && <div><div className="cap-list">{modalDomain.caps.map((c,i)=><div key={i} className="cap-row"><div className="cap-tick">✓</div><span className="cap-text">{c}</span></div>)}</div><div className="scope-box"><div className="scope-lbl">REQUIRED CONSENT SCOPE</div><code style={{fontFamily:"var(--mono)",fontSize:12,color:"var(--ink)"}}>{modalDomain.id}:read {modalDomain.id}:write</code></div></div>}
@@ -838,9 +859,28 @@ export default function App() {
 
       {/* API CONSOLE */}
       {showConsole && (
-        <div className="console-wrap">
+        <div className="console-wrap" role="dialog" aria-modal="true" aria-label="Interactive API Console">
           <div className="console-top">
-            <div style={{display:"flex",alignItems:"center"}}><div className="console-logo">AGENT<span>BANK</span></div><span className="console-sub">Interactive API Console</span></div>
+            <div style={{display:"flex",alignItems:"center",flexWrap:"wrap",gap:4}}>
+              <div className="console-logo">AGENT<span>BANK</span></div>
+              <span className="console-sub">Interactive API Console</span>
+              <div className="mode-toggle" role="group" aria-label="API execution mode">
+                <button
+                  type="button"
+                  className={`mode-btn ${apiMode === "mock" ? "on-mock" : ""}`}
+                  onClick={() => toggleMode("mock")}
+                >
+                  MOCK
+                </button>
+                <button
+                  type="button"
+                  className={`mode-btn ${apiMode === "live" ? "on-live" : ""}`}
+                  onClick={() => toggleMode("live")}
+                >
+                  LIVE BACKEND
+                </button>
+              </div>
+            </div>
             <button className="console-x" onClick={()=>setShowConsole(false)}>✕ CLOSE</button>
           </div>
           <div className="console-inner">
@@ -864,21 +904,29 @@ export default function App() {
               </div>
               <div className="workspace">
                 <div className="req-pane">
-                  <div className="pane-hdr"><span>REQUEST</span><span style={{color:"#2a3a4a"}}>{cDom?.bian}</span></div>
+                  <div className="pane-hdr"><span>REQUEST ({apiMode.toUpperCase()})</span><span style={{color:"#2a3a4a"}}>{cDom?.bian}</span></div>
                   <div className="url-row">
                     <div className={`url-method um-${cEp?.m}`}>{cEp?.m}</div>
-                    <input className="url-path" value={cEp?.p||""} readOnly/>
+                    <input className="url-path" value={cPath} onChange={e=>setCPath(e.target.value)} aria-label="Request URL path"/>
                     <button className="send" onClick={sendReq} disabled={cLoading}>{cLoading?"...":"SEND →"}</button>
                   </div>
                   <div className="req-fields">
                     <div className="field-section">
                       <div className="field-sec-hdr">HEADERS</div>
-                      <div className="field"><span className="field-lbl">Authorization</span><input className="field-inp" value={cAuth} onChange={e=>setCAuth(e.target.value)}/></div>
-                      <div className="field"><span className="field-lbl">x-fapi-interaction-id</span><input className="field-inp" defaultValue="3f785c72-b4a1-4b9c-9221-8d6c3f0e1294" readOnly/></div>
-                      <div className="field"><span className="field-lbl">Content-Type</span><input className="field-inp" value="application/json" readOnly/></div>
+                      <div className="field">
+                        <span className="field-lbl">Authorization</span>
+                        <input
+                          className="field-inp"
+                          value={authDisplayValue}
+                          onChange={e => setToken(e.target.value.replace(/^Bearer\s+/i, ""))}
+                          aria-label="Authorization header"
+                        />
+                      </div>
+                      <div className="field"><span className="field-lbl">x-fapi-interaction-id</span><input className="field-inp" value={cFapiId} readOnly aria-label="FAPI Interaction ID"/></div>
+                      <div className="field"><span className="field-lbl">Content-Type</span><input className="field-inp" value="application/json" readOnly aria-label="Content-Type"/></div>
                     </div>
-                    {cEp?.m!=="GET" && <div className="field-section"><div className="field-sec-hdr">REQUEST BODY</div><div style={{padding:"8px 14px"}}><textarea className="field-ta" rows={8} value={cBody} onChange={e=>setCBody(e.target.value)}/></div></div>}
-                    <div className="field-section"><div className="field-sec-hdr">ENDPOINT INFO</div><div style={{padding:"10px 14px"}}><div style={{fontSize:12,color:"rgba(255,255,255,.35)",lineHeight:1.7}}>{cEp?.d}</div><div style={{marginTop:7,fontFamily:"monospace",fontSize:10,color:"#2a3a4a"}}>SCOPE: <span style={{color:"rgba(201,168,76,.7)"}}>{cDomain}:read{cEp?.m!=="GET"?" "+cDomain+":write":""}</span></div></div></div>
+                    {cEp?.m!=="GET" && <div className="field-section"><div className="field-sec-hdr">REQUEST BODY</div><div style={{padding:"8px 14px"}}><textarea className="field-ta" rows={8} value={cBody} onChange={e=>setCBody(e.target.value)} aria-label="Request JSON body"/></div></div>}
+                    <div className="field-section"><div className="field-sec-hdr">ENDPOINT INFO</div><div style={{padding:"10px 14px"}}><div style={{fontSize:12,color:"rgba(255,255,255,.35)",lineHeight:1.7}}>{cEp?.d}</div><div style={{marginTop:7,fontFamily:"monospace",fontSize:10,color:"#2a3a4a"}}>TEMPLATE: <span style={{color:"#4fc3f7"}}>{cEp?.p}</span> · SCOPE: <span style={{color:"rgba(201,168,76,.7)"}}>{cDomain}:read{cEp?.m!=="GET"?" "+cDomain+":write":""}</span></div></div></div>
                   </div>
                 </div>
                 <div className="res-pane">
@@ -886,7 +934,7 @@ export default function App() {
                   <div className="res-body">
                     {!cResp&&!cLoading&&<div className="res-empty"><div className="res-empty-icon">◎</div><div className="res-empty-text">HIT SEND TO EXECUTE</div></div>}
                     {cLoading&&<div className="res-loading"><div className="spinner"/>AWAITING RESPONSE...</div>}
-                    {cResp&&!cLoading&&<><div className="res-meta"><div className="res-status">200 OK</div><div className="res-time">{cTime}ms · application/json</div></div><pre className="res-json">{JSON.stringify(cResp,null,2)}</pre></>}
+                    {cResp&&!cLoading&&<><div className="res-meta"><div className={`res-status ${cOk?"":"err"}`}>{cStatus}</div><div className="res-time">{cTime}ms · application/json</div></div><pre className="res-json">{JSON.stringify(cResp,null,2)}</pre></>}
                   </div>
                 </div>
               </div>
@@ -897,224 +945,16 @@ export default function App() {
 
       {/* OBSERVABILITY */}
       {showObs && (
-        <div className="obs-wrap">
-          <div className="obs-top">
-            <div style={{display:"flex",alignItems:"center"}}><div className="obs-logo">AGENT<span>BANK</span></div><span className="obs-sub">OBSERVABILITY</span></div>
-            <div className="obs-right">
-              <div className="live-pill"><div className="ldot"/><span className="ltext">LIVE · {sessions.length} SESSIONS</span></div>
-              <button className={`pause-btn ${obsPaused?"paused":""}`} onClick={()=>setObsPaused(p=>!p)}>{obsPaused?"▶ RESUME":"⏸ PAUSE"}</button>
-              <button className="console-x" onClick={()=>setShowObs(false)}>✕ CLOSE</button>
-            </div>
-          </div>
-          <div className="obs-tabs">
-            {[["metrics","LLM METRICS"],["trace","AGENT TRACE"],["otel","OTEL SPANS"]].map(([id,lbl])=>(
-              <button key={id} className={`otab ${obsTab===id?"on":""}`} onClick={()=>setObsTab(id)}>{lbl}</button>
-            ))}
-          </div>
-
-          {obsTab==="metrics" && (
-            <div className="obs-page">
-              <div className="kpi-row">
-                {[
-                  {l:"AVG LATENCY",   v:`${avgLat}ms`,                  c:"var(--orange)"},
-                  {l:"TOTAL TOKENS",  v:`${(totTok/1000).toFixed(1)}k`, c:"var(--blue)"},
-                  {l:"AVG TOOL CALLS",v:avgTool,                         c:"var(--purple)"},
-                  {l:"ERROR RATE",    v:`${errPct}%`,                    c:errPct>5?"var(--red)":"var(--green)"},
-                  {l:"LIVE SESSIONS", v:sessions.length,                 c:"var(--green)"},
-                  {l:"MODELS ACTIVE", v:OBS_MODELS.length,               c:"var(--blue)"},
-                ].map(k=>(
-                  <div key={k.l} className="kpi"><div className="kpi-lbl">{k.l}</div><div className="kpi-val" style={{color:k.c}}>{k.v}</div></div>
-                ))}
-              </div>
-              <div className="chart-row">
-                <div className="chart-card">
-                  <div className="chart-hdr">AGENT LATENCY (ms)</div>
-                  <ResponsiveContainer width="100%" height={160}>
-                    <AreaChart data={history} margin={{top:4,right:4,left:-20,bottom:0}}>
-                      <defs><linearGradient id="gl1" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#ffb74d" stopOpacity={.3}/><stop offset="95%" stopColor="#ffb74d" stopOpacity={0}/></linearGradient></defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,.04)"/>
-                      <XAxis dataKey="t" tick={{fill:"#2a3a4a",fontSize:9,fontFamily:"monospace"}} tickLine={false} axisLine={false}/>
-                      <YAxis tick={{fill:"#2a3a4a",fontSize:9,fontFamily:"monospace"}} tickLine={false} axisLine={false}/>
-                      <Tooltip content={<CT unit="ms"/>}/>
-                      <Area type="monotone" dataKey="latency" stroke="#ffb74d" strokeWidth={2} fill="url(#gl1)" name="latency" dot={false}/>
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="chart-card">
-                  <div className="chart-hdr">TOKEN USAGE (in / out)</div>
-                  <ResponsiveContainer width="100%" height={160}>
-                    <AreaChart data={history} margin={{top:4,right:4,left:-20,bottom:0}}>
-                      <defs>
-                        <linearGradient id="gl2" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#4fc3f7" stopOpacity={.3}/><stop offset="95%" stopColor="#4fc3f7" stopOpacity={0}/></linearGradient>
-                        <linearGradient id="gl3" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#ce93d8" stopOpacity={.3}/><stop offset="95%" stopColor="#ce93d8" stopOpacity={0}/></linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,.04)"/>
-                      <XAxis dataKey="t" tick={{fill:"#2a3a4a",fontSize:9,fontFamily:"monospace"}} tickLine={false} axisLine={false}/>
-                      <YAxis tick={{fill:"#2a3a4a",fontSize:9,fontFamily:"monospace"}} tickLine={false} axisLine={false}/>
-                      <Tooltip content={<CT unit=" tok"/>}/>
-                      <Area type="monotone" dataKey="inputTok" stroke="#4fc3f7" strokeWidth={2} fill="url(#gl2)" name="input" dot={false}/>
-                      <Area type="monotone" dataKey="outputTok" stroke="#ce93d8" strokeWidth={2} fill="url(#gl3)" name="output" dot={false}/>
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-              <div className="chart-row-3">
-                <div className="chart-card">
-                  <div className="chart-hdr">TOOL CALLS / SESSION</div>
-                  <ResponsiveContainer width="100%" height={140}>
-                    <AreaChart data={history} margin={{top:4,right:4,left:-20,bottom:0}}>
-                      <defs><linearGradient id="gl4" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#00e676" stopOpacity={.3}/><stop offset="95%" stopColor="#00e676" stopOpacity={0}/></linearGradient></defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,.04)"/>
-                      <XAxis dataKey="t" tick={{fill:"#2a3a4a",fontSize:9,fontFamily:"monospace"}} tickLine={false} axisLine={false}/>
-                      <YAxis tick={{fill:"#2a3a4a",fontSize:9,fontFamily:"monospace"}} tickLine={false} axisLine={false}/>
-                      <Tooltip content={<CT/>}/>
-                      <Area type="monotone" dataKey="toolCalls" stroke="#00e676" strokeWidth={2} fill="url(#gl4)" name="calls" dot={false}/>
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="chart-card">
-                  <div className="chart-hdr">TOP TOOLS BY VOLUME</div>
-                  <ResponsiveContainer width="100%" height={140}>
-                    <BarChart data={toolDist.slice(0,6)} layout="vertical" margin={{top:0,right:4,left:70,bottom:0}}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,.04)" horizontal={false}/>
-                      <XAxis type="number" tick={{fill:"#2a3a4a",fontSize:9,fontFamily:"monospace"}} tickLine={false} axisLine={false}/>
-                      <YAxis type="category" dataKey="name" tick={{fill:"#7899aa",fontSize:9,fontFamily:"monospace"}} tickLine={false} axisLine={false}/>
-                      <Tooltip content={<CT/>}/>
-                      <Bar dataKey="calls" fill="#ce93d8" radius={[0,2,2,0]} name="calls"/>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="chart-card">
-                  <div className="chart-hdr">ERRORS AND SESSIONS</div>
-                  <ResponsiveContainer width="100%" height={140}>
-                    <BarChart data={history.slice(-10)} margin={{top:4,right:4,left:-20,bottom:0}}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,.04)"/>
-                      <XAxis dataKey="t" tick={{fill:"#2a3a4a",fontSize:9,fontFamily:"monospace"}} tickLine={false} axisLine={false}/>
-                      <YAxis tick={{fill:"#2a3a4a",fontSize:9,fontFamily:"monospace"}} tickLine={false} axisLine={false}/>
-                      <Tooltip content={<CT/>}/>
-                      <Bar dataKey="sessions" fill="rgba(79,195,247,.45)" name="sessions" radius={[2,2,0,0]}/>
-                      <Bar dataKey="errors" fill="rgba(255,82,82,.65)" name="errors" radius={[2,2,0,0]}/>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-              <div className="sess-table">
-                <div className="srow srow-hdr"><span>SESSION</span><span>MODEL</span><span>CUSTOMER</span><span>LATENCY</span><span>TOKENS</span><span>STATUS</span><span>TOOLS</span></div>
-                {sessions.slice(0,14).map(s=>(
-                  <div key={s.id} className={`srow ${selSess?.id===s.id?"on":""} ${s.source==="console"?"console-row":""}`} onClick={()=>{setSelSess(s);setObsTab("trace");}}>
-                    <span style={{color:"var(--gold)",fontFamily:"monospace"}}>{s.id}</span>
-                    <span style={{color:"var(--blue)",fontSize:10}}>{s.model.replace("claude-","")}</span>
-                    <span style={{color:s.source==="console"?"var(--blue)":undefined}}>{s.customer}</span>
-                    <span style={{color:"var(--orange)"}}>{s.latency}ms</span>
-                    <span>{((s.inputTok+s.outputTok)/1000).toFixed(1)}k</span>
-                    <span><span className={`sbadge sb-${s.status}`}>{s.status}</span></span>
-                    <span style={{color:"#445566"}}>{s.toolCalls}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {obsTab==="trace" && (
-            <div className="obs-page">
-              {!selSess ? (
-                <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:300,color:"#2a3a4a",gap:10}}>
-                  <div style={{fontSize:28,opacity:.3}}>◎</div>
-                  <div style={{fontFamily:"monospace",fontSize:11,letterSpacing:1}}>SELECT A SESSION FROM METRICS TAB</div>
-                </div>
-              ) : (
-                <div className="trace-layout">
-                  <div className="trace-panel">
-                    <div className="panel-hdr"><span className="panel-hdr-lbl">AGENT REASONING TRACE</span><span className="panel-tid">{selSess.traceId.slice(0,20)}…</span></div>
-                    <div className="trace-body" ref={traceRef}>
-                      {traceLines.map((ln,i)=>(
-                        <div key={i} className="tl"><span className="tl-t">+{ln.t}ms</span><span className={`tl-${ln.type}`}>{ln.text}</span></div>
-                      ))}
-                      {traceLines.length < makeTraceSteps(selSess).length && <span style={{color:"rgba(201,168,76,.5)",animation:"pulse 1s infinite"}}>▌</span>}
-                    </div>
-                  </div>
-                  <div className="detail-panel">
-                    <div className="detail-sec">
-                      <div className="dlbl">Session Details</div>
-                      {[["Session",selSess.id,"gold"],["Customer",selSess.customer,""],["Model",selSess.model,"blue"],["Status",selSess.status,selSess.status==="success"?"green":"red"],["Latency",selSess.latency+"ms",""],["Tool Calls",selSess.toolCalls,""],["Source",selSess.source??"simulated",""]].map(([k,v,c])=>(
-                        <div key={k} className="drow"><span className="dk">{k}</span><span className={`dv ${c}`}>{v}</span></div>
-                      ))}
-                    </div>
-                    <div className="detail-sec">
-                      <div className="dlbl">Token Usage</div>
-                      {[["Input",selSess.inputTok,"#4fc3f7"],["Output",selSess.outputTok,"#ce93d8"]].map(([k,v,col])=>(
-                        <div key={k} className="tok-wrap">
-                          <div className="tok-row"><span>{k} tokens</span><span style={{color:col}}>{v.toLocaleString()}</span></div>
-                          <div className="tok-track"><div className="tok-fill" style={{width:(v/(selSess.inputTok+selSess.outputTok)*100)+"%",background:col}}/></div>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="detail-sec">
-                      <div className="dlbl">Other Sessions</div>
-                      {sessions.slice(0,6).map(s=>(
-                        <div key={s.id} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid rgba(255,255,255,.04)",cursor:"pointer"}} onClick={()=>setSelSess(s)}>
-                          <span style={{fontFamily:"monospace",fontSize:10,color:selSess.id===s.id?"var(--gold)":"#445566"}}>{s.id}</span>
-                          <span style={{fontFamily:"monospace",fontSize:10,color:"rgba(255,255,255,.6)"}}>{s.customer.split(" ")[0]}</span>
-                          <span className={`sbadge sb-${s.status}`}>{s.status}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {obsTab==="otel" && (
-            <div className="obs-page">
-              {!selSess ? (
-                <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:300,color:"#2a3a4a",gap:10}}>
-                  <div style={{fontSize:28,opacity:.3}}>◎</div>
-                  <div style={{fontFamily:"monospace",fontSize:11,letterSpacing:1}}>SELECT A SESSION FROM METRICS TAB</div>
-                </div>
-              ) : (
-                <>
-                  <div className="kpi-row" style={{marginBottom:14}}>
-                    {[["TRACE ID",selSess.traceId.slice(0,16)+"…",""],["TOTAL SPANS",spans.length,"var(--blue)"],["ROOT DURATION",spanMax+"ms","var(--orange)"],["SERVICES",[...new Set(spans.map(s=>s.service))].length,"var(--green)"],["ERRORS",spans.filter(s=>s.status==="error").length,spans.some(s=>s.status==="error")?"var(--red)":"var(--green)"]].map(([l,v,c])=>(
-                      <div key={l} className="kpi" style={{padding:"11px 13px"}}><div className="kpi-lbl">{l}</div><div className="kpi-val" style={{fontSize:15,color:c||"rgba(255,255,255,.75)"}}>{v}</div></div>
-                    ))}
-                  </div>
-                  <div className="span-panel">
-                    <div className="panel-hdr"><span className="panel-hdr-lbl">Trace Waterfall</span><span className="panel-tid">{selSess.traceId}</span><span style={{fontFamily:"monospace",fontSize:10,color:"#445566",marginLeft:"auto"}}>{selSess.model}</span></div>
-                    <div className="span-body">
-                      <div style={{display:"flex",paddingLeft:220,paddingBottom:6,minWidth:500}}>
-                        {[0,25,50,75,100].map(p=><span key={p} style={{fontFamily:"monospace",fontSize:9,color:"#2a3a4a",flex:1}}>{Math.round(spanMax*p/100)}ms</span>)}
-                      </div>
-                      {spans.map((sp,i)=>(
-                        <div key={sp.name+i} className="span-row" style={{paddingLeft:sp.depth*16}}>
-                          <div className="span-info"><div className="span-name">{sp.name}</div><div className="span-svc" style={{color:spColors[i%spColors.length]}}>{sp.service}</div></div>
-                          <div className="span-track">
-                            {[25,50,75].map(p=><div key={p} style={{position:"absolute",left:p+"%",top:0,bottom:0,width:1,background:"rgba(255,255,255,.04)"}}/>)}
-                            <div className="span-bar" style={{left:(sp.start/spanMax*100)+"%",width:Math.max(sp.dur/spanMax*100,0.5)+"%",background:sp.status==="ok"?spColors[i%spColors.length]+"99":"rgba(255,82,82,.7)"}}>{sp.dur>spanMax*.08?sp.dur+"ms":""}</div>
-                          </div>
-                          <div className="span-dur">{sp.dur}ms</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="span-panel">
-                    <div className="panel-hdr"><span className="panel-hdr-lbl">Span Attributes</span></div>
-                    <div className="attr-grid">
-                      {spans.map((sp,i)=>(
-                        <div key={sp.name+i} className="attr-card">
-                          <div className="attr-name" style={{color:spColors[i%spColors.length]}}>{sp.name}</div>
-                          {[["service",sp.service],["status",sp.status],["duration",sp.dur+"ms"],["http.status_code","200"],["fapi.interaction_id",selSess.traceId.slice(0,12)+"…"]].map(([k,v])=>(
-                            <div key={k} className="attr-row"><span className="attr-k">{k}</span><span className="attr-v" style={{color:k==="status"&&sp.status==="error"?"var(--red)":undefined}}>{v}</span></div>
-                          ))}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-        </div>
+        <ObservabilityOverlay
+          sessions={sessions}
+          setSessions={setSessions}
+          history={history}
+          obsPaused={obsPaused}
+          setObsPaused={setObsPaused}
+          apiMode={apiMode}
+          token={token}
+          onClose={() => setShowObs(false)}
+        />
       )}
     </>
   );

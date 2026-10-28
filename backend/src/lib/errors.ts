@@ -2,6 +2,7 @@
 // See openapi.yaml for the canonical schema.
 
 import type { FastifyError, FastifyReply, FastifyRequest } from "fastify";
+import { ZodError } from "zod";
 
 export class AgentBankError extends Error {
   constructor(
@@ -31,7 +32,7 @@ export const Conflict = (msg: string) =>
   new AgentBankError(409, "Conflict", msg);
 
 export function errorHandler(
-  err: FastifyError | AgentBankError | Error,
+  err: FastifyError | AgentBankError | ZodError | Error,
   req: FastifyRequest,
   reply: FastifyReply,
 ) {
@@ -42,6 +43,16 @@ export function errorHandler(
       Code: err.code,
       Message: err.message,
       Details: err.details ?? null,
+      FapiInteractionId: fapiId,
+    });
+  }
+
+  // Runtime Zod validation error from route handlers
+  if (err instanceof ZodError || err.name === "ZodError") {
+    return reply.status(400).send({
+      Code: "UK.OBIE.Field.Invalid",
+      Message: "Request validation failed",
+      Details: (err as ZodError).issues ?? (err as any).errors,
       FapiInteractionId: fapiId,
     });
   }

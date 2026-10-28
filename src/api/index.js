@@ -1,7 +1,37 @@
-import { apiFetch as realFetch } from './client.js';
-import { apiFetch as mockFetch, defaultBody as mockDefaultBody } from './mockClient.js';
+import { apiFetch as realFetch, realConsoleRequest } from './client.js';
+import {
+  apiFetch as mockFetch,
+  mockConsoleRequest,
+  defaultBody as mockDefaultBody,
+  resolveEndpointPath as mockResolveEndpointPath,
+} from './mockClient.js';
 
-const useMock = import.meta.env.VITE_USE_MOCK !== 'false';
+let currentMode = import.meta.env.VITE_USE_MOCK === 'false' ? 'live' : 'mock';
 
-export const apiFetch = useMock ? mockFetch : realFetch;
+export function getApiMode() {
+  return currentMode;
+}
+
+export function setApiMode(mode) {
+  if (mode === 'mock' || mode === 'live') {
+    currentMode = mode;
+  }
+  return currentMode;
+}
+
+export async function apiFetch(method, path, body = null, token = '', modeOverride = null) {
+  const mode = modeOverride || currentMode;
+  return mode === 'live'
+    ? realFetch(method, path, body, token)
+    : mockFetch(method, path, body, token);
+}
+
+export async function apiConsoleRequest(method, path, body = null, token = '', modeOverride = null) {
+  const mode = modeOverride || currentMode;
+  return mode === 'live'
+    ? realConsoleRequest(method, path, body, token)
+    : mockConsoleRequest(method, path, body, token);
+}
+
 export const defaultBody = mockDefaultBody;
+export const resolveEndpointPath = mockResolveEndpointPath;

@@ -65,7 +65,10 @@ export class AgentBankAgent {
    * @param {object} extraHeaders
    * @param {{ retries?: number, timeout?: number }} opts
    */
-  async _fetch(method, path, body, extraHeaders = {}, { retries = 2, timeout = 10_000 } = {}) {
+  async _fetch(method, path, body = null, extraHeaders = {}, { retries = 2, timeout = 10_000 } = {}) {
+    const interactionId = typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : this._uuid();
     let lastError;
     for (let attempt = 0; attempt <= retries; attempt++) {
       const controller = new AbortController();
@@ -73,14 +76,14 @@ export class AgentBankAgent {
       try {
         const headers = {
           "Content-Type": "application/json",
-          "x-fapi-interaction-id": this._uuid(),
-          ...extraHeaders,
+          "x-fapi-interaction-id": interactionId,
         };
         if (this._token) {
           headers["Authorization"] = this._token.startsWith("Bearer ")
             ? this._token
             : `Bearer ${this._token}`;
         }
+        Object.assign(headers, extraHeaders);
         const res = await fetch(`${this.baseUrl}${path}`, {
           method,
           headers,
@@ -90,14 +93,17 @@ export class AgentBankAgent {
         clearTimeout(timerId);
         if (!res.ok) {
           const text = await res.text();
-          throw new Error(`agentBANK ${method} ${path} → ${res.status}: ${text}`);
+          const err = new Error(`agentBANK ${method} ${path} → ${res.status}: ${text}`);
+          err.status = res.status;
+          throw err;
         }
         return res.json();
       } catch (err) {
         clearTimeout(timerId);
         lastError = err;
-        // AbortError means timeout — no point retrying immediately
-        if (err.name === "AbortError" || attempt === retries) break;
+        // Do not retry on 4xx HTTP errors (except 429 Too Many Requests) or AbortError (timeout)
+        const isClientError = err.status >= 400 && err.status < 500 && err.status !== 429;
+        if (isClientError || err.name === "AbortError" || attempt === retries) break;
         // Exponential backoff: 500 ms, 1000 ms
         await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
       }
@@ -112,6 +118,7 @@ export class AgentBankAgent {
   }
 
   _consentHeader(consent_token) {
+    if (!consent_token) return {};
     const auth = consent_token.startsWith("Bearer ") ? consent_token : `Bearer ${consent_token}`;
     return { "Authorization": auth };
   }
@@ -121,17 +128,17 @@ export class AgentBankAgent {
     const self = this;
     return {
       /** Retrieve authenticated customer profile (KYC status, risk rating). */
-      get_party({ consent_token }) {
+      get_party({ consent_token } = {}) {
         return self._fetch("GET", "/open-banking/v3.1/party", null, self._consentHeader(consent_token));
       },
 
       /** List all accounts in scope for the given consent token. */
-      get_accounts({ consent_token }) {
+      get_accounts({ consent_token } = {}) {
         return self._fetch("GET", "/open-banking/v3.1/accounts", null, self._consentHeader(consent_token));
       },
 
       /** Retrieve real-time available balance for an account. */
-      get_balance({ account_id, consent_token }) {
+      get_balance({ account_id, consent_token } = {}) {
         return self._fetch(
           "GET",
           `/bian/current-account/${account_id}/balance`,
@@ -144,88 +151,151 @@ export class AgentBankAgent {
        * Retrieve paginated transaction history.
        * Pass `cursor` from a previous response's `next_cursor` field to page forward.
        */
-      get_transactions({ account_id, from_date, to_date, limit = 100, cursor }) {
-        const params = new URLSearchParams({ fromBookingDateTime: from_date, toBookingDateTime: to_date, limit });
+      get_transactions({ account_id, from_date, to_date, limit = 100, cursor, consent_token } = {}) {
+        const params = new URLSearchParams({ limit: String(limit) });
+        if (from_date) {
+          params.set("fromBookingDateTime", from_date);
+          params.set("from_date", from_date);
+        }
+        if (to_date) {
+          params.set("toBookingDateTime", to_date);
+          params.set("to_date", to_date);
+        }
         if (cursor) params.set("cursor", cursor);
-        return self._fetch("GET", `/open-banking/v3.1/accounts/${account_id}/transactions?${params}`, null);
+        return self._fetch(
+          "GET",
+          `/open-banking/v3.1/accounts/${account_id}/transactions?${params}`,
+          null,
+          self._consentHeader(consent_token),
+        );
       },
 
       /** Create and submit a domestic payment instruction. */
-      initiate_payment({ debtor_account, creditor_account, amount, currency, reference }) {
-        return self._fetch("POST", "/open-banking/v3.1/domestic-payments", {
-          Data: {
-            Initiation: {
-              InstructionIdentification: `SDK-${Date.now()}`,
-              InstructedAmount: { Amount: String(amount), Currency: currency },
-              DebtorAccount:    { Identification: debtor_account,   SchemeName: "IBAN" },
-              CreditorAccount:  { Identification: creditor_account, SchemeName: "IBAN" },
-              RemittanceInformation: { Reference: reference },
+      initiate_payment({ debtor_account, creditor_account, amount, currency, reference, consent_token } = {}) {
+        return self._fetch(
+          "POST",
+          "/open-banking/v3.1/domestic-payments",
+          {
+            Data: {
+              Initiation: {
+                InstructionIdentification: `SDK-${Date.now()}`,
+                InstructedAmount: { Amount: String(amount), Currency: currency },
+                DebtorAccount:    { Identification: debtor_account,   SchemeName: "IBAN" },
+                CreditorAccount:  { Identification: creditor_account, SchemeName: "IBAN" },
+                RemittanceInformation: { Reference: reference, Unstructured: reference },
+              },
             },
+            Risk: {},
           },
-          Risk: {},
-        });
+          self._consentHeader(consent_token),
+        );
       },
 
       /** Check execution status of a previously submitted payment. */
-      get_payment_status({ payment_id }) {
-        return self._fetch("GET", `/open-banking/v3.1/domestic-payments/${payment_id}`, null);
+      get_payment_status({ payment_id, consent_token } = {}) {
+        return self._fetch(
+          "GET",
+          `/open-banking/v3.1/domestic-payments/${payment_id}`,
+          null,
+          self._consentHeader(consent_token),
+        );
       },
 
       /** Retrieve loan account details and full repayment schedule. */
-      get_loan_details({ loan_id }) {
-        return self._fetch("GET", `/bian/consumer-loan/${loan_id}/retrieve`, null);
+      get_loan_details({ loan_id, consent_token } = {}) {
+        return self._fetch(
+          "GET",
+          `/bian/consumer-loan/${loan_id}/retrieve`,
+          null,
+          self._consentHeader(consent_token),
+        );
       },
 
       /** Submit a new loan application. Currency defaults to GBP. */
-      apply_for_loan({ party_id, amount, currency = "GBP", term_months, purpose }) {
-        return self._fetch("POST", "/bian/consumer-loan/initiate", {
-          partyId: party_id,
-          requestedAmount: amount,
-          currency,
-          termMonths: term_months,
-          purpose,
-        });
+      apply_for_loan({ party_id, amount, currency = "GBP", term_months, purpose, consent_token } = {}) {
+        return self._fetch(
+          "POST",
+          "/bian/consumer-loan/initiate",
+          {
+            partyId: party_id,
+            requestedAmount: amount,
+            currency,
+            termMonths: term_months,
+            purpose,
+          },
+          self._consentHeader(consent_token),
+        );
       },
 
       /** Retrieve card information including type, status, and limits. */
-      get_card_details({ card_id }) {
-        return self._fetch("GET", `/bian/credit-card/${card_id}/retrieve`, null);
+      get_card_details({ card_id, consent_token } = {}) {
+        return self._fetch(
+          "GET",
+          `/bian/credit-card/${card_id}/retrieve`,
+          null,
+          self._consentHeader(consent_token),
+        );
       },
 
       /** Block or unblock a payment card (action: "block" | "unblock"). */
-      block_card({ card_id, action }) {
-        return self._fetch("POST", `/bian/credit-card/${card_id}/request`, { action });
+      block_card({ card_id, action, consent_token } = {}) {
+        return self._fetch(
+          "POST",
+          `/bian/credit-card/${card_id}/request`,
+          { action },
+          self._consentHeader(consent_token),
+        );
       },
 
       /** Retrieve investment portfolio holdings, value, and YTD performance. */
-      get_portfolio({ portfolio_id }) {
-        return self._fetch("GET", `/bian/investment-portfolio/${portfolio_id}/retrieve`, null);
+      get_portfolio({ portfolio_id, consent_token } = {}) {
+        return self._fetch(
+          "GET",
+          `/bian/investment-portfolio/${portfolio_id}/retrieve`,
+          null,
+          self._consentHeader(consent_token),
+        );
       },
 
       /** Place a buy or sell order. Fractional quantities are supported. */
-      place_order({ portfolio_id, instrument, quantity, direction }) {
-        return self._fetch("POST", `/bian/investment-portfolio/${portfolio_id}/request`, {
-          instrument, quantity, direction,
-        });
+      place_order({ portfolio_id, instrument, quantity, direction, consent_token } = {}) {
+        return self._fetch(
+          "POST",
+          `/bian/investment-portfolio/${portfolio_id}/request`,
+          {
+            instrument, quantity, direction,
+          },
+          self._consentHeader(consent_token),
+        );
       },
 
       /** Run AML and sanctions screening against a party or transaction. */
-      run_aml_screen({ subject_type, subject_id }) {
-        return self._fetch("POST", "/bian/aml-screening/evaluate", {
-          subjectType: subject_type,
-          subjectId:   subject_id,
-        });
+      run_aml_screen({ subject_type, subject_id, consent_token } = {}) {
+        return self._fetch(
+          "POST",
+          "/bian/aml-screening/evaluate",
+          {
+            subjectType: subject_type,
+            subjectId:   subject_id,
+          },
+          self._consentHeader(consent_token),
+        );
       },
 
       /** Subscribe a webhook to real-time account events. */
-      subscribe_events({ party_id, event_types, webhook_url }) {
+      subscribe_events({ party_id, event_types, webhook_url, consent_token } = {}) {
         const verificationToken = self._uuid();
-        return self._fetch("POST", "/bian/customer-event-history/webhook", {
-          partyId: party_id,
-          eventTypes: event_types,
-          webhookUrl: webhook_url,
-          verificationToken,
-        });
+        return self._fetch(
+          "POST",
+          "/bian/customer-event-history/webhook",
+          {
+            partyId: party_id,
+            eventTypes: event_types,
+            webhookUrl: webhook_url,
+            verificationToken,
+          },
+          self._consentHeader(consent_token),
+        );
       },
     };
   }

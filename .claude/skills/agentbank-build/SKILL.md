@@ -18,24 +18,24 @@ When invoked, add a new agent build recipe to the AgentBank demo app.
 
 ## Available AgentBankAgent tools
 
-These are the only tools you may reference in code snippets:
+These are the only tools you may reference in code snippets (all 14 tools accept an optional `consent_token` parameter to override the agent's default token):
 
 | Tool | Domain | Key params |
 |---|---|---|
-| `get_party` | party | `consent_token` |
-| `get_accounts` | accounts | `consent_token` |
-| `get_balance` | accounts | `account_id` |
-| `get_transactions` | transactions | `account_id, from_date, to_date, limit` |
-| `initiate_payment` | payments | `debtor_account, creditor_account, amount, currency, reference` |
-| `get_payment_status` | payments | `payment_id` |
-| `get_loan_details` | lending | `loan_id` |
-| `apply_for_loan` | lending | `party_id, amount, term_months, purpose` |
-| `get_card_details` | cards | `card_id` |
-| `block_card` | cards | `card_id, action` |
-| `get_portfolio` | investments | `portfolio_id` |
-| `place_order` | investments | `portfolio_id, instrument, quantity, direction` |
-| `run_aml_screen` | compliance | `subject_type, subject_id` |
-| `subscribe_events` | notifications | `party_id, event_types, webhook_url` |
+| `get_party` | party | `consent_token?` |
+| `get_accounts` | accounts | `consent_token?` |
+| `get_balance` | accounts | `account_id, consent_token?` |
+| `get_transactions` | transactions | `account_id, from_date, to_date, limit?, cursor?, consent_token?` |
+| `initiate_payment` | payments | `debtor_account, creditor_account, amount, currency, reference, consent_token?` |
+| `get_payment_status` | payments | `payment_id, consent_token?` |
+| `get_loan_details` | lending | `loan_id, consent_token?` |
+| `apply_for_loan` | lending | `party_id, amount, currency?, term_months, purpose, consent_token?` |
+| `get_card_details` | cards | `card_id, consent_token?` |
+| `block_card` | cards | `card_id, action, consent_token?` |
+| `get_portfolio` | investments | `portfolio_id, consent_token?` |
+| `place_order` | investments | `portfolio_id, instrument, quantity, direction, consent_token?` |
+| `run_aml_screen` | compliance | `subject_type, subject_id, consent_token?` |
+| `subscribe_events` | notifications | `party_id, event_types, webhook_url, consent_token?` |
 
 ## AGENT_BUILDS entry format
 
@@ -64,7 +64,7 @@ const agent = new AgentBankAgent({ scope: "..." });
 - Add `// LLM derives:` or `// LLM identifies:` comments to show where AI reasoning happens
 - End result lines with `// -> key: value` style output comments
 - Keep snippets to 25-35 lines — dense but readable
-- Use realistic IDs: `ACC-XXXX`, `P-XXXXXXXX`, `PRT-XXXXX`, `LN-XXXXX`, `CRD-XXXXX`
+- Use canonical seeded IDs: `ACC-1829`, `ACC-2041`, `PAR-ARIA`, `PRT-29183`, `LOAN-48291`, `CRD-88421`
 - Use GBP as currency unless the scenario calls for another
 - Scope string uses `domain:read` / `domain:write` space-separated
 

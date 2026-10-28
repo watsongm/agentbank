@@ -13,6 +13,27 @@ const rand7  = () => Math.floor(Math.random() * 9_000_000 + 1_000_000);
 const now    = () => new Date().toISOString();
 
 const ROUTES = [
+  // ── OAuth & Observability ───────────────────────────────────────────────
+  {
+    method:  "POST",
+    pattern: /\/open-banking\/v3\.1\/oauth\/token/,
+    handler: () => ({
+      access_token: "demo-token",
+      token_type:   "Bearer",
+      expires_in:   3600,
+      scope:        "accounts:read payments:write",
+    }),
+  },
+  {
+    method:  "GET",
+    pattern: /\/observability\/sessions/,
+    handler: () => ({
+      status:   "ok",
+      mode:     "mock",
+      sessions: [],
+    }),
+  },
+
   // ── Payments ────────────────────────────────────────────────────────────
   {
     method:  "POST",
@@ -30,7 +51,7 @@ const ROUTES = [
     method:  "POST",
     pattern: /consumer-loan/,
     handler: () => ({
-      loanId:            `LN-${rand5()}`,
+      loanId:            `LOAN-${rand5()}`,
       status:            "UnderReview",
       requestedAmount:   10_000,
       indicativeRate:    "6.9%",
@@ -39,11 +60,11 @@ const ROUTES = [
   {
     pattern: /consumer-loan/,
     handler: () => ({
-      loanId:            "LN-48291",
-      status:            "Active",
+      loanId:             SEED.MAHLI_LOAN_REF,
+      status:             "Active",
       outstandingBalance: 7842.33,
-      interestRate:      "6.9%",
-      nextPaymentDate:   "2026-04-01",
+      interestRate:       "6.9%",
+      nextPaymentDate:    "2026-04-01",
     }),
   },
 
@@ -226,5 +247,45 @@ export function defaultBody(method, path) {
     }, null, 2);
   }
 
+  if (/aml-screening\/evaluate/.test(path)) {
+    return JSON.stringify({
+      subjectType: "party",
+      subjectId:   SEED.ARIA_PARTY_REF,
+    }, null, 2);
+  }
+
+  if (/credit-card\/.*\/request/.test(path)) {
+    return JSON.stringify({
+      action: "block",
+    }, null, 2);
+  }
+
+  if (/investment-portfolio\/.*\/request/.test(path)) {
+    return JSON.stringify({
+      instrument: "AAPL",
+      quantity:   5,
+      direction:  "buy",
+    }, null, 2);
+  }
+
   return JSON.stringify({ note: "Add request body here" }, null, 2);
+}
+
+/**
+ * Replace curly-brace path parameter templates with canonical SEED demo IDs.
+ * @param {string} pathTemplate
+ * @returns {string}
+ */
+export function resolveEndpointPath(pathTemplate = "") {
+  return pathTemplate
+    .replace(/\{partyId\}/g, SEED.ARIA_PARTY_REF)
+    .replace(/\{accountId\}|\{acctId\}/g, SEED.ARIA_CURRENT_REF)
+    .replace(/\/accounts\/\{id\}/g, `/accounts/${SEED.ARIA_CURRENT_REF}`)
+    .replace(/\{(paymentId|execId)\}/g, "PAY-70001")
+    .replace(/\/(domestic-payments|international-payments)\/\{id\}/g, "/$1/PAY-70001")
+    .replace(/\{txId\}/g, "TXN-48291")
+    .replace(/\{loanId\}/g, SEED.MAHLI_LOAN_REF)
+    .replace(/\{cardId\}/g, SEED.ARIA_CARD_REF)
+    .replace(/\{(portfolioId|portId)\}/g, SEED.ARIA_PORTFOLIO_REF)
+    .replace(/\{(caseId|reportId)\}/g, "CASE-9001");
 }

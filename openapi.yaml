@@ -44,7 +44,53 @@ tags:
 
 paths:
 
-  # ── PARTY ──────────────────────────────────────────────────────────────────
+  # ── PARTY & OAUTH ──────────────────────────────────────────────────────────
+
+  /open-banking/v3.1/oauth/token:
+    post:
+      tags: [Party]
+      summary: authenticate — Exchange client credentials for a FAPI 2.0 scoped consent token
+      operationId: issueOAuthToken
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [grant_type, client_id, scope]
+              properties:
+                grant_type:
+                  type: string
+                  enum: [client_credentials]
+                  example: client_credentials
+                client_id:
+                  type: string
+                  example: demo-client
+                scope:
+                  type: string
+                  example: "accounts:read payments:write"
+      responses:
+        '200':
+          description: Scoped OAuth 2.0 / FAPI 2.0 consent token issued
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [access_token, token_type, expires_in, scope]
+                properties:
+                  access_token:
+                    type: string
+                    example: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  token_type:
+                    type: string
+                    example: Bearer
+                  expires_in:
+                    type: integer
+                    example: 3600
+                  scope:
+                    type: string
+                    example: "accounts:read payments:write"
 
   /open-banking/v3.1/party:
     get:
@@ -294,21 +340,36 @@ paths:
           application/json:
             schema:
               type: object
-              required: [paymentType, amount, debtorAccountId, creditorIBAN]
               properties:
                 paymentType:
                   type: string
                   example: DomesticCredit
                 amount:
-                  type: object
-                  properties:
-                    value:
-                      type: number
-                    currency:
-                      type: string
+                  oneOf:
+                    - type: number
+                      example: 250.00
+                    - type: object
+                      properties:
+                        value:
+                          type: number
+                        currency:
+                          type: string
+                currency:
+                  type: string
+                  example: GBP
                 debtorAccountId:
                   type: string
+                  example: ACC-1829
+                debtorAccount:
+                  type: string
+                  example: ACC-1829
                 creditorIBAN:
+                  type: string
+                  example: GB29NWBK60161331926819
+                creditorAccount:
+                  type: string
+                  example: ACC-2041
+                reference:
                   type: string
       responses:
         '201':
@@ -485,9 +546,6 @@ paths:
                 purpose:
                   type: string
                   example: HomeImprovement
-                verificationToken:
-                  type: string
-                  description: Webhook ownership verification token (for subscribe_events)
       responses:
         '201':
           description: Loan application accepted
@@ -988,7 +1046,7 @@ components:
       required: true
       schema:
         type: string
-      example: P-00291847
+      example: PAR-ARIA
     PaymentId:
       name: paymentId
       in: path
@@ -1002,7 +1060,7 @@ components:
       required: true
       schema:
         type: string
-      example: LN-48291
+      example: LOAN-48291
     CardId:
       name: cardId
       in: path
@@ -1032,7 +1090,7 @@ components:
       properties:
         partyId:
           type: string
-          example: P-00291847
+          example: PAR-ARIA
         name:
           type: string
           example: Aria Chen
@@ -1102,45 +1160,65 @@ components:
 
     DomesticPaymentRequest:
       type: object
-      required: [data, risk]
+      required: [Data]
       properties:
-        data:
+        Data:
           type: object
-          required: [initiation]
+          required: [Initiation]
           properties:
-            initiation:
+            Initiation:
               type: object
-              required: [instructionIdentification, instructedAmount, debtorAccount, creditorAccount]
+              required: [InstructedAmount, DebtorAccount, CreditorAccount]
               properties:
-                instructionIdentification:
+                InstructionIdentification:
                   type: string
-                instructedAmount:
+                  example: "SDK-1711929600000"
+                EndToEndIdentification:
+                  type: string
+                  example: "E2E-1711929600000"
+                InstructedAmount:
+                  type: object
+                  required: [Amount, Currency]
+                  properties:
+                    Amount:
+                      type: string
+                      example: "500.00"
+                    Currency:
+                      type: string
+                      example: GBP
+                DebtorAccount:
+                  type: object
+                  required: [Identification]
+                  properties:
+                    Identification:
+                      type: string
+                      example: ACC-1829
+                    SchemeName:
+                      type: string
+                      example: IBAN
+                CreditorAccount:
+                  type: object
+                  required: [Identification]
+                  properties:
+                    Identification:
+                      type: string
+                      example: ACC-2041
+                    SchemeName:
+                      type: string
+                      example: IBAN
+                    Name:
+                      type: string
+                      example: Aria Savings
+                RemittanceInformation:
                   type: object
                   properties:
-                    amount:
+                    Unstructured:
                       type: string
-                    currency:
+                      example: "Invoice payment"
+                    Reference:
                       type: string
-                debtorAccount:
-                  type: object
-                  properties:
-                    identification:
-                      type: string
-                    schemeName:
-                      type: string
-                creditorAccount:
-                  type: object
-                  properties:
-                    identification:
-                      type: string
-                    schemeName:
-                      type: string
-                remittanceInformation:
-                  type: object
-                  properties:
-                    reference:
-                      type: string
-        risk:
+                      example: "INV-2026-04"
+        Risk:
           type: object
 
     Payment:
@@ -1164,7 +1242,7 @@ components:
       properties:
         loanId:
           type: string
-          example: LN-48291
+          example: LOAN-48291
         status:
           type: string
           enum: [Active, UnderReview, PreQualified, Closed, Rejected]

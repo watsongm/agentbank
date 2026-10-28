@@ -15,7 +15,7 @@ const token = await agent.authenticate();
 
 // 2. Verify customer identity
 const party = await agent.tools.get_party({ consent_token: token });
-// → { partyId: "P-00291847", name: "Aria Chen", kycStatus: "VERIFIED" }
+// → { partyId: "PAR-ARIA", name: "Aria Chen", kycStatus: "VERIFIED" }
 
 // 3. Fetch balances and transactions
 const balance = await agent.tools.get_balance({ account_id: "ACC-1829" });
@@ -72,8 +72,8 @@ for (const block of response.content) {
 }`;
 
 const SDK_TOOLS = [
-  { name: "get_party",         sig: "({ consent_token })",                                       desc: "Retrieve authenticated customer profile (KYC, risk rating)." },
-  { name: "get_accounts",      sig: "({ consent_token })",                                       desc: "List all accounts in scope for the given consent token." },
+  { name: "get_party",         sig: "({ consent_token? })",                                      desc: "Retrieve authenticated customer profile (KYC, risk rating)." },
+  { name: "get_accounts",      sig: "({ consent_token? })",                                      desc: "List all accounts in scope for the given consent token." },
   { name: "get_balance",       sig: "({ account_id })",                                          desc: "Retrieve real-time available balance for an account." },
   { name: "get_transactions",  sig: "({ account_id, from_date, to_date, limit?, cursor? })",     desc: "Paginated transaction history. Pass cursor to page forward." },
   { name: "initiate_payment",  sig: "({ debtor_account, creditor_account, amount, currency, reference })", desc: "Create and submit a domestic payment instruction." },

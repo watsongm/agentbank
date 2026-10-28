@@ -27,7 +27,7 @@ const txns = await agent.tools.get_transactions({
 // LLM derives: avgMonthlyIncome: 4200, avgExpenditure: 2840, dsr: 0.32
 
 // 3. Check existing loan obligations
-const loan = await agent.tools.get_loan_details({ loan_id: "LN-48291" });
+const loan = await agent.tools.get_loan_details({ loan_id: "LOAN-48291" });
 // -> outstandingBalance: 7842.33  interestRate: "6.9%"
 
 // 4. Submit pre-qualification
@@ -35,7 +35,7 @@ const result = await agent.tools.apply_for_loan({
   party_id: party.partyId,
   amount: 15000, currency: "GBP", term_months: 48, purpose: "HomeImprovement",
 });
-// -> loanId: "LN-92841"  status: "PreQualified"  indicativeRate: "7.2%"`,
+// -> loanId: "LOAN-92841"  status: "PreQualified"  indicativeRate: "7.2%"`,
   },
   {
     id:"fraud-sentinel",

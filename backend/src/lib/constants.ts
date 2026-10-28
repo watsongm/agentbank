@@ -14,6 +14,9 @@ export const SEED = {
   ARIA_SAVINGS_REF:   "ACC-2041",
   ARIA_CARD_REF:      "CRD-88421",
   ARIA_PORTFOLIO_REF: "PRT-29183",
+  ARIA_SUB_REF:       "SUB-1001",
+  ARIA_CASE_REF:      "CASE-9001",
+  DEFAULT_PAYMENT_REF: "PAY-70001",
 
   // Persona: Mahli Patel (secondary — has a loan)
   MAHLI_PARTY_REF:    "PAR-MAHLI",

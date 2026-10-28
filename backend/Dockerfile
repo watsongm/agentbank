@@ -3,7 +3,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 # Install only prod deps first for layer cache
-COPY package.json package-lock.json* ./
+COPY package.json package-lock.json* openapi.yaml* ./
 RUN npm install --omit=dev --no-audit --no-fund
 
 # Copy source
@@ -25,6 +25,7 @@ COPY --from=base /app/node_modules ./node_modules
 COPY --from=base /app/dist ./dist
 COPY --from=base /app/prisma ./prisma
 COPY --from=base /app/package.json ./package.json
+COPY --from=base /app/openapi.yaml* ./
 
 EXPOSE 3000
 CMD ["sh", "-c", "npx prisma db push --accept-data-loss --skip-generate && npx tsx prisma/seed.ts && node dist/server.js"]

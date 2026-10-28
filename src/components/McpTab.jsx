@@ -130,9 +130,13 @@ export default function McpTab({ tools, domains }) {
                 <div className="mcp-tool-name" style={{color: dom?.color}}>{t.name}</div>
                 <div className="mcp-tool-desc">{t.desc}</div>
                 <div className="mcp-schema">
-                  {t.params.map((p, i) => (
-                    <span key={p} className={`mcp-param ${i === 0 ? "req" : ""}`}>{p}</span>
-                  ))}
+                  {t.params.map((p) => {
+                    const cleanParam = p.replace(/\?$/, "");
+                    const isReq = Array.isArray(t.required) ? t.required.includes(cleanParam) : !p.endsWith("?");
+                    return (
+                      <span key={p} className={`mcp-param ${isReq ? "req" : ""}`}>{p}</span>
+                    );
+                  })}
                 </div>
               </div>
             );

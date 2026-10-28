@@ -41,11 +41,12 @@ Open Banking v3.1 mandates consent objects that enumerate permitted scopes. FAPI
 
 | Export | Purpose |
 |---|---|
-| `ConsentScope` | Enum of all 10 permission scopes |
+| `ConsentScope` | Enum of all 18 permission scopes across all 10 BIAN domains |
+| `mapOAuthScopesToConsentScopes` | Maps OAuth 2.0 scope strings (`accounts:read payments:write ...`) to `ConsentScope[]` |
 | `Consent` | Interface: `{ token, customerId, scopes, expiresAt }` |
-| `parseConsent(token)` | Resolves `demo-token` to full-scope consent; otherwise decodes base64-JSON |
-| `consentPlugin` | Fastify plugin — attaches `request.consent` on every authenticated request |
-| `requiresScope(...scopes)` | `preHandler` factory — throws 403 if consent lacks required scope |
+| `parseConsent(token)` | Resolves `demo-token` / `AGENTBANK_TOKEN` to full-scope consent; decodes base64/base64url JSON and 3-part JWT payloads |
+| `authPlugin` & `consentPlugin` | Unified Fastify auth + consent pipeline — validates Bearer token and attaches `request.consent` |
+| `requiresScope(...scopes)` / `requiresAnyScope(...scopes)` | `preHandler` factories — throw 403 if consent lacks required scope(s) |
 
 ---
 
