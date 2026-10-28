@@ -12,6 +12,7 @@ This directory contains the role specifications, ownership boundaries, and verif
 | [04-wealth-compliance-events.md](./04-wealth-compliance-events.md) | **Wealth, Compliance & Events Engineer** | `backend/src/domains/{investments,compliance,notifications,oauth}/*`, `backend/prisma/*` |
 | [05-frontend-observability.md](./05-frontend-observability.md) | **Frontend & Observability Engineer** | `src/*`, `index.html`, `vite.config.js`, `agentbank-executive-visuals.html` |
 | [06-qa-devops.md](./06-qa-devops.md) | **QA, Contract Testing & DevOps Engineer** | `backend/test/*`, `.github/workflows/*`, `docker-compose*.yml`, `infra/*`, `.env.example` |
+| [07-styling-ux-narrative.md](./07-styling-ux-narrative.md) | **Styling, Narrative & UX Design Engineer** | `src/*`, `agentbank-executive-visuals.html`, `old mock/*` |
 
 ## Execution Waves & Gate Protocol
 

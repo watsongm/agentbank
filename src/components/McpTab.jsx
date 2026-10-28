@@ -43,7 +43,7 @@ const MCP_HANDSHAKE = [
   {dir:"server", text:'{"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"text","text":"{\\"accountId\\":\\"ACC-1829\\",\\"available\\":4821.50,\\"currency\\":\\"GBP\\",\\"dateTime\\":\\"2026-04-11T09:14:22Z\\"}"}]}}'},
 ];
 
-export default function McpTab({ tools, domains }) {
+export default function McpTab({ tools, domains, onTryTool }) {
   const [copied, setCopied] = useState(null);
   const [msgIdx, setMsgIdx] = useState(0);
   const termRef             = useRef(null);
@@ -102,7 +102,7 @@ export default function McpTab({ tools, domains }) {
           <div className="term-bar">
             <div className="tdot" style={{background:"#ff5f57"}}/><div className="tdot" style={{background:"#ffbd2e"}}/><div className="tdot" style={{background:"#28c840"}}/>
             <span className="term-lbl">MCP STDIO PROTOCOL TRACE</span>
-            <button style={{marginLeft:"auto",fontFamily:"var(--mono)",fontSize:10,padding:"3px 9px",background:"rgba(255,255,255,.05)",border:"1px solid rgba(255,255,255,.1)",color:"rgba(255,255,255,.3)",cursor:"pointer"}} onClick={() => setMsgIdx(0)}>↺ REPLAY</button>
+            <button style={{marginLeft:"auto",fontFamily:"var(--mono)",fontSize:10,padding:"3px 9px",background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.18)",color:"#cbd5e1",cursor:"pointer"}} onClick={() => setMsgIdx(0)}>↺ REPLAY</button>
           </div>
           <div className="term-body" ref={termRef} style={{maxHeight:280}}>
             {MCP_HANDSHAKE.slice(0, msgIdx).map((m, i) => (
@@ -110,10 +110,10 @@ export default function McpTab({ tools, domains }) {
                 <div style={{color: m.dir === "client" ? "#4fc3f7" : "#81c784", fontSize:10, marginBottom:2, letterSpacing:1}}>
                   {m.dir === "client" ? "▶ CLIENT →" : "◀ SERVER ←"}
                 </div>
-                <div style={{color:"rgba(255,255,255,.5)", fontSize:10, wordBreak:"break-all", lineHeight:1.6}}>{m.text}</div>
+                <div style={{color:"#cbd5e1", fontSize:10.5, wordBreak:"break-all", lineHeight:1.6}}>{m.text}</div>
               </div>
             ))}
-            {msgIdx < MCP_HANDSHAKE.length && <span style={{color:"rgba(255,255,255,.3)"}}>▌</span>}
+            {msgIdx < MCP_HANDSHAKE.length && <span style={{color:"var(--gold)"}}>▌</span>}
           </div>
         </div>
       </div>
@@ -126,18 +126,42 @@ export default function McpTab({ tools, domains }) {
           {tools.map(t => {
             const dom = domains.find(d => d.id === t.domain);
             return (
-              <div key={t.name} className="mcp-tool">
-                <div className="mcp-tool-name" style={{color: dom?.color}}>{t.name}</div>
-                <div className="mcp-tool-desc">{t.desc}</div>
-                <div className="mcp-schema">
-                  {t.params.map((p) => {
-                    const cleanParam = p.replace(/\?$/, "");
-                    const isReq = Array.isArray(t.required) ? t.required.includes(cleanParam) : !p.endsWith("?");
-                    return (
-                      <span key={p} className={`mcp-param ${isReq ? "req" : ""}`}>{p}</span>
-                    );
-                  })}
+              <div key={t.name} className="mcp-tool" style={{display:"flex",flexDirection:"column",justifyContent:"space-between"}}>
+                <div>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,marginBottom:4}}>
+                    <div className="mcp-tool-name" style={{color: dom?.color, marginBottom:0}}>{t.name}</div>
+                    <span style={{fontFamily:"var(--mono)",fontSize:9.5,color:"var(--mid)",textTransform:"uppercase"}}>{t.domain}</span>
+                  </div>
+                  <div className="mcp-tool-desc">{t.desc}</div>
+                  <div className="mcp-schema">
+                    {t.params.map((p) => {
+                      const cleanParam = p.replace(/\?$/, "");
+                      const isReq = Array.isArray(t.required) ? t.required.includes(cleanParam) : !p.endsWith("?");
+                      return (
+                        <span key={p} className={`mcp-param ${isReq ? "req" : ""}`}>{p}</span>
+                      );
+                    })}
+                  </div>
                 </div>
+                {onTryTool && (
+                  <button
+                    type="button"
+                    onClick={() => onTryTool(t.name)}
+                    style={{
+                      marginTop: 12,
+                      alignSelf: "flex-start",
+                      fontFamily: "var(--mono)",
+                      fontSize: 10,
+                      padding: "4px 9px",
+                      background: "var(--bg)",
+                      border: "1px solid var(--line)",
+                      color: "var(--ink)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Try in Console →
+                  </button>
+                )}
               </div>
             );
           })}

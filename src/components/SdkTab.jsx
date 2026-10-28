@@ -90,7 +90,7 @@ const SDK_TOOLS = [
 
 const COLORS = ["#4fc3f7","#81c784","#ffb74d","#ce93d8","#ef9a9a","#80cbc4","#4fc3f7","#81c784","#ffb74d","#ce93d8","#ef9a9a","#80cbc4","#4fc3f7","#81c784"];
 
-export default function SdkTab() {
+export default function SdkTab({ onTryTool }) {
   const [copied, setCopied] = useState(null);
   const [activeSnippet, setActiveSnippet] = useState("quickstart");
 
@@ -175,12 +175,30 @@ export default function SdkTab() {
         <p style={{ fontSize: 14, color: "var(--mid)", marginBottom: 28 }}>All tools are available on <code style={{ fontFamily: "var(--mono)", fontSize: 12 }}>agent.tools.*</code> and return Promises.</p>
         <div style={{ border: "1px solid var(--line)", overflow: "hidden" }}>
           {SDK_TOOLS.map((t, i) => (
-            <div key={t.name} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0, padding: "14px 20px", borderBottom: i < SDK_TOOLS.length - 1 ? "1px solid var(--line)" : "none", background: i % 2 === 0 ? "transparent" : "var(--cream)" }}>
+            <div key={t.name} style={{ display: "grid", gridTemplateColumns: onTryTool ? "1fr 1fr auto" : "1fr 1fr", gap: 12, padding: "14px 20px", borderBottom: i < SDK_TOOLS.length - 1 ? "1px solid var(--line)" : "none", background: i % 2 === 0 ? "transparent" : "var(--cream)", alignItems: "center" }}>
               <div>
-                <code style={{ fontFamily: "var(--mono)", fontSize: 12, color: COLORS[i], fontWeight: 500 }}>agent.tools.{t.name}</code>
+                <code style={{ fontFamily: "var(--mono)", fontSize: 12, color: COLORS[i], fontWeight: 600 }}>agent.tools.{t.name}</code>
                 <code style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--mid)", display: "block", marginTop: 4 }}>{t.sig}</code>
               </div>
-              <div style={{ fontSize: 13, color: "var(--mid)", alignSelf: "center", paddingLeft: 16 }}>{t.desc}</div>
+              <div style={{ fontSize: 13, color: "var(--mid)", alignSelf: "center", paddingLeft: 8 }}>{t.desc}</div>
+              {onTryTool && (
+                <button
+                  type="button"
+                  onClick={() => onTryTool(t.name)}
+                  style={{
+                    fontFamily: "var(--mono)",
+                    fontSize: 10,
+                    padding: "5px 10px",
+                    background: "var(--bg)",
+                    border: "1px solid var(--line)",
+                    color: "var(--ink)",
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Try in Console →
+                </button>
+              )}
             </div>
           ))}
         </div>

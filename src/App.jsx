@@ -7,7 +7,7 @@ import { AGENT_STEPS } from "./data/agentSteps.js";
 import { CONVERSATION } from "./data/conversation.js";
 import { apiConsoleRequest, resolveEndpointPath, defaultBody, getApiMode, setApiMode } from "./api/index.js";
 import { useAuth } from "./context/AuthContext.jsx";
-import { OBS_MODELS, rnd, makeSession, makeHistory } from "./mock/sessions.js";
+import { OBS_MODELS, rnd, makeSession, makeHistory, makeHex } from "./mock/sessions.js";
 import ObservabilityOverlay from "./Observability.jsx";
 import McpTab from "./components/McpTab.jsx";
 import SdkTab from "./components/SdkTab.jsx";
@@ -58,27 +58,27 @@ h1 em{font-style:normal;color:var(--gold);}
 .dark{background:var(--ink);color:var(--bg);}
 .dark .sec-tag{color:var(--gold);}
 .dark .sec-h{color:var(--bg);}
-.dark .sec-p{color:rgba(255,255,255,.45);}
+.dark .sec-p{color:rgba(255,255,255,.68);}
 .agent-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:start;}
 .agent-feats{display:flex;flex-direction:column;gap:20px;}
-.feat{padding:22px;border:1px solid rgba(255,255,255,.1);transition:border-color .2s;}
+.feat{padding:22px;border:1px solid rgba(255,255,255,.12);transition:border-color .2s;}
 .feat:hover{border-color:var(--gold);}
 .feat-icon{font-size:19px;margin-bottom:10px;}
 .feat-h{font-size:15px;font-weight:700;margin-bottom:7px;color:var(--bg);}
-.feat-p{font-size:13px;color:rgba(255,255,255,.45);line-height:1.6;}
-.term{background:#0a0c10;border:1px solid rgba(255,255,255,.1);}
-.term-bar{display:flex;align-items:center;gap:7px;padding:11px 15px;border-bottom:1px solid rgba(255,255,255,.07);}
+.feat-p{font-size:13px;color:rgba(255,255,255,.68);line-height:1.6;}
+.term{background:#0a0c10;border:1px solid rgba(255,255,255,.12);}
+.term-bar{display:flex;align-items:center;gap:7px;padding:11px 15px;border-bottom:1px solid rgba(255,255,255,.09);}
 .tdot{width:10px;height:10px;border-radius:50%;}
-.term-lbl{font-family:var(--mono);font-size:10px;color:rgba(255,255,255,.25);margin-left:6px;letter-spacing:1px;}
+.term-lbl{font-family:var(--mono);font-size:10px;color:#8b9bb4;margin-left:6px;letter-spacing:1px;}
 .term-body{padding:18px;max-height:460px;overflow-y:auto;font-family:var(--mono);font-size:11px;line-height:1.75;}
 .tm-agent{color:#64b5f6;margin-bottom:7px;}
-.tm-lbl{color:rgba(100,181,246,.5);margin-right:6px;}
+.tm-lbl{color:rgba(100,181,246,.75);margin-right:6px;}
 .tm-call{margin-bottom:3px;}
 .tm-tool{color:var(--gold);}
-.tm-tlbl{color:rgba(201,168,76,.45);margin-right:4px;}
-.tm-params{color:rgba(255,255,255,.25);font-size:10px;}
-.tm-res{margin:3px 0 9px 14px;padding:9px 11px;background:rgba(255,255,255,.03);border-left:2px solid rgba(255,255,255,.09);}
-.tm-rlbl{color:rgba(255,255,255,.25);font-size:10px;margin-bottom:3px;}
+.tm-tlbl{color:rgba(201,168,76,.75);margin-right:4px;}
+.tm-params{color:#94a3b8;font-size:10px;}
+.tm-res{margin:3px 0 9px 14px;padding:9px 11px;background:rgba(255,255,255,.035);border-left:2px solid rgba(255,255,255,.15);}
+.tm-rlbl{color:#8b9bb4;font-size:10px;margin-bottom:3px;}
 .tm-rval{color:#a5d6a7;font-size:10.5px;}
 .svc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);}
 .svc-card{background:var(--bg);padding:28px;cursor:pointer;transition:background .2s;position:relative;overflow:hidden;}
@@ -201,23 +201,23 @@ h1 em{font-style:normal;color:var(--gold);}
 .console-top{display:flex;align-items:center;justify-content:space-between;padding:0 22px;height:52px;background:#0c1018;border-bottom:1px solid #18222e;flex-shrink:0;}
 .console-logo{font-family:var(--display);font-size:16px;font-weight:800;color:#fff;}
 .console-logo span{color:var(--gold);}
-.console-sub{font-family:var(--mono);font-size:10px;color:#445566;margin-left:10px;letter-spacing:1px;}
-.console-x{font-family:var(--mono);font-size:11px;padding:6px 14px;background:rgba(255,255,255,.05);border:1px solid #1e2c3a;color:#445566;cursor:pointer;letter-spacing:1px;transition:all .2s;}
-.console-x:hover{background:rgba(255,255,255,.09);color:#fff;}
+.console-sub{font-family:var(--mono);font-size:10px;color:#8b9bb4;margin-left:10px;letter-spacing:1px;}
+.console-x{font-family:var(--mono);font-size:11px;padding:6px 14px;background:rgba(255,255,255,.06);border:1px solid #263849;color:#94a3b8;cursor:pointer;letter-spacing:1px;transition:all .2s;}
+.console-x:hover{background:rgba(255,255,255,.12);color:#fff;}
 .console-inner{display:flex;flex:1;overflow:hidden;}
 .console-sidebar{width:200px;flex-shrink:0;border-right:1px solid #18222e;overflow-y:auto;background:#070a0e;}
-.csb-lbl{font-family:var(--mono);font-size:9px;letter-spacing:2px;color:#2a3a4a;padding:13px 14px 5px;text-transform:uppercase;}
+.csb-lbl{font-family:var(--mono);font-size:9.5px;letter-spacing:2px;color:#8b9bb4;padding:13px 14px 5px;text-transform:uppercase;}
 .csb-item{padding:9px 14px;cursor:pointer;transition:background .15s;display:flex;align-items:center;gap:8px;}
-.csb-item:hover{background:rgba(255,255,255,.03);}
-.csb-item.on{background:rgba(201,168,76,.1);border-right:2px solid var(--gold);}
+.csb-item:hover{background:rgba(255,255,255,.04);}
+.csb-item.on{background:rgba(201,168,76,.12);border-right:2px solid var(--gold);}
 .csb-icon{font-size:12px;}
-.csb-name{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.55);}
+.csb-name{font-family:var(--mono);font-size:11px;color:#cbd5e1;}
 .csb-item.on .csb-name{color:var(--gold);}
 .console-main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;}
 .ep-bar{padding:9px 14px;border-bottom:1px solid #18222e;display:flex;gap:5px;flex-wrap:wrap;background:#09101a;flex-shrink:0;}
-.ep-btn{font-family:var(--mono);font-size:10px;padding:4px 9px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);color:rgba(255,255,255,.4);cursor:pointer;transition:all .15s;display:flex;gap:4px;align-items:center;}
-.ep-btn:hover{background:rgba(255,255,255,.06);color:rgba(255,255,255,.7);}
-.ep-btn.on{background:rgba(201,168,76,.1);border-color:rgba(201,168,76,.35);color:var(--gold);}
+.ep-btn{font-family:var(--mono);font-size:10px;padding:4px 9px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:#94a3b8;cursor:pointer;transition:all .15s;display:flex;gap:4px;align-items:center;}
+.ep-btn:hover{background:rgba(255,255,255,.08);color:#e2e8f0;}
+.ep-btn.on{background:rgba(201,168,76,.12);border-color:rgba(201,168,76,.45);color:var(--gold);}
 .em{font-size:9px;font-weight:700;padding:1px 4px;border-radius:1px;}
 .em-GET{background:#1a3d1a;color:#4caf50;}
 .em-POST{background:#1a2a4a;color:#64b5f6;}
@@ -225,37 +225,37 @@ h1 em{font-style:normal;color:var(--gold);}
 .workspace{flex:1;display:grid;grid-template-columns:1fr 1fr;overflow:hidden;}
 .req-pane,.res-pane{display:flex;flex-direction:column;overflow:hidden;}
 .req-pane{border-right:1px solid #18222e;}
-.pane-hdr{padding:8px 14px;border-bottom:1px solid #18222e;font-family:var(--mono);font-size:10px;letter-spacing:1px;color:#2a3a4a;background:#070a0e;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;}
+.pane-hdr{padding:8px 14px;border-bottom:1px solid #18222e;font-family:var(--mono);font-size:10px;letter-spacing:1px;color:#8b9bb4;background:#070a0e;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;gap:8px;}
 .url-row{display:flex;align-items:center;padding:9px 13px;border-bottom:1px solid #18222e;flex-shrink:0;background:#09101a;}
-.url-method{font-family:var(--mono);font-size:11px;font-weight:700;padding:7px 9px;border:1px solid rgba(255,255,255,.09);border-right:none;min-width:54px;text-align:center;}
-.um-GET{color:#4caf50;background:rgba(76,175,80,.07);}
-.um-POST{color:#64b5f6;background:rgba(100,181,246,.07);}
-.um-PUT{color:#ffb74d;background:rgba(255,183,77,.07);}
-.url-path{flex:1;font-family:var(--mono);font-size:11px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.09);color:rgba(255,255,255,.6);padding:7px 9px;outline:none;min-width:0;}
+.url-method{font-family:var(--mono);font-size:11px;font-weight:700;padding:7px 9px;border:1px solid rgba(255,255,255,.12);border-right:none;min-width:54px;text-align:center;}
+.um-GET{color:#4caf50;background:rgba(76,175,80,.09);}
+.um-POST{color:#64b5f6;background:rgba(100,181,246,.09);}
+.um-PUT{color:#ffb74d;background:rgba(255,183,77,.09);}
+.url-path{flex:1;font-family:var(--mono);font-size:11px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);color:#e2e8f0;padding:7px 9px;outline:none;min-width:0;}
 .send{padding:7px 16px;background:var(--gold);color:#000;font-family:var(--mono);font-size:12px;font-weight:700;border:none;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:background .15s;}
 .send:hover{background:#dbb95a;}
 .send:disabled{opacity:.4;cursor:not-allowed;}
 .req-fields{flex:1;overflow-y:auto;}
-.field-section{border-bottom:1px solid rgba(255,255,255,.04);}
-.field-sec-hdr{padding:8px 14px;font-family:var(--mono);font-size:10px;letter-spacing:1px;color:#2a3a4a;background:#070a0e;}
+.field-section{border-bottom:1px solid rgba(255,255,255,.06);}
+.field-sec-hdr{padding:8px 14px;font-family:var(--mono);font-size:10px;letter-spacing:1px;color:#8b9bb4;background:#070a0e;}
 .field{padding:7px 14px;display:flex;flex-direction:column;gap:3px;}
-.field-lbl{font-family:var(--mono);font-size:10px;color:#2a3a4a;}
-.field-inp{font-family:var(--mono);font-size:11px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.09);color:rgba(255,255,255,.7);padding:6px 9px;outline:none;width:100%;}
-.field-inp:focus{border-color:rgba(201,168,76,.45);}
-.field-ta{font-family:var(--mono);font-size:11px;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.07);color:#a5d6a7;padding:10px;outline:none;width:100%;resize:none;line-height:1.6;}
-.field-ta:focus{border-color:rgba(201,168,76,.35);}
+.field-lbl{font-family:var(--mono);font-size:10px;color:#8b9bb4;}
+.field-inp{font-family:var(--mono);font-size:11px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);color:#e2e8f0;padding:6px 9px;outline:none;width:100%;}
+.field-inp:focus{border-color:rgba(201,168,76,.55);}
+.field-ta{font-family:var(--mono);font-size:11px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1);color:#a5d6a7;padding:10px;outline:none;width:100%;resize:none;line-height:1.6;}
+.field-ta:focus{border-color:rgba(201,168,76,.45);}
 .res-body{flex:1;overflow-y:auto;padding:14px;}
-.res-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:180px;color:#2a3a4a;gap:8px;}
+.res-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:180px;color:#64748b;gap:8px;}
 .res-empty-icon{font-size:26px;}
 .res-empty-text{font-family:var(--mono);font-size:11px;letter-spacing:1px;}
-.res-meta{display:flex;gap:12px;margin-bottom:12px;align-items:center;}
-.res-status{font-family:var(--mono);font-size:12px;font-weight:700;padding:3px 9px;background:rgba(76,175,80,.1);border:1px solid rgba(76,175,80,.3);color:#4caf50;}
-.res-status.err{background:rgba(255,82,82,.1);border-color:rgba(255,82,82,.35);color:var(--red);}
-.mode-toggle{display:inline-flex;border:1px solid #1e2c3a;background:#070a0e;margin-left:14px;}
-.mode-btn{font-family:var(--mono);font-size:10px;padding:4px 10px;background:transparent;border:none;color:#445566;cursor:pointer;letter-spacing:.8px;transition:all .15s;}
-.mode-btn.on-mock{background:rgba(201,168,76,.14);color:var(--gold);}
-.mode-btn.on-live{background:rgba(0,230,118,.12);color:var(--green);}
-.res-time{font-family:var(--mono);font-size:11px;color:#2a3a4a;}
+.res-meta{display:flex;gap:10px;margin-bottom:12px;align-items:center;flex-wrap:wrap;}
+.res-status{font-family:var(--mono);font-size:12px;font-weight:700;padding:3px 9px;background:rgba(76,175,80,.12);border:1px solid rgba(76,175,80,.35);color:#4caf50;}
+.res-status.err{background:rgba(255,82,82,.12);border-color:rgba(255,82,82,.4);color:var(--red);}
+.mode-toggle{display:inline-flex;border:1px solid #263849;background:#070a0e;margin-left:14px;}
+.mode-btn{font-family:var(--mono);font-size:10px;padding:4px 10px;background:transparent;border:none;color:#8b9bb4;cursor:pointer;letter-spacing:.8px;transition:all .15s;}
+.mode-btn.on-mock{background:rgba(201,168,76,.16);color:var(--gold);}
+.mode-btn.on-live{background:rgba(0,230,118,.14);color:var(--green);}
+.res-time{font-family:var(--mono);font-size:11px;color:#8b9bb4;}
 .res-json{font-family:var(--mono);font-size:11px;line-height:1.7;color:#a5d6a7;white-space:pre-wrap;word-break:break-all;}
 .res-loading{display:flex;align-items:center;gap:9px;color:var(--gold);font-family:var(--mono);font-size:12px;padding:18px 0;}
 .spinner{width:15px;height:15px;border:2px solid rgba(201,168,76,.2);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite;}
@@ -264,34 +264,35 @@ h1 em{font-style:normal;color:var(--gold);}
 .obs-top{display:flex;align-items:center;justify-content:space-between;padding:0 22px;height:52px;background:#0c1018;border-bottom:1px solid #18222e;flex-shrink:0;}
 .obs-logo{font-family:var(--display);font-size:16px;font-weight:800;color:#fff;}
 .obs-logo span{color:var(--gold);}
-.obs-sub{font-family:var(--mono);font-size:10px;color:#445566;margin-left:10px;letter-spacing:1px;}
+.obs-sub{font-family:var(--mono);font-size:10px;color:#8b9bb4;margin-left:10px;letter-spacing:1px;}
 .obs-right{display:flex;align-items:center;gap:12px;}
-.live-pill{display:flex;align-items:center;gap:6px;background:rgba(0,230,118,.07);border:1px solid rgba(0,230,118,.25);padding:4px 10px;}
+.live-pill{display:flex;align-items:center;gap:6px;background:rgba(0,230,118,.08);border:1px solid rgba(0,230,118,.3);padding:4px 10px;}
 .ldot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:blink 1.5s infinite;}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
 .ltext{font-family:var(--mono);font-size:10px;color:var(--green);}
-.pause-btn{font-family:var(--mono);font-size:11px;padding:5px 13px;background:rgba(255,255,255,.04);border:1px solid #1e2c3a;color:#445566;cursor:pointer;transition:all .2s;letter-spacing:1px;}
-.pause-btn:hover,.pause-btn.paused{background:rgba(201,168,76,.08);border-color:rgba(201,168,76,.4);color:var(--gold);}
+.pause-btn{font-family:var(--mono);font-size:11px;padding:5px 13px;background:rgba(255,255,255,.05);border:1px solid #263849;color:#94a3b8;cursor:pointer;transition:all .2s;letter-spacing:1px;}
+.pause-btn:hover,.pause-btn.paused{background:rgba(201,168,76,.1);border-color:rgba(201,168,76,.45);color:var(--gold);}
 .obs-tabs{display:flex;background:#0c1018;border-bottom:1px solid #18222e;padding:0 22px;}
-.otab{padding:11px 18px;font-family:var(--mono);font-size:11px;letter-spacing:1px;color:#445566;cursor:pointer;border-bottom:2px solid transparent;background:none;border-top:none;border-left:none;border-right:none;transition:all .2s;}
+.otab{padding:11px 18px;font-family:var(--mono);font-size:11px;letter-spacing:1px;color:#8b9bb4;cursor:pointer;border-bottom:2px solid transparent;background:none;border-top:none;border-left:none;border-right:none;transition:all .2s;}
+.otab:hover{color:#e2e8f0;}
 .otab.on{color:var(--gold);border-bottom-color:var(--gold);}
 .obs-page{padding:18px 22px;overflow-y:auto;flex:1;}
 .kpi-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:11px;margin-bottom:18px;}
 .kpi{background:#101620;border:1px solid #18222e;padding:14px;}
-.kpi-lbl{font-family:var(--mono);font-size:9px;letter-spacing:1px;color:#445566;text-transform:uppercase;margin-bottom:7px;}
+.kpi-lbl{font-family:var(--mono);font-size:9.5px;letter-spacing:1px;color:#8b9bb4;text-transform:uppercase;margin-bottom:7px;}
 .kpi-val{font-family:var(--mono);font-size:22px;font-weight:600;}
-.kpi-sub{font-family:var(--mono);font-size:10px;margin-top:3px;color:#445566;}
+.kpi-sub{font-family:var(--mono);font-size:10px;margin-top:3px;color:#8b9bb4;}
 .chart-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px;}
 .chart-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:18px;}
 .chart-card{background:#101620;border:1px solid #18222e;padding:14px;}
-.chart-hdr{font-family:var(--mono);font-size:10px;letter-spacing:1px;color:#445566;text-transform:uppercase;margin-bottom:12px;}
+.chart-hdr{font-family:var(--mono);font-size:10px;letter-spacing:1px;color:#8b9bb4;text-transform:uppercase;margin-bottom:12px;}
 .sess-table{background:#101620;border:1px solid #18222e;overflow:hidden;}
-.srow{display:grid;grid-template-columns:100px 120px 1fr 85px 75px 85px 70px;padding:8px 14px;border-bottom:1px solid rgba(255,255,255,.03);font-family:var(--mono);font-size:11px;align-items:center;cursor:pointer;transition:background .15s;}
-.srow:hover{background:rgba(255,255,255,.025);}
-.srow.on{background:rgba(201,168,76,.07);border-left:2px solid var(--gold);}
-.srow-hdr{color:#2a3a4a;font-size:9px;letter-spacing:1px;text-transform:uppercase;cursor:default;}
+.srow{display:grid;grid-template-columns:100px 120px 1fr 85px 75px 85px 150px;padding:8px 14px;border-bottom:1px solid rgba(255,255,255,.04);font-family:var(--mono);font-size:11px;align-items:center;cursor:pointer;transition:background .15s;}
+.srow:hover{background:rgba(255,255,255,.035);}
+.srow.on{background:rgba(201,168,76,.09);border-left:2px solid var(--gold);}
+.srow-hdr{color:#8b9bb4;font-size:9.5px;letter-spacing:1px;text-transform:uppercase;cursor:default;}
 .srow-hdr:hover{background:transparent;}
-.srow.console-row{border-left:2px solid rgba(79,195,247,.4);}
+.srow.console-row{border-left:2px solid rgba(79,195,247,.55);}
 .sbadge{font-size:10px;padding:2px 6px;}
 .sb-success{background:rgba(0,230,118,.1);color:var(--green);border:1px solid rgba(0,230,118,.3);}
 .sb-error{background:rgba(255,82,82,.1);color:var(--red);border:1px solid rgba(255,82,82,.3);}
@@ -299,47 +300,47 @@ h1 em{font-style:normal;color:var(--gold);}
 .trace-layout{display:grid;grid-template-columns:1fr 340px;gap:14px;}
 .trace-panel,.detail-panel{background:#101620;border:1px solid #18222e;}
 .panel-hdr{padding:9px 14px;border-bottom:1px solid #18222e;display:flex;align-items:center;justify-content:space-between;}
-.panel-hdr-lbl{font-family:var(--mono);font-size:10px;letter-spacing:1px;color:#445566;text-transform:uppercase;}
+.panel-hdr-lbl{font-family:var(--mono);font-size:10px;letter-spacing:1px;color:#8b9bb4;text-transform:uppercase;}
 .panel-tid{font-family:var(--mono);font-size:10px;color:var(--gold);}
 .trace-body{padding:14px;max-height:460px;overflow-y:auto;font-family:var(--mono);font-size:11px;line-height:1.8;}
 .tl{display:flex;gap:9px;margin-bottom:2px;}
-.tl-t{color:#2a3a4a;width:50px;flex-shrink:0;font-size:10px;padding-top:1px;}
-.tl-sys{color:rgba(255,255,255,.25);}
+.tl-t{color:#64748b;width:54px;flex-shrink:0;font-size:10px;padding-top:1px;}
+.tl-sys{color:#cbd5e1;}
 .tl-auth{color:var(--blue);}
-.tl-think{color:#445566;}
+.tl-think{color:#94a3b8;}
 .tl-call{color:var(--gold);}
 .tl-ret{color:var(--green);}
 .tl-done{color:#fff;font-weight:500;}
 .detail-sec{padding:13px 14px;border-bottom:1px solid #18222e;}
 .detail-sec:last-child{border-bottom:none;}
-.dlbl{font-family:var(--mono);font-size:9px;letter-spacing:2px;color:#445566;text-transform:uppercase;margin-bottom:9px;}
-.drow{display:flex;justify-content:space-between;margin-bottom:5px;}
-.dk{font-family:var(--mono);font-size:11px;color:#445566;}
-.dv{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.75);}
+.dlbl{font-family:var(--mono);font-size:9.5px;letter-spacing:2px;color:#8b9bb4;text-transform:uppercase;margin-bottom:9px;}
+.drow{display:flex;justify-content:space-between;margin-bottom:5px;gap:8px;}
+.dk{font-family:var(--mono);font-size:11px;color:#8b9bb4;}
+.dv{font-family:var(--mono);font-size:11px;color:#e2e8f0;text-align:right;}
 .dv.gold{color:var(--gold);}
 .dv.green{color:var(--green);}
 .dv.blue{color:var(--blue);}
 .tok-wrap{margin-top:7px;}
-.tok-row{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:#445566;margin-bottom:3px;}
+.tok-row{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:#8b9bb4;margin-bottom:3px;}
 .tok-track{height:5px;background:#18222e;border-radius:3px;overflow:hidden;}
 .tok-fill{height:100%;border-radius:3px;transition:width .5s;}
 .span-panel{background:#101620;border:1px solid #18222e;margin-bottom:14px;}
 .span-body{padding:14px;overflow-x:auto;}
 .span-ruler{display:flex;justify-content:space-between;padding:0 0 6px;min-width:500px;}
-.span-ruler span{font-family:var(--mono);font-size:9px;color:#2a3a4a;}
+.span-ruler span{font-family:var(--mono);font-size:9.5px;color:#64748b;}
 .span-row{display:flex;align-items:center;gap:0;margin-bottom:5px;min-width:500px;}
 .span-info{width:220px;flex-shrink:0;}
-.span-name{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.75);}
-.span-svc{font-family:var(--mono);font-size:10px;color:#445566;}
+.span-name{font-family:var(--mono);font-size:11px;color:#e2e8f0;}
+.span-svc{font-family:var(--mono);font-size:10px;color:#8b9bb4;}
 .span-track{flex:1;position:relative;height:22px;}
-.span-bar{position:absolute;height:16px;top:3px;border-radius:2px;display:flex;align-items:center;padding:0 5px;font-family:var(--mono);font-size:9px;color:rgba(0,0,0,.75);font-weight:600;overflow:hidden;white-space:nowrap;min-width:4px;}
-.span-dur{font-family:var(--mono);font-size:10px;color:#445566;width:48px;text-align:right;flex-shrink:0;}
+.span-bar{position:absolute;height:16px;top:3px;border-radius:2px;display:flex;align-items:center;padding:0 5px;font-family:var(--mono);font-size:9px;color:rgba(0,0,0,.85);font-weight:600;overflow:hidden;white-space:nowrap;min-width:4px;}
+.span-dur{font-family:var(--mono);font-size:10px;color:#8b9bb4;width:48px;text-align:right;flex-shrink:0;}
 .attr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:9px;padding:14px;}
 .attr-card{background:#0c1018;border:1px solid #18222e;padding:10px 12px;}
 .attr-name{font-family:var(--mono);font-size:10px;margin-bottom:5px;letter-spacing:.5px;}
 .attr-row{display:flex;justify-content:space-between;margin-bottom:3px;}
-.attr-k{font-family:var(--mono);font-size:10px;color:#445566;}
-.attr-v{font-family:var(--mono);font-size:10px;color:rgba(255,255,255,.65);}
+.attr-k{font-family:var(--mono);font-size:10px;color:#8b9bb4;}
+.attr-v{font-family:var(--mono);font-size:10px;color:#e2e8f0;}
 .builds-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;margin-bottom:40px;}
 .build-card{padding:22px;border:1px solid var(--line);cursor:pointer;transition:border-color .2s,background .2s;}
 .build-card:hover{border-color:var(--gold);}
@@ -420,9 +421,13 @@ export default function App() {
   const [cFapiId, setCFapiId]  = useState("3f785c72-b4a1-4b9c-9221-8d6c3f0e1294");
   const [cLoading, setCLoading]= useState(false);
   const [cTime, setCTime]      = useState(null);
+  const [cCopied, setCCopied]  = useState(null);
+  const [lastConsoleSessId, setLastConsoleSessId] = useState(null);
 
   /* observability state */
   const [obsPaused, setObsPaused]  = useState(false);
+  const [obsInitTab, setObsInitTab]= useState("metrics");
+  const [obsInitSessId, setObsInitSessId] = useState(null);
   const [sessions, setSessions]    = useState(()=>Array.from({length:12},(_,i)=>makeSession(i+1)));
   const [history, setHistory]      = useState(makeHistory);
   const sessCounter                = useRef(13);
@@ -494,6 +499,55 @@ export default function App() {
     setCBody(defaultBody(ep.m, ep.p));
     setShowConsole(true);
   }
+  function openConsoleAt(domainId, epIdx = 0) {
+    const d = DOMAINS.find(x => x.id === domainId) || DOMAINS[0];
+    const safeIdx = d.endpoints[epIdx] ? epIdx : 0;
+    const ep = d.endpoints[safeIdx];
+    setModal(null);
+    setCDomain(d.id);
+    setCEpIdx(safeIdx);
+    setCResp(null);
+    setCPath(resolveEndpointPath(ep.p));
+    setCBody(defaultBody(ep.m, ep.p));
+    setShowConsole(true);
+  }
+  function openConsoleForTool(toolName) {
+    const TOOL_EP_MAP = {
+      get_party:          ["party", 0],
+      get_accounts:       ["accounts", 0],
+      get_balance:        ["accounts", 2],
+      get_transactions:   ["transactions", 0],
+      initiate_payment:   ["payments", 0],
+      get_payment_status: ["payments", 2],
+      get_loan_details:   ["lending", 1],
+      apply_for_loan:     ["lending", 0],
+      get_card_details:   ["cards", 2],
+      block_card:         ["cards", 4],
+      get_portfolio:      ["investments", 0],
+      place_order:        ["investments", 2],
+      run_aml_screen:     ["compliance", 2],
+      subscribe_events:   ["notifications", 2],
+    };
+    const [domId, epIdx] = TOOL_EP_MAP[toolName] || ["accounts", 0];
+    openConsoleAt(domId, epIdx);
+  }
+  function openConsoleForUcStep(stepIdx) {
+    const UC_EP_MAP = [
+      ["party", 0],
+      ["transactions", 0],
+      ["savings", 1],
+      ["accounts", 2],
+      ["payments", 0],
+      ["notifications", 2],
+    ];
+    const [domId, epIdx] = UC_EP_MAP[stepIdx] || ["party", 0];
+    openConsoleAt(domId, epIdx);
+  }
+  function copyToClipboard(key, text) {
+    navigator.clipboard.writeText(text);
+    setCCopied(key);
+    setTimeout(() => setCCopied(null), 1600);
+  }
 
   /* API Console → Observability: real calls appear as sessions with a blue left border */
   async function sendReq() {
@@ -523,10 +577,15 @@ export default function App() {
     setCLoading(false);
 
     const matchedTool = TOOLS.find(t=>t.domain===cDomain) ?? TOOLS[0];
+    const newId = `SES-${String(sessCounter.current++).padStart(5,"0")}`;
+    const fapiId = res.fapiId || cFapiId || makeHex(16);
     const consoleSess = {
-      id: `SES-${String(sessCounter.current++).padStart(5,"0")}`,
-      traceId: (res.fapiId || Array.from({length:16},()=>Math.floor(Math.random()*16).toString(16)).join("")).replace(/-/g, ""),
-      customer: apiMode === "live" ? "API Console (Live)" : "API Console",
+      id: newId,
+      traceId: fapiId.replace(/-/g, ""),
+      fapiInteractionId: fapiId,
+      prevHash: makeHex(64),
+      rowHash: makeHex(64),
+      customer: apiMode === "live" ? "Aria Chen (PAR-ARIA · Live)" : "Aria Chen (PAR-ARIA · Console)",
       model: OBS_MODELS[0],
       tool: matchedTool.name,
       latency: res.latencyMs,
@@ -537,6 +596,7 @@ export default function App() {
       ts: Date.now(),
       source: "console",
     };
+    setLastConsoleSessId(newId);
     setSessions(p=>[consoleSess, ...p].slice(0,40));
     setHistory(p=>{
       const pt={t:new Date().toLocaleTimeString("en",{hour:"2-digit",minute:"2-digit"}),latency:res.latencyMs,inputTok:consoleSess.inputTok,outputTok:consoleSess.outputTok,toolCalls:1,errors:res.ok?0:1,sessions:1};
@@ -565,7 +625,7 @@ export default function App() {
           <a className="nl" href="https://github.com/watsongm/agentbank" target="_blank" rel="noreferrer">GitHub ↗</a>
         </div>
         <div style={{display:"flex",gap:8}}>
-          <button className="nav-btn" style={{background:"transparent",color:"var(--ink)",border:"1.5px solid var(--ink)"}} onClick={()=>setShowObs(true)}>Observability</button>
+          <button className="nav-btn" style={{background:"transparent",color:"var(--ink)",border:"1.5px solid var(--ink)"}} onClick={()=>{setObsInitTab("metrics");setObsInitSessId(null);setShowObs(true);}}>Observability</button>
           <button className="nav-btn" onClick={openConsole}>API Console →</button>
         </div>
       </nav>
@@ -573,15 +633,16 @@ export default function App() {
       <section className="hero" id="top">
         <div className="hero-grid"/>
         <div className="hero-inner">
-          <div className="hero-tag"><div className="hero-dot"/>AGENTBANK · BIAN v12 · OPEN BANKING v3.1 · AI-NATIVE</div>
+          <div className="hero-tag"><div className="hero-dot"/>AGENTBANK · BIAN v12 · OPEN BANKING v3.1 · FAPI 2.0 · MCP 1.0</div>
           <h1>The Bank<br/>Built for<br/><em>AI Agents</em></h1>
-          <p className="hero-p">agentBANK is a fully-featured reference bank combining the Open Banking API standard with the BIAN Service Domain capability model — with AI agents as a first-class customer channel.</p>
+          <p className="hero-p">agentBANK is a fully-featured reference bank combining the Open Banking v3.1 API standard with the BIAN v12 Service Domain capability model — with AI agents as a first-class, cryptographically audited customer channel.</p>
           <div className="btn-row">
             <button className="btn-dark" onClick={()=>switchTab("usecase")}>See Agent Use Case</button>
-            <button className="btn-light" onClick={()=>switchTab("services")}>View All Services</button>
+            <button className="btn-light" onClick={openConsole}>Open API Console →</button>
+            <a className="btn-light" style={{textDecoration:"none",display:"inline-flex",alignItems:"center"}} href="/agentbank-executive-visuals.html" target="_blank" rel="noreferrer">Executive Briefing ↗</a>
           </div>
           <div className="hero-stats">
-            {[["10+","BIAN Service Domains"],["45+","API Endpoints"],["14","Agent Tool Functions"],["v3.1","Open Banking Spec"]].map(([n,l])=>(
+            {[["10","BIAN v12 Domains"],["44","OpenAPI Endpoints"],["14","MCP & SDK Tools"],["FAPI 2.0","DPoP + Hash Audit"]].map(([n,l])=>(
               <div key={l}><div className="stat-n">{n}</div><div className="stat-l">{l}</div></div>
             ))}
           </div>
@@ -657,8 +718,25 @@ export default function App() {
           <div className="code-box">
             <div className="code-topbar">
               <div className="cdots"><div className="cdot" style={{background:"#ff5f57"}}/><div className="cdot" style={{background:"#ffbd2e"}}/><div className="cdot" style={{background:"#28c840"}}/></div>
-              <span className="code-lbl">STEP {AGENT_STEPS[ucStep].id} — {AGENT_STEPS[ucStep].title.toUpperCase()}</span>
-              <span className="code-badge" style={{borderColor:AGENT_STEPS[ucStep].color,color:AGENT_STEPS[ucStep].color}}>{AGENT_STEPS[ucStep].icon} {AGENT_STEPS[ucStep].domain}</span>
+              <span className="code-lbl" style={{color:"#8b9bb4"}}>STEP {AGENT_STEPS[ucStep].id} — {AGENT_STEPS[ucStep].title.toUpperCase()}</span>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <span className="code-badge" style={{borderColor:AGENT_STEPS[ucStep].color,color:AGENT_STEPS[ucStep].color}}>{AGENT_STEPS[ucStep].icon} {AGENT_STEPS[ucStep].domain}</span>
+                <button
+                  type="button"
+                  onClick={() => openConsoleForUcStep(ucStep)}
+                  style={{
+                    fontFamily:"var(--mono)",
+                    fontSize:10,
+                    padding:"4px 10px",
+                    background:"rgba(201,168,76,0.14)",
+                    border:"1px solid var(--gold)",
+                    color:"var(--gold)",
+                    cursor:"pointer",
+                  }}
+                >
+                  Run Step in API Console →
+                </button>
+              </div>
             </div>
             <div className="code-scroll"><pre>{AGENT_STEPS[ucStep].code}</pre></div>
           </div>
@@ -692,11 +770,30 @@ export default function App() {
             {TOOLS.map(t=>{
               const dom=DOMAINS.find(d=>d.id===t.domain);
               return (
-                <div key={t.name} className="tool-card">
-                  <div className="tool-name" style={{color:dom?.color}}>{t.name}()</div>
-                  <div className="tool-dom">{t.domain.replace(/-/g," ")}</div>
-                  <div className="tool-desc">{t.desc}</div>
-                  <div className="tool-params">{t.params.map(p=><span key={p} className="tool-p">{p}</span>)}</div>
+                <div key={t.name} className="tool-card" style={{display:"flex",flexDirection:"column",justifyContent:"space-between"}}>
+                  <div>
+                    <div className="tool-name" style={{color:dom?.color}}>{t.name}()</div>
+                    <div className="tool-dom">{t.domain.replace(/-/g," ")} · {dom?.bian}</div>
+                    <div className="tool-desc">{t.desc}</div>
+                    <div className="tool-params">{t.params.map(p=><span key={p} className="tool-p">{p}</span>)}</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => openConsoleForTool(t.name)}
+                    style={{
+                      marginTop: 12,
+                      alignSelf: "flex-start",
+                      fontFamily: "var(--mono)",
+                      fontSize: 10,
+                      padding: "4px 9px",
+                      background: "var(--cream)",
+                      border: "1px solid var(--line)",
+                      color: "var(--ink)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Try Tool in Console →
+                  </button>
                 </div>
               );
             })}
@@ -789,8 +886,8 @@ export default function App() {
         </div>
       </section>}
 
-      {activeTab==="mcp" && <McpTab tools={TOOLS} domains={DOMAINS}/>}
-      {activeTab==="sdk" && <SdkTab/>}
+      {activeTab==="mcp" && <McpTab tools={TOOLS} domains={DOMAINS} onTryTool={openConsoleForTool}/>}
+      {activeTab==="sdk" && <SdkTab onTryTool={openConsoleForTool}/>}
 
       <footer>
         <div><div className="footer-logo">AGENT<span>BANK</span></div><div className="footer-tag">BIAN v12 · Open Banking v3.1 · AI-Native Reference Implementation</div></div>
@@ -850,7 +947,37 @@ export default function App() {
                 <button role="tab" aria-selected={modalTab==="ep"} className={`mtab ${modalTab==="ep"?"on":""}`} onClick={()=>setModalTab("ep")}>Endpoints ({modalDomain.endpoints.length})</button>
                 <button role="tab" aria-selected={modalTab==="caps"} className={`mtab ${modalTab==="caps"?"on":""}`} onClick={()=>setModalTab("caps")}>Agent Capabilities ({modalDomain.caps.length})</button>
               </div>
-              {modalTab==="ep" && <div className="ep-list">{modalDomain.endpoints.map((ep,i)=><div key={i} className="ep-row"><span className={`ep-badge badge-${ep.m}`}>{ep.m}</span><div><div className="ep-path">{ep.p}</div><div className="ep-desc">{ep.d}</div></div></div>)}</div>}
+              {modalTab==="ep" && (
+                <div className="ep-list">
+                  {modalDomain.endpoints.map((ep,i)=>(
+                    <div key={i} className="ep-row" style={{alignItems:"center",justifyContent:"space-between"}}>
+                      <div style={{display:"flex",alignItems:"flex-start",gap:11}}>
+                        <span className={`ep-badge badge-${ep.m}`}>{ep.m}</span>
+                        <div>
+                          <div className="ep-path">{ep.p}</div>
+                          <div className="ep-desc">{ep.d}</div>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => openConsoleAt(modalDomain.id, i)}
+                        style={{
+                          fontFamily:"var(--mono)",
+                          fontSize:10.5,
+                          padding:"6px 11px",
+                          background:"var(--ink)",
+                          color:"var(--bg)",
+                          border:"none",
+                          cursor:"pointer",
+                          flexShrink:0,
+                        }}
+                      >
+                        Test in Console →
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
               {modalTab==="caps" && <div><div className="cap-list">{modalDomain.caps.map((c,i)=><div key={i} className="cap-row"><div className="cap-tick">✓</div><span className="cap-text">{c}</span></div>)}</div><div className="scope-box"><div className="scope-lbl">REQUIRED CONSENT SCOPE</div><code style={{fontFamily:"var(--mono)",fontSize:12,color:"var(--ink)"}}>{modalDomain.id}:read {modalDomain.id}:write</code></div></div>}
             </div>
           </div>
@@ -896,19 +1023,85 @@ export default function App() {
             <div className="console-main">
               <div className="ep-bar">
                 {cDom?.endpoints.map((ep,i)=>(
-                  <button key={i} className={`ep-btn ${cEpIdx===i?"on":""}`} onClick={()=>pickEp(i)}>
+                  <button
+                    key={i}
+                    className={`ep-btn ${cEpIdx===i?"on":""}`}
+                    onClick={()=>pickEp(i)}
+                    title={`${ep.m} ${ep.p} — ${ep.d}`}
+                  >
                     <span className={`em em-${ep.m}`}>{ep.m}</span>
-                    <span style={{maxWidth:130,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{ep.p.split("/").slice(-2).join("/")}</span>
+                    <span style={{maxWidth:220,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{ep.p.replace(/^\/open-banking\/v3\.1\/|^\/bian\//, "/")}</span>
                   </button>
                 ))}
               </div>
               <div className="workspace">
                 <div className="req-pane">
-                  <div className="pane-hdr"><span>REQUEST ({apiMode.toUpperCase()})</span><span style={{color:"#2a3a4a"}}>{cDom?.bian}</span></div>
+                  <div className="pane-hdr">
+                    <span>REQUEST ({apiMode.toUpperCase()}) · <span style={{color:"var(--gold)"}}>{cDom?.bian}</span></span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const curlCmd = `curl -X ${cEp?.m || "GET"} "http://localhost:3000${cPath}" \\\n  -H "Authorization: ${authDisplayValue}" \\\n  -H "x-fapi-interaction-id: ${cFapiId}" \\\n  -H "Content-Type: application/json"${cEp?.m !== "GET" && cBody.trim() ? ` \\\n  -d '${cBody.replace(/\n\s*/g, " ")}'` : ""}`;
+                        copyToClipboard("curl", curlCmd);
+                      }}
+                      style={{
+                        fontFamily:"var(--mono)",
+                        fontSize:9.5,
+                        padding:"3px 8px",
+                        background:"rgba(255,255,255,.06)",
+                        border:"1px solid rgba(255,255,255,.15)",
+                        color:cCopied==="curl"?"var(--green)":"#cbd5e1",
+                        cursor:"pointer",
+                      }}
+                    >
+                      {cCopied==="curl" ? "✓ cURL Copied" : "Copy cURL"}
+                    </button>
+                  </div>
                   <div className="url-row">
                     <div className={`url-method um-${cEp?.m}`}>{cEp?.m}</div>
                     <input className="url-path" value={cPath} onChange={e=>setCPath(e.target.value)} aria-label="Request URL path"/>
                     <button className="send" onClick={sendReq} disabled={cLoading}>{cLoading?"...":"SEND →"}</button>
+                  </div>
+                  <div
+                    style={{
+                      display:"flex",
+                      alignItems:"center",
+                      gap:6,
+                      padding:"6px 13px",
+                      background:"#080d14",
+                      borderBottom:"1px solid #18222e",
+                      flexWrap:"wrap",
+                    }}
+                  >
+                    <span style={{fontFamily:"var(--mono)",fontSize:9,color:"#8b9bb4",letterSpacing:1}}>SEED IDs:</span>
+                    {[
+                      ["PAR-ARIA", "Aria Party"],
+                      ["ACC-1829", "Aria Current"],
+                      ["ACC-2041", "Aria Savings"],
+                      ["LOAN-48291", "Mahliqa Loan"],
+                      ["CRD-88421", "Aria Card"],
+                      ["PRT-29183", "Aria Portfolio"],
+                      ["CASE-9001", "AML Case"],
+                    ].map(([id, label]) => (
+                      <button
+                        key={id}
+                        type="button"
+                        title={`Click to copy ${id} (${label})`}
+                        onClick={() => copyToClipboard(id, id)}
+                        style={{
+                          fontFamily:"var(--mono)",
+                          fontSize:9.5,
+                          padding:"2px 6px",
+                          background:cCopied===id ? "rgba(0,230,118,.15)" : "rgba(255,255,255,.04)",
+                          border:"1px solid",
+                          borderColor:cCopied===id ? "var(--green)" : "rgba(255,255,255,.12)",
+                          color:cCopied===id ? "var(--green)" : "#cbd5e1",
+                          cursor:"pointer",
+                        }}
+                      >
+                        {cCopied===id ? "✓ Copied" : id}
+                      </button>
+                    ))}
                   </div>
                   <div className="req-fields">
                     <div className="field-section">
@@ -926,15 +1119,66 @@ export default function App() {
                       <div className="field"><span className="field-lbl">Content-Type</span><input className="field-inp" value="application/json" readOnly aria-label="Content-Type"/></div>
                     </div>
                     {cEp?.m!=="GET" && <div className="field-section"><div className="field-sec-hdr">REQUEST BODY</div><div style={{padding:"8px 14px"}}><textarea className="field-ta" rows={8} value={cBody} onChange={e=>setCBody(e.target.value)} aria-label="Request JSON body"/></div></div>}
-                    <div className="field-section"><div className="field-sec-hdr">ENDPOINT INFO</div><div style={{padding:"10px 14px"}}><div style={{fontSize:12,color:"rgba(255,255,255,.35)",lineHeight:1.7}}>{cEp?.d}</div><div style={{marginTop:7,fontFamily:"monospace",fontSize:10,color:"#2a3a4a"}}>TEMPLATE: <span style={{color:"#4fc3f7"}}>{cEp?.p}</span> · SCOPE: <span style={{color:"rgba(201,168,76,.7)"}}>{cDomain}:read{cEp?.m!=="GET"?" "+cDomain+":write":""}</span></div></div></div>
+                    <div className="field-section"><div className="field-sec-hdr">ENDPOINT INFO</div><div style={{padding:"10px 14px"}}><div style={{fontSize:12,color:"#cbd5e1",lineHeight:1.7}}>{cEp?.d}</div><div style={{marginTop:7,fontFamily:"monospace",fontSize:10.5,color:"#8b9bb4"}}>TEMPLATE: <span style={{color:"#4fc3f7"}}>{cEp?.p}</span> · SCOPE: <span style={{color:"var(--gold)"}}>{cDomain}:read{cEp?.m!=="GET"?" "+cDomain+":write":""}</span></div></div></div>
                   </div>
                 </div>
                 <div className="res-pane">
-                  <div className="pane-hdr"><span>RESPONSE</span>{cResp&&<span style={{color:"#2a3a4a"}}>{cTime}ms</span>}</div>
+                  <div className="pane-hdr">
+                    <span>RESPONSE</span>
+                    <div style={{display:"flex",alignItems:"center",gap:8}}>
+                      {cResp && <span style={{color:"#8b9bb4"}}>{cTime}ms</span>}
+                      {cResp && (
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboard("json", JSON.stringify(cResp, null, 2))}
+                          style={{
+                            fontFamily:"var(--mono)",
+                            fontSize:9.5,
+                            padding:"3px 8px",
+                            background:"rgba(255,255,255,.06)",
+                            border:"1px solid rgba(255,255,255,.15)",
+                            color:cCopied==="json"?"var(--green)":"#cbd5e1",
+                            cursor:"pointer",
+                          }}
+                        >
+                          {cCopied==="json" ? "✓ JSON Copied" : "Copy JSON"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
                   <div className="res-body">
                     {!cResp&&!cLoading&&<div className="res-empty"><div className="res-empty-icon">◎</div><div className="res-empty-text">HIT SEND TO EXECUTE</div></div>}
                     {cLoading&&<div className="res-loading"><div className="spinner"/>AWAITING RESPONSE...</div>}
-                    {cResp&&!cLoading&&<><div className="res-meta"><div className={`res-status ${cOk?"":"err"}`}>{cStatus}</div><div className="res-time">{cTime}ms · application/json</div></div><pre className="res-json">{JSON.stringify(cResp,null,2)}</pre></>}
+                    {cResp&&!cLoading&&(
+                      <>
+                        <div className="res-meta">
+                          <div className={`res-status ${cOk?"":"err"}`}>{cStatus}</div>
+                          <div className="res-time">{cTime}ms · application/json</div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowConsole(false);
+                              setObsInitTab("trace");
+                              setObsInitSessId(lastConsoleSessId);
+                              setShowObs(true);
+                            }}
+                            style={{
+                              marginLeft:"auto",
+                              fontFamily:"var(--mono)",
+                              fontSize:10,
+                              padding:"4px 10px",
+                              background:"rgba(79,195,247,.12)",
+                              border:"1px solid rgba(79,195,247,.4)",
+                              color:"var(--blue)",
+                              cursor:"pointer",
+                            }}
+                          >
+                            Inspect Trace in Observability →
+                          </button>
+                        </div>
+                        <pre className="res-json">{JSON.stringify(cResp,null,2)}</pre>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -953,6 +1197,8 @@ export default function App() {
           setObsPaused={setObsPaused}
           apiMode={apiMode}
           token={token}
+          initialTab={obsInitTab}
+          initialSessionId={obsInitSessId}
           onClose={() => setShowObs(false)}
         />
       )}

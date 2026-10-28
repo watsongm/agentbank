@@ -1,0 +1,889 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=1280, initial-scale=1" />
+<title>Agent-native commerce — Executive concepts</title>
+<style>
+  :root {
+    color-scheme: light;
+    --ink: #0A2540;
+    --ink-2: #344155;
+    --muted: #6E7685;
+    --rule: #E3DED3;
+    --rule-2: #CFC8B8;
+    --bg: #FAF8F3;
+    --card: #FFFFFF;
+    --accent: #B45309;
+    --shade: #F1ECDF;
+    --shade-2: #E8E2D1;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); }
+  body {
+    font-family: "Inter", "Helvetica Neue", "Segoe UI", Arial, sans-serif;
+    font-size: 15px; line-height: 1.45; -webkit-font-smoothing: antialiased;
+  }
+
+  /* Top bar */
+  header.topbar {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--bg);
+    border-bottom: 1px solid var(--rule);
+  }
+  .topbar-inner {
+    max-width: 1200px; margin: 0 auto;
+    padding: 14px 32px;
+    display: flex; align-items: center; justify-content: space-between; gap: 24px;
+  }
+  .brand { display: flex; align-items: baseline; gap: 12px; letter-spacing: .02em; }
+  .brand .mark {
+    font-weight: 700; font-size: 15px; color: var(--ink);
+    border-left: 3px solid var(--accent); padding-left: 10px;
+  }
+  .brand .sub {
+    font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .14em;
+  }
+  nav.tabs { display: flex; gap: 4px; }
+  nav.tabs button {
+    appearance: none; background: transparent; border: 0;
+    padding: 10px 14px; font: inherit; font-size: 13px; color: var(--ink-2);
+    letter-spacing: .02em; cursor: pointer;
+    border-bottom: 2px solid transparent; transition: color .15s, border-color .15s;
+  }
+  nav.tabs button:hover { color: var(--ink); }
+  nav.tabs button.active {
+    color: var(--ink); border-bottom-color: var(--accent); font-weight: 600;
+  }
+
+  main { max-width: 1200px; margin: 0 auto; padding: 28px 32px 80px; }
+  section.view { display: none; }
+  section.view.active { display: block; }
+
+  .eyebrow {
+    font-size: 11px; letter-spacing: .18em; text-transform: uppercase;
+    color: var(--accent); font-weight: 600; margin-bottom: 10px;
+  }
+  h1.slide-title {
+    font-size: 30px; line-height: 1.2; margin: 0 0 10px;
+    font-weight: 700; letter-spacing: -.005em; color: var(--ink); max-width: 900px;
+  }
+  p.slide-sub {
+    font-size: 15.5px; line-height: 1.5; color: var(--ink-2);
+    margin: 0 0 28px; max-width: 780px;
+  }
+
+  .takeaway {
+    margin-top: 36px; border-top: 1px solid var(--rule); padding-top: 16px;
+    display: flex; align-items: flex-start; gap: 14px;
+    font-size: 14px; color: var(--ink-2);
+  }
+  .takeaway .label {
+    font-size: 10px; letter-spacing: .2em; text-transform: uppercase;
+    color: var(--muted); font-weight: 700; flex: 0 0 auto; padding-top: 2px;
+  }
+  .takeaway .body { max-width: 900px; }
+  .takeaway .body strong { color: var(--ink); font-weight: 600; }
+
+  footer.src {
+    max-width: 1200px; margin: 0 auto; padding: 0 32px 40px;
+    font-size: 11px; color: var(--muted);
+    border-top: 1px dashed var(--rule); padding-top: 12px;
+  }
+
+  /* ---------- Exhibit 1 : Stack ---------- */
+  .stack { display: grid; grid-template-columns: 1fr; gap: 12px; }
+  .layer {
+    background: var(--card); border: 1px solid var(--rule); border-radius: 4px;
+    padding: 18px 22px;
+    display: grid; grid-template-columns: 190px 1fr; gap: 22px; align-items: center;
+  }
+  .layer .l-label {
+    font-size: 10px; letter-spacing: .22em; text-transform: uppercase;
+    color: var(--muted); font-weight: 700;
+  }
+  .layer .l-title {
+    font-size: 18px; font-weight: 700; color: var(--ink); margin-bottom: 4px;
+  }
+  .layer .l-body {
+    font-size: 13.5px; color: var(--ink-2); line-height: 1.5;
+  }
+  .layer.consumer { background: var(--shade); border-color: var(--rule-2); }
+  .layer.agent    { background: #FFFDF7; border-left: 3px solid var(--accent); }
+  .layer.rails    { background: var(--card); }
+  .layer.trust    { background: var(--shade); border-color: var(--rule-2); }
+
+  .rails-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 8px; }
+  .rail-pill {
+    border: 1px solid var(--rule); border-radius: 3px; padding: 8px 10px;
+    background: #fff; font-size: 12px; color: var(--ink);
+  }
+  .rail-pill b { display: block; font-size: 12.5px; font-weight: 700; margin-bottom: 2px; }
+  .rail-pill span { color: var(--muted); font-size: 11px; }
+
+  .trust-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 8px; }
+  .trust-pill {
+    border: 1px dashed var(--rule-2); border-radius: 3px; padding: 8px 10px;
+    font-size: 12px; color: var(--ink-2);
+  }
+  .trust-pill b { display: block; color: var(--ink); font-size: 12.5px; font-weight: 600; margin-bottom: 2px; }
+
+  .arrow {
+    display: flex; justify-content: center;
+    font-size: 10.5px; color: var(--muted); letter-spacing: .15em; text-transform: uppercase;
+    padding: 2px 0;
+  }
+  .arrow::before,.arrow::after {
+    content: ""; display: inline-block; width: 1px; height: 14px;
+    background: var(--rule-2); margin: 0 10px;
+  }
+
+  /* ---------- Exhibit 2 : Features become primitives ---------- */
+  .compare {
+    display: grid; grid-template-columns: 1fr 60px 1fr; gap: 14px; align-items: stretch;
+  }
+  .compare-card {
+    background: var(--card); border: 1px solid var(--rule); border-radius: 4px;
+    padding: 18px 20px;
+  }
+  .compare-card .c-label {
+    font-size: 10px; letter-spacing: .22em; text-transform: uppercase;
+    color: var(--muted); font-weight: 700; margin-bottom: 12px;
+  }
+  .compare-card h3 {
+    margin: 0 0 4px; font-size: 18px; font-weight: 700; color: var(--ink);
+  }
+  .compare-card .c-sub {
+    font-size: 13px; color: var(--ink-2); margin-bottom: 14px;
+  }
+  .mock-app {
+    border: 1px solid var(--rule); border-radius: 4px; padding: 12px;
+    background: var(--shade);
+  }
+  .mock-app .mock-title {
+    font-size: 11px; color: var(--muted); letter-spacing: .08em; margin-bottom: 8px;
+  }
+  .mock-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .mock-btn {
+    background: #fff; border: 1px solid var(--rule); border-radius: 3px;
+    padding: 8px 10px; font-size: 12px; color: var(--ink); text-align: center;
+  }
+  .primitives-list {
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .prim {
+    font-family: "SF Mono", Consolas, ui-monospace, monospace;
+    font-size: 12px; color: var(--ink-2);
+    background: var(--shade); border: 1px solid var(--rule);
+    padding: 6px 10px; border-radius: 3px;
+    display: flex; justify-content: space-between;
+  }
+  .prim span { color: var(--muted); font-family: "Inter", sans-serif; font-size: 11px; }
+  .arrow-big {
+    display: grid; place-items: center; font-size: 28px; color: var(--muted);
+  }
+  .recipe-strip {
+    margin-top: 16px; border: 1px solid var(--rule); border-radius: 4px;
+    background: var(--card); padding: 14px 18px;
+  }
+  .recipe-strip .r-head {
+    font-size: 10px; letter-spacing: .22em; text-transform: uppercase;
+    color: var(--muted); font-weight: 700; margin-bottom: 10px;
+  }
+  .recipe-strip .recipes {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+  }
+  .rec-card {
+    border-left: 2px solid var(--accent); padding-left: 10px;
+  }
+  .rec-card .q {
+    font-style: italic; font-size: 13px; color: var(--ink-2); margin-bottom: 4px;
+  }
+  .rec-card .n {
+    font-size: 10.5px; color: var(--muted); letter-spacing: .06em;
+  }
+
+  /* ---------- Exhibit 3 : UX Journey ---------- */
+  .journey { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0; margin-top: 8px; }
+  .step {
+    padding: 16px 14px 18px; border-left: 1px solid var(--rule);
+    background: var(--card); position: relative;
+  }
+  .step:first-child { border-left: 0; background: var(--shade); }
+  .step:last-child  { background: var(--shade); }
+  .step .n {
+    font-size: 10px; color: var(--muted); letter-spacing: .18em; font-weight: 700;
+  }
+  .step .label {
+    font-weight: 700; font-size: 14px; color: var(--ink); margin: 6px 0 10px;
+  }
+  .step .body {
+    font-size: 12.5px; color: var(--ink-2); line-height: 1.5;
+  }
+  .step .chip {
+    display: inline-block; font-size: 10.5px; letter-spacing: .05em;
+    padding: 2px 6px; margin-top: 10px; border-radius: 2px;
+    border: 1px solid var(--rule-2); color: var(--ink-2); background: #fff;
+  }
+  .step .chip.accent { border-color: var(--accent); color: var(--accent); }
+
+  .contrast {
+    margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+  }
+  .cc {
+    background: var(--card); border: 1px solid var(--rule); border-radius: 4px;
+    padding: 14px 16px;
+  }
+  .cc .cc-head {
+    font-size: 11px; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--muted); font-weight: 700; margin-bottom: 8px;
+  }
+  .cc .cc-body { font-size: 13px; color: var(--ink-2); line-height: 1.5; }
+  .cc .cc-body b { color: var(--ink); }
+
+  /* ---------- Exhibit 4 : Super agent ---------- */
+  .super-grid { display: grid; grid-template-columns: 1.05fr 1fr; gap: 28px; align-items: start; }
+  .rings-wrap {
+    position: relative; aspect-ratio: 1 / 1; width: 100%; max-width: 520px; margin: 0 auto;
+  }
+  .ring {
+    position: absolute; inset: 0; border-radius: 50%;
+    border: 1px solid var(--rule-2); background: var(--card);
+    display: grid; place-items: center;
+  }
+  .ring .ring-label {
+    position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+    font-size: 10px; letter-spacing: .18em; text-transform: uppercase;
+    color: var(--muted); font-weight: 600;
+    background: var(--card); padding: 0 6px;
+  }
+  .ring-1 { inset: 0;   background: #FDFBF4; }
+  .ring-2 { inset: 11%; background: #F6F2E8; }
+  .ring-3 { inset: 26%; background: #EFE7D1; }
+  .ring-4 { inset: 42%; background: var(--ink); border-color: var(--ink); }
+  .ring-4 .center { text-align: center; color: #fff; padding: 12px; }
+  .ring-4 .center .c-title { font-size: 13px; font-weight: 700; }
+  .ring-4 .center .c-quote { font-size: 11.5px; font-style: italic; color: #E6E4DC; margin-top: 4px; }
+
+  .orbit-label {
+    position: absolute; font-size: 11px; font-weight: 600; color: var(--ink);
+    background: var(--card); border: 1px solid var(--rule);
+    padding: 4px 8px; border-radius: 3px; white-space: nowrap;
+  }
+
+  .pos-finance  { top: 32%; left: -2%; }
+  .pos-commerce { top: 5%;  left: 38%; }
+  .pos-travel   { top: 32%; right: -2%; }
+  .pos-health   { bottom: 5%; left: 24%; }
+  .pos-utility  { bottom: 5%; right: 24%; }
+
+  .pos-identity { top: 2%;  right: 10%; }
+  .pos-consent  { top: 48%; right: -4%; transform: translateY(-50%); }
+  .pos-audit    { bottom: 2%; left: 10%; }
+  .pos-regulate { top: 48%; left: -4%; transform: translateY(-50%); }
+
+  .implications { display: flex; flex-direction: column; gap: 14px; }
+  .fp { border-left: 2px solid var(--accent); padding: 4px 0 4px 14px; }
+  .fp .fp-num { font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+  .fp .fp-title { font-size: 15px; font-weight: 700; color: var(--ink); margin: 2px 0 4px; }
+  .fp .fp-body { font-size: 13px; color: var(--ink-2); line-height: 1.5; }
+
+  /* ---------- Exhibit 5 : Blended outcomes ---------- */
+  .legend {
+    display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 18px;
+    font-size: 11.5px; color: var(--ink-2);
+  }
+  .leg { display: inline-flex; align-items: center; gap: 6px; }
+  .leg::before {
+    content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px;
+  }
+  .leg.bank::before   { background: #B45309; }
+  .leg.email::before  { background: #3B5B87; }
+  .leg.cal::before    { background: #6B4C83; }
+  .leg.travel::before { background: #4D6B3B; }
+  .leg.shop::before   { background: #0F766E; }
+  .leg.msg::before    { background: #6E7685; }
+  .leg.web::before    { background: #7A6340; }
+
+  .scenarios { display: flex; flex-direction: column; gap: 14px; }
+  .scenario {
+    background: var(--card); border: 1px solid var(--rule); border-radius: 4px;
+    padding: 16px 20px 14px;
+    display: grid; grid-template-columns: 1fr; gap: 12px;
+  }
+  .s-top {
+    display: grid; grid-template-columns: 32px 1fr auto; gap: 14px; align-items: center;
+  }
+  .s-num {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--ink); color: #fff; font-weight: 700; font-size: 12px;
+    display: grid; place-items: center;
+  }
+  .s-quote {
+    font-size: 16px; color: var(--ink); font-weight: 600; font-style: italic;
+  }
+  .s-quote::before { content: "\201C"; color: var(--muted); margin-right: 2px; font-style: normal; }
+  .s-quote::after  { content: "\201D"; color: var(--muted); margin-left: 2px; font-style: normal; }
+  .s-ecos {
+    font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--muted); font-weight: 600; text-align: right;
+  }
+
+  .s-chain {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 4px 0 2px;
+  }
+  .tool {
+    display: inline-flex; flex-direction: column;
+    background: #fff; border: 1px solid var(--rule); border-left: 3px solid;
+    padding: 5px 10px; border-radius: 3px; min-width: 112px;
+  }
+  .tool .tag {
+    font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--muted); font-weight: 600; margin-bottom: 1px;
+  }
+  .tool .name {
+    font-family: "SF Mono", Consolas, ui-monospace, monospace;
+    font-size: 11.5px; color: var(--ink);
+  }
+  .tool.bank   { border-left-color: #B45309; }
+  .tool.email  { border-left-color: #3B5B87; }
+  .tool.cal    { border-left-color: #6B4C83; }
+  .tool.travel { border-left-color: #4D6B3B; }
+  .tool.shop   { border-left-color: #0F766E; }
+  .tool.msg    { border-left-color: #6E7685; }
+  .tool.web    { border-left-color: #7A6340; }
+  .sep { color: var(--muted); font-size: 13px; padding: 0 1px; }
+
+  .s-outcome {
+    border-top: 1px dashed var(--rule); padding-top: 10px;
+    display: grid; grid-template-columns: 80px 1fr; gap: 10px; align-items: baseline;
+  }
+  .s-outcome .o-label {
+    font-size: 10px; letter-spacing: .18em; text-transform: uppercase;
+    color: var(--muted); font-weight: 700;
+  }
+  .s-outcome .o-text {
+    font-size: 13.5px; color: var(--ink-2); line-height: 1.5;
+  }
+  .s-outcome .o-text b { color: var(--ink); font-weight: 600; }
+
+  @media (max-width: 960px) {
+    .layer { grid-template-columns: 1fr; }
+    .rails-row, .trust-row { grid-template-columns: 1fr 1fr; }
+    .compare { grid-template-columns: 1fr; }
+    .arrow-big { transform: rotate(90deg); }
+    .recipe-strip .recipes { grid-template-columns: 1fr 1fr; }
+    .journey { grid-template-columns: 1fr; }
+    .step { border-left: 0; border-top: 1px solid var(--rule); }
+    .step:first-child { border-top: 0; }
+    .super-grid { grid-template-columns: 1fr; }
+    .rings-wrap { max-width: 380px; }
+    .s-top { grid-template-columns: 28px 1fr; }
+    .s-ecos { grid-column: 2; text-align: left; }
+    .s-outcome { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <span class="mark">When agents are the interface</span>
+      <span class="sub">Core concepts · five exhibits</span>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button class="tab-btn active" data-view="eco">1 · The stack</button>
+      <button class="tab-btn" data-view="cap">2 · Features &rarr; primitives</button>
+      <button class="tab-btn" data-view="ux">3 · User experience</button>
+      <button class="tab-btn" data-view="future">4 · The lifestyle agent</button>
+      <button class="tab-btn" data-view="blended">5 · Blended outcomes</button>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+<!-- ================= EXHIBIT 1 : THE STACK ================= -->
+<section class="view active" id="eco">
+  <div class="eyebrow">Exhibit 1 · The stack</div>
+  <h1 class="slide-title">When a person's primary tool is an agent, every service sits in the same four-layer stack.</h1>
+  <p class="slide-sub">
+    People stop opening apps; they tell an agent what they want. The agent reaches into domain rails &mdash; finance, commerce, travel, health &mdash;
+    through typed, authenticated interfaces. Underneath everything is a shared trust fabric.
+  </p>
+
+  <div class="stack">
+
+    <div class="layer consumer">
+      <div class="l-label">1 · Person</div>
+      <div>
+        <div class="l-title">Expresses intent in plain language</div>
+        <div class="l-body">&ldquo;Move spare cash to savings.&rdquo; &middot; &ldquo;Book me a flight home Friday.&rdquo; &middot; &ldquo;Pay the electricity bill on time.&rdquo;</div>
+      </div>
+    </div>
+
+    <div class="arrow">intent</div>
+
+    <div class="layer agent">
+      <div class="l-label">2 · Agent</div>
+      <div>
+        <div class="l-title">Plans, remembers, calls tools on the person's behalf</div>
+        <div class="l-body">Holds preferences and context. Decomposes a goal into steps. Asks for permission before it spends, shares, or changes anything.</div>
+      </div>
+    </div>
+
+    <div class="arrow">authenticated tool calls</div>
+
+    <div class="layer rails">
+      <div class="l-label">3 · Domain rails</div>
+      <div>
+        <div class="l-title">Services exposed as tools, not apps</div>
+        <div class="rails-row">
+          <div class="rail-pill"><b>Finance</b><span>Accounts, payments, credit, investments</span></div>
+          <div class="rail-pill"><b>Commerce</b><span>Catalog, basket, checkout, returns</span></div>
+          <div class="rail-pill"><b>Travel</b><span>Search, book, rebook, refund</span></div>
+          <div class="rail-pill"><b>Health</b><span>Appointments, claims, records</span></div>
+          <div class="rail-pill"><b>Utilities &amp; civic</b><span>Bills, licences, claims</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="arrow">observable &amp; auditable</div>
+
+    <div class="layer trust">
+      <div class="l-label">4 · Trust fabric</div>
+      <div>
+        <div class="l-title">Shared guarantees every rail relies on</div>
+        <div class="trust-row">
+          <div class="trust-pill"><b>Identity</b>Who the person and agent are.</div>
+          <div class="trust-pill"><b>Consent</b>Scoped, time-bound permissions.</div>
+          <div class="trust-pill"><b>Audit</b>Every action &amp; reasoning step logged.</div>
+          <div class="trust-pill"><b>Oversight</b>Regulators read the trail.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="takeaway">
+    <div class="label">Core idea</div>
+    <div class="body">
+      The person-facing layer is the agent. Everything else &mdash; including the bank &mdash; is a <strong>rail</strong> behind it,
+      plugged in through the same small set of trust primitives.
+    </div>
+  </div>
+</section>
+
+<!-- ================= EXHIBIT 2 : FEATURES -> PRIMITIVES ================= -->
+<section class="view" id="cap">
+  <div class="eyebrow">Exhibit 2 · Features become primitives</div>
+  <h1 class="slide-title">Products stop being screens. They become small, named capabilities an agent can call.</h1>
+  <p class="slide-sub">
+    A modern bank app has hundreds of screens. An agent needs none of them. What it needs is a handful of
+    well-named tools &mdash; and the freedom to compose them into whatever the user actually asked for.
+  </p>
+
+  <div class="compare">
+
+    <div class="compare-card">
+      <div class="c-label">Today &middot; features inside an app</div>
+      <h3>Humans click screens</h3>
+      <div class="c-sub">Each capability lives behind a button, a flow, and a login.</div>
+      <div class="mock-app">
+        <div class="mock-title">My Bank &middot; Home</div>
+        <div class="mock-buttons">
+          <div class="mock-btn">Transfer</div>
+          <div class="mock-btn">Pay a bill</div>
+          <div class="mock-btn">Block card</div>
+          <div class="mock-btn">Apply for loan</div>
+          <div class="mock-btn">See spending</div>
+          <div class="mock-btn">Invest</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="arrow-big">&rarr;</div>
+
+    <div class="compare-card">
+      <div class="c-label">Agent-native &middot; primitives behind an API</div>
+      <h3>Agents call tools</h3>
+      <div class="c-sub">The same capability is a small, typed function &mdash; composable with others.</div>
+      <div class="primitives-list">
+        <div class="prim">initiate_payment()            <span>move money</span></div>
+        <div class="prim">get_transactions()            <span>see spend</span></div>
+        <div class="prim">block_card()                  <span>stop fraud</span></div>
+        <div class="prim">apply_for_loan()              <span>borrow</span></div>
+        <div class="prim">place_order()                 <span>invest</span></div>
+        <div class="prim">subscribe_events()            <span>watch &amp; react</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="recipe-strip">
+    <div class="r-head">Agents compose 3&ndash;6 primitives into outcomes the user actually wants</div>
+    <div class="recipes">
+      <div class="rec-card">
+        <div class="q">&ldquo;Sweep spare cash to savings each payday.&rdquo;</div>
+        <div class="n">5 calls &middot; accounts · payments · events</div>
+      </div>
+      <div class="rec-card">
+        <div class="q">&ldquo;Tell me if I'd qualify &mdash; no hard check.&rdquo;</div>
+        <div class="n">4 calls &middot; accounts · transactions · credit</div>
+      </div>
+      <div class="rec-card">
+        <div class="q">&ldquo;Watch my card &amp; block anything sketchy.&rdquo;</div>
+        <div class="n">webhook &middot; compliance · cards</div>
+      </div>
+      <div class="rec-card">
+        <div class="q">&ldquo;Pay every bill a day before it's due.&rdquo;</div>
+        <div class="n">6 calls &middot; transactions · payments</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="takeaway">
+    <div class="label">Core idea</div>
+    <div class="body">
+      Features &rarr; <strong>primitives</strong>. The job of product teams shifts from designing screens
+      to designing small, well-named capabilities that any agent can combine.
+    </div>
+  </div>
+</section>
+
+<!-- ================= EXHIBIT 3 : UX ================= -->
+<section class="view" id="ux">
+  <div class="eyebrow">Exhibit 3 · User experience</div>
+  <h1 class="slide-title">The person says one sentence. The agent does the rest &mdash; visibly.</h1>
+  <p class="slide-sub">
+    Every step is typed, scoped, and logged. The person never opens an app, fills a form, or copies a reference number.
+    Trust comes from plainly-stated scope and a replayable record, not from a login screen.
+  </p>
+
+  <div class="journey">
+
+    <div class="step">
+      <div class="n">01</div>
+      <div class="label">Ask</div>
+      <div class="body">
+        <em>&ldquo;I got paid &mdash; move anything spare into my house fund if it's safe.&rdquo;</em>
+      </div>
+      <span class="chip">Plain language</span>
+    </div>
+
+    <div class="step">
+      <div class="n">02</div>
+      <div class="label">Permit</div>
+      <div class="body">
+        One prompt: <b>read balances</b>, <b>move up to &pound;500</b>, expires in 24 hours.
+        One tap to approve.
+      </div>
+      <span class="chip accent">Scoped consent</span>
+    </div>
+
+    <div class="step">
+      <div class="n">03</div>
+      <div class="label">Act</div>
+      <div class="body">
+        Agent plans, calls the right tools in order, and explains its reasoning as it goes.
+      </div>
+      <span class="chip">Tool calls are visible</span>
+    </div>
+
+    <div class="step">
+      <div class="n">04</div>
+      <div class="label">Record</div>
+      <div class="body">
+        Every step is written to an immutable log. The person can replay it; the regulator can inspect it.
+      </div>
+      <span class="chip">Audit trail</span>
+    </div>
+
+    <div class="step">
+      <div class="n">05</div>
+      <div class="label">Report</div>
+      <div class="body">
+        <em>&ldquo;Moved &pound;420 to your house fund. Want me to do this every payday?&rdquo;</em>
+      </div>
+      <span class="chip">No app opened</span>
+    </div>
+
+  </div>
+
+  <div class="contrast">
+    <div class="cc">
+      <div class="cc-head">What it feels like</div>
+      <div class="cc-body">
+        A short conversation, one permission prompt, a confirmation. <b>No login, no form, no dashboard.</b>
+      </div>
+    </div>
+    <div class="cc">
+      <div class="cc-head">What actually happened</div>
+      <div class="cc-body">
+        A handful of typed API calls on a scoped, time-bound token &mdash; with a full reasoning trail attached.
+        <b>More inspectable than any screen-based journey.</b>
+      </div>
+    </div>
+  </div>
+
+  <div class="takeaway">
+    <div class="label">Core idea</div>
+    <div class="body">
+      Trust is not the login page. It's <strong>clear scope + visible reasoning + replayable record</strong>.
+    </div>
+  </div>
+</section>
+
+<!-- ================= EXHIBIT 4 : LIFESTYLE AGENT ================= -->
+<section class="view" id="future">
+  <div class="eyebrow">Exhibit 4 · The lifestyle agent</div>
+  <h1 class="slide-title">Most consumers end up with one agent across most of life. Every domain plugs into it.</h1>
+  <p class="slide-sub">
+    The lifestyle agent is the interface. Around it: the domain rails the person relies on &mdash; finance, commerce, travel, health, utilities &mdash;
+    all reached through the same kind of typed, consented tool calls.
+  </p>
+
+  <div class="super-grid">
+
+    <div class="rings-wrap">
+      <div class="ring ring-1"><span class="ring-label">Trust fabric</span></div>
+      <div class="ring ring-2"><span class="ring-label">Domain rails</span></div>
+      <div class="ring ring-3"></div>
+      <div class="ring ring-4">
+        <div class="center">
+          <div class="c-title">Lifestyle agent</div>
+          <div class="c-quote">&ldquo;help me save &middot; book &middot; claim &middot; settle&rdquo;</div>
+        </div>
+      </div>
+
+      <div class="orbit-label pos-finance">Finance</div>
+      <div class="orbit-label pos-commerce">Commerce</div>
+      <div class="orbit-label pos-travel">Travel</div>
+      <div class="orbit-label pos-health">Health</div>
+      <div class="orbit-label pos-utility">Utilities</div>
+
+      <div class="orbit-label pos-identity">Identity</div>
+      <div class="orbit-label pos-consent">Consent</div>
+      <div class="orbit-label pos-audit">Audit</div>
+      <div class="orbit-label pos-regulate">Oversight</div>
+    </div>
+
+    <div class="implications">
+
+      <div class="fp">
+        <div class="fp-num">01 &middot; The channel collapses</div>
+        <div class="fp-title">Apps stop being where life happens.</div>
+        <div class="fp-body">They persist for inspection and edge cases, but day-to-day action moves into conversation with the agent.</div>
+      </div>
+
+      <div class="fp">
+        <div class="fp-num">02 &middot; Products become tools</div>
+        <div class="fp-title">The unit of value shifts from screens to callable capabilities.</div>
+        <div class="fp-body">If a capability isn't exposed as a clean tool, an agent can't reach it &mdash; and the customer never sees it.</div>
+      </div>
+
+      <div class="fp">
+        <div class="fp-num">03 &middot; Consent replaces logins</div>
+        <div class="fp-title">Permission becomes the new interface primitive.</div>
+        <div class="fp-body">Scope, expiry, and bound-to-agent rules matter more than passwords and sessions.</div>
+      </div>
+
+      <div class="fp">
+        <div class="fp-num">04 &middot; Audit replaces support</div>
+        <div class="fp-title">Disputes are resolved by replaying reasoning trails.</div>
+        <div class="fp-body">What the agent saw, planned, and did is the source of truth &mdash; for the user, the provider, and the regulator.</div>
+      </div>
+
+      <div class="fp">
+        <div class="fp-num">05 &middot; Distribution changes</div>
+        <div class="fp-title">Whoever agents prefer to call wins the relationship.</div>
+        <div class="fp-body">Providers compete on tool quality, reliability, and trust &mdash; not on app downloads or brand placement.</div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="takeaway">
+    <div class="label">Core idea</div>
+    <div class="body">
+      One agent, many rails. The consumer's relationship is with the agent; each provider's relationship is with the tool calls the agent chooses to make.
+    </div>
+  </div>
+</section>
+
+<!-- ================= EXHIBIT 5 : BLENDED OUTCOMES ================= -->
+<section class="view" id="blended">
+  <div class="eyebrow">Exhibit 5 · Blended outcomes</div>
+  <h1 class="slide-title">The most useful outcomes come from blending tools across ecosystems, not from any single rail.</h1>
+  <p class="slide-sub">
+    When one agent can see your bank, your inbox, your calendar, your shopping and your messages,
+    it stops being a better banking app and starts being <em>life admin that just &hellip; happens</em>.
+    These are outcomes no single provider can deliver alone.
+  </p>
+
+  <div class="legend">
+    <span class="leg bank">Bank</span>
+    <span class="leg email">Email</span>
+    <span class="leg cal">Calendar</span>
+    <span class="leg travel">Travel</span>
+    <span class="leg shop">Commerce</span>
+    <span class="leg msg">Messaging &amp; contacts</span>
+    <span class="leg web">Web &amp; other apps</span>
+  </div>
+
+  <div class="scenarios">
+
+    <!-- Scenario 1 : Travel disruption -->
+    <div class="scenario">
+      <div class="s-top">
+        <div class="s-num">1</div>
+        <div class="s-quote">My flight home just got cancelled.</div>
+        <div class="s-ecos">Email &middot; Calendar &middot; Travel &middot; Bank &middot; Messaging</div>
+      </div>
+      <div class="s-chain">
+        <div class="tool email"><div class="tag">Email</div><div class="name">read_inbox</div></div>
+        <div class="sep">&rarr;</div>
+        <div class="tool cal"><div class="tag">Calendar</div><div class="name">check_week</div></div>
+        <div class="sep">&rarr;</div>
+        <div class="tool travel"><div class="tag">Travel</div><div class="name">search_flights</div></div>
+        <div class="sep">&rarr;</div>
+        <div class="tool travel"><div class="tag">Travel</div><div class="name">book_flight</div></div>
+        <div class="sep">&rarr;</div>
+        <div class="tool bank"><div class="tag">Bank</div><div class="name">initiate_payment</div></div>
+        <div class="sep">&rarr;</div>
+        <div class="tool cal"><div class="tag">Calendar</div><div class="name">update_blocks</div></div>
+        <div class="sep">&rarr;</div>
+        <div class="tool msg"><div class="tag">Messaging</div><div class="name">notify_partner</div></div>
+      </div>
+      <div class="s-outcome">
+        <div class="o-label">Outcome</div>
+        <div class="o-text">
+          Rebooked to <b>Sat 07:20</b>. Friday's meetings reshuffled, partner messaged, &pound;340 routed to the corporate card and flagged for expenses &mdash; all from one cancellation email.
+        </div>
+      </div>
+    </div>
+
+    <!-- Scenario 2 : Payday hygiene -->
+    <div class="scenario">
+      <div class="s-top">
+        <div class="s-num">2</div>
+        <div class="s-quote">It's payday &mdash; handle the money.</div>
+        <div class="s-ecos">Calendar &middot; Email &middot; Bank &middot; Messaging</div>
+      </div>
+      <div class="s-chain">
+        <div class="tool cal"><div class="tag">Calendar</div><div class="name">detect_payday</div></div>
+        <div class="sep">&rarr;</div>
+        <div class="tool bank"><div class="tag">Bank</div><div class="name">get_balance</div></div>
+        <div class="sep">&rarr;</div>
+        <div class="tool email"><div class="tag">Email</div><div class="name">scan_bills_due</div></div>
+        <div class="sep">&rarr;</div>
+        <div class="tool bank"><div class="tag">Bank</div><div class="name">pay_bills</div></div>
+        <div class="sep">&rarr;</div>
+        <div class="tool bank"><div class="tag">Bank</div><div class="name">sweep_to_savings</div></div>
+        <div class="sep">&rarr;</div>
+        <div class="tool msg"><div class="tag">Messaging</div><div class="name">send_summary</div></div>
+      </div>
+      <div class="s-outcome">
+        <div class="o-label">Outcome</div>
+        <div class="o-text">
+          Three bills scheduled ahead of due dates, <b>&pound;420 swept</b> to the house-fund, and a one-line summary in chat. No app opened; no spreadsheet touched.
+        </div>
+      </div>
+    </div>
+
+    <!-- Scenario 3 : Subscription audit -->
+    <div class="scenario">
+      <div class="s-top">
+        <div class="s-num">3</div>
+        <div class="s-quote">Find anything I'm paying for and not using.</div>
+        <div class="s-ecos">Bank &middot; Email &middot; Web &middot; Messaging</div>
+      </div>
+      <div class="s-chain">
+        <div class="tool bank"><div class="tag">Bank</div><div class="name">get_recurring</div></div>
+        <div class="sep">&rarr;</div>
+        <div class="tool email"><div class="tag">Email</div><div class="name">search_confirmations</div></div>
+        <div class="sep">&rarr;</div>
+        <div class="tool web"><div class="tag">Web</div><div class="name">check_last_login</div></div>
+        <div class="sep">&rarr;</div>
+        <div class="tool msg"><div class="tag">Messaging</div><div class="name">confirm_with_user</div></div>
+        <div class="sep">&rarr;</div>
+        <div class="tool web"><div class="tag">Web</div><div class="name">cancel_subscription</div></div>
+        <div class="sep">&rarr;</div>
+        <div class="tool bank"><div class="tag">Bank</div><div class="name">watch_refunds</div></div>
+      </div>
+      <div class="s-outcome">
+        <div class="o-label">Outcome</div>
+        <div class="o-text">
+          7 active subscriptions surfaced, 4 cancelled after a quick yes/no, <b>&pound;38/month reclaimed</b>, and the agent keeps an eye out for the refunds landing.
+        </div>
+      </div>
+    </div>
+
+    <!-- Scenario 4 : Expense reconciliation -->
+    <div class="scenario">
+      <div class="s-top">
+        <div class="s-num">4</div>
+        <div class="s-quote">Reconcile last week's business expenses.</div>
+        <div class="s-ecos">Bank &middot; Email &middot; Calendar &middot; Web</div>
+      </div>
+      <div class="s-chain">
+        <div class="tool bank"><div class="tag">Bank</div><div class="name">get_transactions</div></div>
+        <div class="sep">&rarr;</div>
+        <div class="tool email"><div class="tag">Email</div><div class="name">find_receipts</div></div>
+        <div class="sep">&rarr;</div>
+        <div class="tool cal"><div class="tag">Calendar</div><div class="name">match_trips</div></div>
+        <div class="sep">&rarr;</div>
+        <div class="tool web"><div class="tag">Expense app</div><div class="name">create_report</div></div>
+        <div class="sep">&rarr;</div>
+        <div class="tool email"><div class="tag">Email</div><div class="name">send_for_approval</div></div>
+      </div>
+      <div class="s-outcome">
+        <div class="o-label">Outcome</div>
+        <div class="o-text">
+          14 card transactions matched to receipts and meetings; one <b>complete report</b> sat waiting for one-tap sign-off instead of a Sunday-night catch-up.
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="takeaway">
+    <div class="label">Core idea</div>
+    <div class="body">
+      Any one ecosystem &mdash; bank, email, travel &mdash; only sees a slice of the problem.
+      <strong>The agent's superpower is that it stands above all of them</strong>, composing their tools into outcomes the user actually cares about.
+      The more ecosystems the agent can reach, the bigger the outcomes become &mdash; and the more the agent, not any single provider, becomes the place life gets organised.
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="src">
+  Concepts drawn from open agent standards (MCP, FAPI&nbsp;2.0, Open Banking) and the AgentBank reference implementation
+  (github.com/watsongm/agentbank), used here as one worked example rather than a recommended product.
+</footer>
+
+<script>
+  const buttons = document.querySelectorAll('.tab-btn');
+  const views = document.querySelectorAll('section.view');
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const target = btn.dataset.view;
+      buttons.forEach(b => b.classList.toggle('active', b === btn));
+      views.forEach(v => v.classList.toggle('active', v.id === target));
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    });
+  });
+  document.addEventListener('keydown', (e) => {
+    const map = { '1': 'eco', '2': 'cap', '3': 'ux', '4': 'future', '5': 'blended' };
+    if (map[e.key]) {
+      const btn = document.querySelector(`.tab-btn[data-view="${map[e.key]}"]`);
+      btn && btn.click();
+    }
+  });
+</script>
+
+</body>
+</html>
