@@ -6,7 +6,7 @@ import { apiFetch } from "./api/index.js";
 function CT({ active, payload, label, unit = "" }) {
   if (!active || !payload?.length) return null;
   return (
-    <div style={{ background: "#0d1520", border: "1px solid #263849", padding: "8px 12px", fontFamily: "monospace", fontSize: 11 }}>
+    <div style={{ background: "#0d1520", border: "1px solid #263849", padding: "8px 12px", fontFamily: "var(--mono)", fontSize: 11 }}>
       <div style={{ color: "#8b9bb4", marginBottom: 4 }}>{label}</div>
       {payload.map((p, i) => (
         <div key={i} style={{ color: p.color }}>
@@ -58,9 +58,10 @@ function QuickSessionBar({ sessions, selSess, onSelect }) {
     >
       <span
         style={{
-          fontFamily: "var(--mono)",
-          fontSize: 9.5,
-          letterSpacing: 1.2,
+          fontFamily: "var(--sans)",
+          fontSize: 10.5,
+          fontWeight: 600,
+          letterSpacing: "0.06em",
           color: "#8b9bb4",
           textTransform: "uppercase",
           flexShrink: 0,
@@ -89,8 +90,8 @@ function QuickSessionBar({ sessions, selSess, onSelect }) {
               alignItems: "center",
               gap: 6,
               padding: "5px 10px",
-              fontFamily: "var(--mono)",
-              fontSize: 10.5,
+              fontFamily: "var(--sans)",
+              fontSize: 11.5,
               background: isSel ? "rgba(201,168,76,0.14)" : "rgba(255,255,255,0.03)",
               border: "1px solid",
               borderColor: isSel ? "var(--gold)" : "rgba(255,255,255,0.1)",
@@ -101,16 +102,18 @@ function QuickSessionBar({ sessions, selSess, onSelect }) {
             }}
           >
             <span style={{ width: 6, height: 6, borderRadius: "50%", background: dotColor, flexShrink: 0 }} />
-            <span style={{ color: isSel ? "var(--gold)" : "#cbd5e1", fontWeight: 600 }}>{s.id}</span>
-            <span style={{ color: "#94a3b8" }}>{s.customer.split(" ")[0]}</span>
-            <span style={{ color: "#64748b" }}>· {s.tool}</span>
+            <span style={{ fontFamily: "var(--mono)", color: isSel ? "var(--gold)" : "#cbd5e1", fontWeight: 600 }}>{s.id}</span>
+            <span style={{ color: "#94a3b8", fontWeight: 500 }}>{s.customer.split(" ")[0]}</span>
+            <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "#64748b" }}>· {s.tool}</span>
             <span
               style={{
-                fontSize: 8.5,
-                padding: "1px 4px",
+                fontFamily: "var(--sans)",
+                fontSize: 9.5,
+                fontWeight: 600,
+                padding: "1px 5px",
                 border: `1px solid ${srcBadge.color}`,
                 color: srcBadge.color,
-                letterSpacing: 0.6,
+                letterSpacing: "0.04em",
               }}
             >
               {srcBadge.label}

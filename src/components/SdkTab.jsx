@@ -171,7 +171,7 @@ export default function SdkTab({ onTryTool }) {
       {/* Tool reference */}
       <div>
         <span className="sec-tag">TOOL REFERENCE</span>
-        <h3 style={{ fontSize: "clamp(22px,3vw,34px)", fontWeight: 800, letterSpacing: "-1px", marginBottom: 8 }}>14 Tools</h3>
+        <h3 style={{ fontFamily: "var(--sans)", fontSize: "clamp(22px,3vw,32px)", fontWeight: 700, letterSpacing: "-0.02em", marginBottom: 8 }}>14 Tools</h3>
         <p style={{ fontSize: 14, color: "var(--mid)", marginBottom: 28 }}>All tools are available on <code style={{ fontFamily: "var(--mono)", fontSize: 12 }}>agent.tools.*</code> and return Promises.</p>
         <div style={{ border: "1px solid var(--line)", overflow: "hidden" }}>
           {SDK_TOOLS.map((t, i) => (
