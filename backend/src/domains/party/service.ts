@@ -32,19 +32,30 @@ function toDto(p: PartyRow): PartyDto {
 export const partyService = {
   /**
    * Authenticated-party lookup for GET /open-banking/v3.1/party.
-   * Demo: returns the first non-deleted party; tier 2 will resolve from
-   * the bearer token's sub/party claim.
+   * Resolves from customerId when it matches a partyRef or id, falling back
+   * to the earliest-created verified party (Aria).
    */
-  async getAuthenticated(): Promise<PartyDto> {
-    // Tier 1 demo: return the earliest-created verified party so smoke tests
-    // and the Smart Savings demo land on a deterministic record (Aria).
-    // Tier 2 will resolve from the bearer token's sub/party claim.
+  async getCurrent(customerId?: string): Promise<PartyDto> {
+    if (customerId && customerId !== "demo-customer") {
+      const matched = await prisma.party.findFirst({
+        where: {
+          OR: [{ partyRef: customerId }, { id: customerId }],
+          deletedAt: null,
+        },
+      });
+      if (matched) return toDto(matched);
+    }
+
     const p = await prisma.party.findFirst({
       where: { deletedAt: null, kycStatus: "VERIFIED" },
       orderBy: { createdAt: "asc" },
     });
     if (!p) throw NotFound("Party");
     return toDto(p);
+  },
+
+  async getAuthenticated(customerId?: string): Promise<PartyDto> {
+    return this.getCurrent(customerId);
   },
 
   async getByRef(partyRef: string): Promise<PartyDto> {
@@ -57,20 +68,23 @@ export const partyService = {
 
   async register(input: RegisterPartyInputT): Promise<PartyDto> {
     const partyRef = `PAR-${Date.now().toString(36).toUpperCase()}`;
+    const resolvedLegalName = input.legalName ?? input.name ?? "Unknown Party";
+    const resolvedCountry = input.country ?? input.nationality ?? "GB";
+    const resolvedEmail = input.email ?? input.contactEmail ?? null;
     const p = await prisma.party.create({
       data: {
         partyRef,
-        legalName: input.legalName,
+        legalName: resolvedLegalName,
         givenName: input.givenName ?? null,
         familyName: input.familyName ?? null,
         dateOfBirth: input.dateOfBirth ? new Date(input.dateOfBirth) : null,
-        email: input.email ?? null,
+        email: resolvedEmail,
         phone: input.phone ?? null,
         addressLine1: input.addressLine1 ?? null,
         addressLine2: input.addressLine2 ?? null,
         city: input.city ?? null,
         postcode: input.postcode ?? null,
-        country: input.country,
+        country: resolvedCountry,
         partyType: input.partyType,
         kycStatus: "PENDING",
       },
@@ -83,22 +97,26 @@ export const partyService = {
       where: { OR: [{ partyRef }, { id: partyRef }], deletedAt: null },
     });
     if (!existing) throw NotFound(`Party ${partyRef}`);
+    const resolvedLegalName = input.legalName ?? input.name;
+    const resolvedEmail = input.email ?? input.contactEmail;
+    const resolvedAddressLine1 = input.addressLine1 ?? input.address;
+    const resolvedCountry = input.country ?? input.nationality;
     const p = await prisma.party.update({
       where: { id: existing.id },
       data: {
-        ...(input.legalName !== undefined && { legalName: input.legalName }),
+        ...(resolvedLegalName !== undefined && { legalName: resolvedLegalName }),
         ...(input.givenName !== undefined && { givenName: input.givenName }),
         ...(input.familyName !== undefined && { familyName: input.familyName }),
         ...(input.dateOfBirth !== undefined && {
           dateOfBirth: input.dateOfBirth ? new Date(input.dateOfBirth) : null,
         }),
-        ...(input.email !== undefined && { email: input.email }),
+        ...(resolvedEmail !== undefined && { email: resolvedEmail }),
         ...(input.phone !== undefined && { phone: input.phone }),
-        ...(input.addressLine1 !== undefined && { addressLine1: input.addressLine1 }),
+        ...(resolvedAddressLine1 !== undefined && { addressLine1: resolvedAddressLine1 }),
         ...(input.addressLine2 !== undefined && { addressLine2: input.addressLine2 }),
         ...(input.city !== undefined && { city: input.city }),
         ...(input.postcode !== undefined && { postcode: input.postcode }),
-        ...(input.country !== undefined && { country: input.country }),
+        ...(resolvedCountry !== undefined && { country: resolvedCountry }),
         ...(input.partyType !== undefined && { partyType: input.partyType }),
       },
     });

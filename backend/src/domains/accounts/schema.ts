@@ -34,3 +34,20 @@ export const BalanceSchema = z.object({
   asOf: z.string(),
 });
 export type BalanceDto = z.infer<typeof BalanceSchema>;
+
+export const InitiateCurrentAccountInput = z.object({
+  partyId: z.string().optional(),
+  customerReference: z.string().optional(),
+  productType: z.string().optional(),
+  productName: z.string().optional(),
+  currency: z.string().length(3).default("GBP"),
+  overdraftLimit: z.coerce.number().nonnegative().default(0),
+});
+export type InitiateCurrentAccountInputT = z.infer<typeof InitiateCurrentAccountInput>;
+
+export const UpdateCurrentAccountInput = z.object({
+  productName: z.string().optional(),
+  overdraftLimit: z.coerce.number().nonnegative().optional(),
+  status: AccountStatusEnum.optional(),
+});
+export type UpdateCurrentAccountInputT = z.infer<typeof UpdateCurrentAccountInput>;

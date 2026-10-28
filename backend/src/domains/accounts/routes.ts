@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import { InitiateCurrentAccountInput, UpdateCurrentAccountInput } from "./schema.js";
 import { accountsService } from "./service.js";
 
 export async function accountsRoutes(app: FastifyInstance) {
@@ -30,6 +31,23 @@ export async function accountsRoutes(app: FastifyInstance) {
     async (req) => {
       const balance = await accountsService.getBalance(req.params.accountId);
       return { accountBalance: balance };
+    },
+  );
+
+  // POST /bian/current-account/initiate — open new current account
+  app.post("/bian/current-account/initiate", async (req, reply) => {
+    const input = InitiateCurrentAccountInput.parse(req.body ?? {});
+    const dto = await accountsService.initiate(input);
+    return reply.code(201).send({ currentAccountFacility: dto });
+  });
+
+  // PUT /bian/current-account/:accountId/update — update account terms and features
+  app.put<{ Params: { accountId: string } }>(
+    "/bian/current-account/:accountId/update",
+    async (req) => {
+      const input = UpdateCurrentAccountInput.parse(req.body ?? {});
+      const dto = await accountsService.update(req.params.accountId, input);
+      return { currentAccountFacility: dto };
     },
   );
 }

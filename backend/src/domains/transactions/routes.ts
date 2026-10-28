@@ -18,6 +18,7 @@ export async function transactionsRoutes(app: FastifyInstance) {
           }),
         },
         Meta: { TotalPages: nextCursor ? null : 1 },
+        next_cursor: nextCursor ?? null,
       };
     },
   );

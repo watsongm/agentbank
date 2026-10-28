@@ -1,6 +1,12 @@
 import { prisma } from "../../lib/db.js";
+import { SEED } from "../../lib/constants.js";
 import { NotFound } from "../../lib/errors.js";
-import type { AccountDto, BalanceDto } from "./schema.js";
+import type {
+  AccountDto,
+  BalanceDto,
+  InitiateCurrentAccountInputT,
+  UpdateCurrentAccountInputT,
+} from "./schema.js";
 
 type AccountRow = Awaited<ReturnType<typeof prisma.account.findFirst>> & object;
 
@@ -27,6 +33,20 @@ async function resolveAccount(accountIdOrRef: string) {
   });
   if (!a) throw NotFound(`Account ${accountIdOrRef}`);
   return a;
+}
+
+async function resolveParty(partyIdOrRef?: string) {
+  const ref = partyIdOrRef || SEED.ARIA_PARTY_REF;
+  const p = await prisma.party.findFirst({
+    where: { OR: [{ partyRef: ref }, { id: ref }], deletedAt: null },
+  });
+  if (p) return p;
+  const fallback = await prisma.party.findFirst({
+    where: { OR: [{ partyRef: SEED.ARIA_PARTY_REF }, { deletedAt: null }] },
+    orderBy: { createdAt: "asc" },
+  });
+  if (!fallback) throw NotFound(`Party ${ref}`);
+  return fallback;
 }
 
 export const accountsService = {
@@ -59,5 +79,44 @@ export const accountsService = {
       overdraftLimit: a.overdraftLimit.toString(),
       asOf: new Date().toISOString(),
     };
+  },
+
+  async initiate(input: InitiateCurrentAccountInputT): Promise<AccountDto> {
+    const party = await resolveParty(input.partyId ?? input.customerReference);
+    const accountRef = `ACC-${Date.now().toString(36).toUpperCase()}`;
+    const productName = input.productName ?? input.productType ?? "Everyday Current";
+    const overdraftStr = (input.overdraftLimit ?? 0).toFixed(2);
+    const a = await prisma.account.create({
+      data: {
+        accountRef,
+        partyId: party.id,
+        accountType: "CURRENT",
+        productName,
+        currency: input.currency ?? "GBP",
+        availableBalance: "0.00",
+        ledgerBalance: "0.00",
+        overdraftLimit: overdraftStr,
+        status: "ACTIVE",
+      },
+    });
+    return toAccountDto(a);
+  },
+
+  async update(accountIdOrRef: string, input: UpdateCurrentAccountInputT): Promise<AccountDto> {
+    const existing = await resolveAccount(accountIdOrRef);
+    const a = await prisma.account.update({
+      where: { id: existing.id },
+      data: {
+        ...(input.productName !== undefined && { productName: input.productName }),
+        ...(input.overdraftLimit !== undefined && {
+          overdraftLimit: input.overdraftLimit.toFixed(2),
+        }),
+        ...(input.status !== undefined && {
+          status: input.status,
+          ...(input.status === "CLOSED" && { closedAt: new Date() }),
+        }),
+      },
+    });
+    return toAccountDto(a);
   },
 };

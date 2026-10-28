@@ -48,10 +48,12 @@ export const transactionsService = {
   ): Promise<{ items: TransactionDto[]; nextCursor: string | null }> {
     const a = await resolveAccount(accountIdOrRef);
     const where: Record<string, unknown> = { accountId: a.id };
-    if (q.from_date || q.to_date) {
+    const fromStr = q.from_date ?? q.fromBookingDateTime;
+    const toStr = q.to_date ?? q.toBookingDateTime;
+    if (fromStr || toStr) {
       const range: Record<string, Date> = {};
-      if (q.from_date) range.gte = new Date(q.from_date);
-      if (q.to_date) range.lte = new Date(q.to_date);
+      if (fromStr) range.gte = new Date(fromStr);
+      if (toStr) range.lte = new Date(toStr);
       where.bookedAt = range;
     }
 

@@ -34,6 +34,13 @@ import { partyRoutes } from "./domains/party/routes.js";
 import { accountsRoutes } from "./domains/accounts/routes.js";
 import { transactionsRoutes } from "./domains/transactions/routes.js";
 import { paymentsRoutes } from "./domains/payments/routes.js";
+import { lendingRoutes } from "./domains/lending/routes.js";
+import { cardsRoutes } from "./domains/cards/routes.js";
+import { savingsRoutes } from "./domains/savings/routes.js";
+import { investmentsRoutes } from "./domains/investments/routes.js";
+import { complianceRoutes } from "./domains/compliance/routes.js";
+import { notificationsRoutes } from "./domains/notifications/routes.js";
+import { oauthRoutes } from "./domains/oauth/routes.js";
 
 const PORT = Number(process.env.PORT ?? 3000);
 const HOST = process.env.HOST ?? "0.0.0.0";
@@ -51,37 +58,6 @@ function inferDomainFromPath(path: string): string {
   if (path.includes("transaction")) return "transactions";
   if (path.includes("account")) return "accounts";
   return "accounts";
-}
-
-async function tryRegisterDomain(
-  app: FastifyInstance,
-  moduleSpec: string,
-  exportNames: string[],
-  allowedScopes?: ConsentScope[],
-): Promise<boolean> {
-  try {
-    const resolvedUrl = new URL(moduleSpec, import.meta.url).href;
-    const mod = (await import(resolvedUrl)) as Record<string, unknown>;
-    let routePlugin: unknown = mod.default;
-    for (const name of exportNames) {
-      if (typeof mod[name] === "function") {
-        routePlugin = mod[name];
-        break;
-      }
-    }
-    if (typeof routePlugin === "function") {
-      await app.register(async (instance) => {
-        if (allowedScopes && allowedScopes.length > 0) {
-          instance.addHook("preHandler", requiresAnyScope(...allowedScopes));
-        }
-        await instance.register(routePlugin as any);
-      });
-      return true;
-    }
-  } catch {
-    // Domain module not yet created or optional
-  }
-  return false;
 }
 
 async function buildServer() {
@@ -232,52 +208,8 @@ async function buildServer() {
     app.log.warn({ err }, "@scalar/fastify-api-reference not installed; /docs disabled");
   }
 
-  // ── OAuth 2.0 Token Endpoint (Domain or built-in fallback) ────────────────
-  const oauthLoaded = await tryRegisterDomain(
-    app,
-    "./domains/oauth/routes.js",
-    ["oauthRoutes", "routes"],
-  );
-  if (!oauthLoaded) {
-    app.post("/open-banking/v3.1/oauth/token", async (req) => {
-      const body = (req.body ?? {}) as Record<string, unknown>;
-      const grantType =
-        typeof body.grant_type === "string" ? body.grant_type : "client_credentials";
-      if (
-        grantType !== "client_credentials" &&
-        grantType !== "authorization_code" &&
-        grantType !== "refresh_token"
-      ) {
-        throw BadRequest(`Unsupported grant_type: ${grantType}`);
-      }
-      const requestedScope =
-        typeof body.scope === "string" && body.scope.trim().length > 0
-          ? body.scope.trim()
-          : "accounts:read payments:write lending:read lending:write cards:read cards:write savings:read savings:write investments:read investments:write compliance:read compliance:write notifications:write party:read";
-      const mappedScopes = mapOAuthScopesToConsentScopes(requestedScope);
-      const scopes = mappedScopes.length > 0 ? mappedScopes : ALL_SCOPES;
-      const customerId =
-        typeof body.customer_id === "string"
-          ? body.customer_id
-          : typeof body.sub === "string"
-            ? body.sub
-            : SEED.ARIA_PARTY_REF;
-      const expiresIn = 3600;
-      const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
-      const accessToken = Buffer.from(
-        JSON.stringify({ customerId, scopes, expiresAt }),
-        "utf8",
-      ).toString("base64");
-
-      return {
-        access_token: accessToken,
-        token_type: "Bearer",
-        expires_in: expiresIn,
-        scope: requestedScope,
-        consent_scopes: scopes,
-      };
-    });
-  }
+  // ── OAuth 2.0 Token Endpoint ──────────────────────────────────────────────
+  await app.register(oauthRoutes);
 
   // ── Domain routes with scope enforcement ─────────────────────────────────
 
@@ -316,60 +248,66 @@ async function buildServer() {
   });
 
   // 5. Consumer Lending — requires READ_LOANS or APPLY_LOAN
-  await tryRegisterDomain(
-    app,
-    "./domains/lending/routes.js",
-    ["lendingRoutes", "routes"],
-    [ConsentScope.READ_LOANS, ConsentScope.APPLY_LOAN],
-  );
+  await app.register(async (instance) => {
+    instance.addHook(
+      "preHandler",
+      requiresAnyScope(ConsentScope.READ_LOANS, ConsentScope.APPLY_LOAN),
+    );
+    await instance.register(lendingRoutes);
+  });
 
   // 6. Credit & Debit Cards — requires READ_CARDS or BLOCK_CARD
-  await tryRegisterDomain(
-    app,
-    "./domains/cards/routes.js",
-    ["cardsRoutes", "routes"],
-    [ConsentScope.READ_CARDS, ConsentScope.BLOCK_CARD],
-  );
+  await app.register(async (instance) => {
+    instance.addHook(
+      "preHandler",
+      requiresAnyScope(ConsentScope.READ_CARDS, ConsentScope.BLOCK_CARD),
+    );
+    await instance.register(cardsRoutes);
+  });
 
   // 7. Savings & Deposits — requires READ_SAVINGS, READ_ACCOUNTS, or WRITE_ACCOUNTS
-  await tryRegisterDomain(
-    app,
-    "./domains/savings/routes.js",
-    ["savingsRoutes", "routes"],
-    [
-      ConsentScope.READ_SAVINGS,
-      ConsentScope.READ_ACCOUNTS,
-      ConsentScope.WRITE_ACCOUNTS,
-    ],
-  );
+  await app.register(async (instance) => {
+    instance.addHook(
+      "preHandler",
+      requiresAnyScope(
+        ConsentScope.READ_SAVINGS,
+        ConsentScope.READ_ACCOUNTS,
+        ConsentScope.WRITE_ACCOUNTS,
+      ),
+    );
+    await instance.register(savingsRoutes);
+  });
 
   // 8. Investment Portfolio — requires READ_PORTFOLIO, PLACE_ORDER, or MANAGE_INVESTMENTS
-  await tryRegisterDomain(
-    app,
-    "./domains/investments/routes.js",
-    ["investmentsRoutes", "routes"],
-    [
-      ConsentScope.READ_PORTFOLIO,
-      ConsentScope.PLACE_ORDER,
-      ConsentScope.MANAGE_INVESTMENTS,
-    ],
-  );
+  await app.register(async (instance) => {
+    instance.addHook(
+      "preHandler",
+      requiresAnyScope(
+        ConsentScope.READ_PORTFOLIO,
+        ConsentScope.PLACE_ORDER,
+        ConsentScope.MANAGE_INVESTMENTS,
+      ),
+    );
+    await instance.register(investmentsRoutes);
+  });
 
   // 9. Regulatory Compliance — requires RUN_AML
-  await tryRegisterDomain(
-    app,
-    "./domains/compliance/routes.js",
-    ["complianceRoutes", "routes"],
-    [ConsentScope.RUN_AML],
-  );
+  await app.register(async (instance) => {
+    instance.addHook("preHandler", requiresAnyScope(ConsentScope.RUN_AML));
+    await instance.register(complianceRoutes);
+  });
 
   // 10. Customer Notifications — requires SUBSCRIBE_EVENTS or READ_NOTIFICATIONS
-  await tryRegisterDomain(
-    app,
-    "./domains/notifications/routes.js",
-    ["notificationsRoutes", "routes"],
-    [ConsentScope.SUBSCRIBE_EVENTS, ConsentScope.READ_NOTIFICATIONS],
-  );
+  await app.register(async (instance) => {
+    instance.addHook(
+      "preHandler",
+      requiresAnyScope(
+        ConsentScope.SUBSCRIBE_EVENTS,
+        ConsentScope.READ_NOTIFICATIONS,
+      ),
+    );
+    await instance.register(notificationsRoutes);
+  });
 
   return app;
 }

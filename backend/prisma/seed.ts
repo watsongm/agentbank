@@ -1,12 +1,15 @@
 // Seed data for agentBANK reference backend.
 //
-// Three personas, six accounts, 90 days of transactions, one loan, one card,
-// one portfolio. Matches the shape used by the existing frontend mock so the
-// Smart Savings Agent demo works identically against the real backend.
+// Three personas, six accounts, 90 days of transactions, one loan (with
+// repayment schedule), one card, one portfolio, one compliance case,
+// one notification subscription, and default OAuth clients. Matches the shape
+// used by the existing frontend mock so the Smart Savings Agent demo works
+// identically against the real backend.
 //
 // Idempotent — safe to re-run. Each entity has a stable external ref.
 
 import { PrismaClient } from "@prisma/client";
+import { SEED } from "../src/lib/constants.js";
 
 const prisma = new PrismaClient();
 
@@ -29,7 +32,7 @@ const D = (s: string) => s;
 
 const PERSONAS = [
   {
-    partyRef: "PAR-ARIA",
+    partyRef: SEED.ARIA_PARTY_REF,
     legalName: "Aria Chen",
     givenName: "Aria",
     familyName: "Chen",
@@ -41,12 +44,12 @@ const PERSONAS = [
     kycStatus: "VERIFIED" as const,
     riskRating: "LOW" as const,
     accounts: [
-      { ref: "ACC-1829", type: "CURRENT" as const, product: "Everyday Current", available: "4821.50", ledger: "4821.50", overdraft: "500.00" },
-      { ref: "ACC-2041", type: "SAVINGS" as const, product: "Easy Saver", available: "12500.00", ledger: "12500.00", overdraft: "0" },
+      { ref: SEED.ARIA_CURRENT_REF, type: "CURRENT" as const, product: "Everyday Current", available: "4821.50", ledger: "4821.50", overdraft: "500.00" },
+      { ref: SEED.ARIA_SAVINGS_REF, type: "SAVINGS" as const, product: "Easy Saver", available: "12500.00", ledger: "12500.00", overdraft: "0" },
     ],
-    card: { ref: "CRD-88421", type: "CREDIT" as const, last4: "4291", limit: "5000", balance: "1758.20" },
+    card: { ref: SEED.ARIA_CARD_REF, type: "CREDIT" as const, last4: "4291", limit: "5000", balance: "1758.20" },
     portfolio: {
-      ref: "PRT-29183",
+      ref: SEED.ARIA_PORTFOLIO_REF,
       cash: "1250.00",
       market: "47041.44",
       holdings: [
@@ -56,7 +59,7 @@ const PERSONAS = [
     },
   },
   {
-    partyRef: "PAR-MAHLI",
+    partyRef: SEED.MAHLI_PARTY_REF,
     legalName: "Mahli Patel",
     givenName: "Mahli",
     familyName: "Patel",
@@ -68,10 +71,10 @@ const PERSONAS = [
     kycStatus: "VERIFIED" as const,
     riskRating: "LOW" as const,
     accounts: [
-      { ref: "ACC-3311", type: "CURRENT" as const, product: "Everyday Current", available: "1284.00", ledger: "1284.00", overdraft: "250.00" },
+      { ref: SEED.MAHLI_CURRENT_REF, type: "CURRENT" as const, product: "Everyday Current", available: "1284.00", ledger: "1284.00", overdraft: "250.00" },
     ],
     loan: {
-      ref: "LOAN-48291",
+      ref: SEED.MAHLI_LOAN_REF,
       principal: "10000",
       termMonths: 36,
       rate: "0.069",
@@ -80,7 +83,7 @@ const PERSONAS = [
     },
   },
   {
-    partyRef: "PAR-OKORO",
+    partyRef: SEED.OKORO_PARTY_REF,
     legalName: "Noah Okoro",
     givenName: "Noah",
     familyName: "Okoro",
@@ -92,7 +95,7 @@ const PERSONAS = [
     kycStatus: "PENDING" as const,
     riskRating: "LOW" as const,
     accounts: [
-      { ref: "ACC-5522", type: "CURRENT" as const, product: "Everyday Current", available: "324.78", ledger: "324.78", overdraft: "0" },
+      { ref: SEED.OKORO_CURRENT_REF, type: "CURRENT" as const, product: "Everyday Current", available: "324.78", ledger: "324.78", overdraft: "0" },
     ],
   },
 ];
@@ -214,7 +217,7 @@ async function main() {
     }
 
     if (persona.loan) {
-      await prisma.loan.upsert({
+      const loan = await prisma.loan.upsert({
         where: { loanRef: persona.loan.ref },
         update: {},
         create: {
@@ -230,7 +233,26 @@ async function main() {
           approvedAt: new Date(Date.now() - 180 * 24 * 3600 * 1000),
         },
       });
-      console.log(`    loan ${persona.loan.ref}`);
+
+      // Seed 6 monthly Repayment schedule rows (2 PAID and 4 DUE) idempotently
+      await prisma.repayment.deleteMany({ where: { loanId: loan.id } });
+      const monthMs = 30 * 24 * 3600 * 1000;
+      const now = Date.now();
+      const monthlyInstalment = "308.29";
+      const repaymentRows = [-2, -1, 1, 2, 3, 4].map((offset) => {
+        const dueDate = new Date(now + offset * monthMs);
+        const isPaid = offset < 0;
+        return {
+          loanId: loan.id,
+          dueDate,
+          amount: D(monthlyInstalment),
+          paidDate: isPaid ? dueDate : null,
+          paidAmount: isPaid ? D(monthlyInstalment) : null,
+          status: isPaid ? ("PAID" as const) : ("DUE" as const),
+        };
+      });
+      await prisma.repayment.createMany({ data: repaymentRows });
+      console.log(`    loan ${persona.loan.ref} (with ${repaymentRows.length} repayment schedule rows)`);
     }
 
     if (persona.portfolio) {
@@ -264,6 +286,76 @@ async function main() {
       console.log(`    portfolio ${persona.portfolio.ref}`);
     }
   }
+
+  // Seed Aria's default ComplianceCase (CASE-9001) & NotificationSubscription (SUB-1001)
+  const aria = await prisma.party.findUniqueOrThrow({
+    where: { partyRef: SEED.ARIA_PARTY_REF },
+  });
+
+  const sampleTxRef = `TXN-${SEED.ARIA_CURRENT_REF}-0-D`;
+  await prisma.complianceCase.upsert({
+    where: { caseRef: SEED.ARIA_CASE_REF },
+    update: {
+      subjectType: "transaction",
+      subjectId: sampleTxRef,
+      partyId: aria.id,
+      screenType: "AML",
+      decision: "CLEAR",
+      score: 8,
+      reasons: ["Verified domestic transfer", "Known counterparty"],
+    },
+    create: {
+      caseRef: SEED.ARIA_CASE_REF,
+      subjectType: "transaction",
+      subjectId: sampleTxRef,
+      partyId: aria.id,
+      screenType: "AML",
+      decision: "CLEAR",
+      score: 8,
+      reasons: ["Verified domestic transfer", "Known counterparty"],
+      resolvedAt: new Date(),
+    },
+  });
+  console.log(`  complianceCase ${SEED.ARIA_CASE_REF}`);
+
+  await prisma.notificationSubscription.upsert({
+    where: { id: SEED.ARIA_SUB_REF },
+    update: {
+      partyId: aria.id,
+      eventTypes: ["payment.completed", "balance.threshold"],
+      webhookUrl: "https://agent.example.com/webhooks/agentbank",
+      verificationToken: "vtok-seed-1001",
+      active: true,
+    },
+    create: {
+      id: SEED.ARIA_SUB_REF,
+      partyId: aria.id,
+      eventTypes: ["payment.completed", "balance.threshold"],
+      webhookUrl: "https://agent.example.com/webhooks/agentbank",
+      verificationToken: "vtok-seed-1001",
+      active: true,
+    },
+  });
+  console.log(`  notificationSubscription ${SEED.ARIA_SUB_REF}`);
+
+  // Seed default OAuth Client
+  await prisma.client.upsert({
+    where: { clientId: "agentbank-sdk" },
+    update: {
+      clientSecret: "demo-secret",
+      name: "agentBANK Reference Agent",
+      scopes: ["accounts:read", "payments:write"],
+      active: true,
+    },
+    create: {
+      clientId: "agentbank-sdk",
+      clientSecret: "demo-secret",
+      name: "agentBANK Reference Agent",
+      scopes: ["accounts:read", "payments:write"],
+      active: true,
+    },
+  });
+  console.log("  client agentbank-sdk");
 
   console.log("Seed complete.");
 }

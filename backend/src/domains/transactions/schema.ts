@@ -23,6 +23,8 @@ export type TransactionDto = z.infer<typeof TransactionSchema>;
 export const ListQuery = z.object({
   from_date: z.string().optional(),
   to_date: z.string().optional(),
+  fromBookingDateTime: z.string().optional(),
+  toBookingDateTime: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(500).default(50),
   cursor: z.string().optional(),
 });

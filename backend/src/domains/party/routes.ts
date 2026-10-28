@@ -4,8 +4,8 @@ import { partyService } from "./service.js";
 
 export async function partyRoutes(app: FastifyInstance) {
   // GET /open-banking/v3.1/party  — authenticated party
-  app.get("/open-banking/v3.1/party", async () => {
-    const party = await partyService.getAuthenticated();
+  app.get("/open-banking/v3.1/party", async (req) => {
+    const party = await partyService.getCurrent(req.consent?.customerId);
     return { Data: { Party: party }, Links: { Self: "/open-banking/v3.1/party" } };
   });
 

@@ -30,21 +30,46 @@ export const PartySchema = z.object({
 });
 export type PartyDto = z.infer<typeof PartySchema>;
 
-export const RegisterPartyInput = z.object({
-  legalName: z.string().min(1),
+export const RegisterPartyInput = z
+  .object({
+    legalName: z.string().min(1).optional(),
+    name: z.string().min(1).optional(),
+    givenName: z.string().optional(),
+    familyName: z.string().optional(),
+    dateOfBirth: z.string().optional(),
+    email: z.string().email().optional(),
+    contactEmail: z.string().email().optional(),
+    phone: z.string().optional(),
+    addressLine1: z.string().optional(),
+    addressLine2: z.string().optional(),
+    city: z.string().optional(),
+    postcode: z.string().optional(),
+    country: z.string().min(2).max(3).optional(),
+    nationality: z.string().min(2).max(3).optional(),
+    partyType: PartyTypeEnum.default("INDIVIDUAL"),
+  })
+  .refine((data) => Boolean(data.legalName || data.name), {
+    message: "Either legalName or name is required",
+    path: ["legalName"],
+  });
+export type RegisterPartyInputT = z.infer<typeof RegisterPartyInput>;
+
+export const UpdatePartyInput = z.object({
+  legalName: z.string().min(1).optional(),
+  name: z.string().min(1).optional(),
   givenName: z.string().optional(),
   familyName: z.string().optional(),
   dateOfBirth: z.string().optional(),
   email: z.string().email().optional(),
+  contactEmail: z.string().email().optional(),
   phone: z.string().optional(),
+  address: z.string().optional(),
   addressLine1: z.string().optional(),
   addressLine2: z.string().optional(),
   city: z.string().optional(),
   postcode: z.string().optional(),
-  country: z.string().length(2).default("GB"),
-  partyType: PartyTypeEnum.default("INDIVIDUAL"),
+  country: z.string().min(2).max(3).optional(),
+  nationality: z.string().min(2).max(3).optional(),
+  partyType: PartyTypeEnum.optional(),
 });
-export type RegisterPartyInputT = z.infer<typeof RegisterPartyInput>;
-
-export const UpdatePartyInput = RegisterPartyInput.partial();
 export type UpdatePartyInputT = z.infer<typeof UpdatePartyInput>;
