@@ -137,11 +137,12 @@ server.tool(
     to_date:    z.string().describe("End date in YYYY-MM-DD format"),
     limit:      z.number().int().min(1).max(500).default(100).describe("Maximum number of transactions to return"),
     cursor:     z.string().optional().describe("Pagination cursor from previous response's next_cursor field"),
+    consent_token: z.string().describe("FAPI consent token"),
   },
-  async ({ account_id, from_date, to_date, limit, cursor }) => {
+  async ({ account_id, from_date, to_date, limit, cursor, consent_token }) => {
     const params = new URLSearchParams({ fromBookingDateTime: from_date, toBookingDateTime: to_date, limit });
     if (cursor) params.set("cursor", cursor);
-    const data = await apiCall("GET", `/open-banking/v3.1/accounts/${account_id}/transactions?${params}`, null);
+    const data = await apiCall("GET", `/open-banking/v3.1/accounts/${account_id}/transactions?${params}`, null, consentHeaders(consent_token));
     return ok(data);
   }
 );
@@ -158,8 +159,9 @@ server.tool(
     amount:            z.number().positive().describe("Payment amount"),
     currency:          z.string().length(3).describe("ISO 4217 currency code, e.g. GBP"),
     reference:         z.string().describe("Payment reference / narrative"),
+    consent_token:     z.string().describe("FAPI consent token"),
   },
-  async ({ debtor_account, creditor_account, amount, currency, reference }) => {
+  async ({ debtor_account, creditor_account, amount, currency, reference, consent_token }) => {
     const data = await apiCall("POST", "/open-banking/v3.1/domestic-payments", {
       Data: {
         Initiation: {
@@ -171,7 +173,7 @@ server.tool(
         },
       },
       Risk: {},
-    });
+    }, consentHeaders(consent_token));
     return ok(data);
   }
 );
@@ -179,9 +181,9 @@ server.tool(
 server.tool(
   "get_payment_status",
   "Check the execution status of a previously submitted payment.",
-  { payment_id: z.string().describe("Payment identifier returned by initiate_payment") },
-  async ({ payment_id }) => {
-    const data = await apiCall("GET", `/open-banking/v3.1/domestic-payments/${payment_id}`, null);
+  { payment_id: z.string().describe("Payment identifier returned by initiate_payment"), consent_token: z.string().describe("FAPI consent token") },
+  async ({ payment_id, consent_token }) => {
+    const data = await apiCall("GET", `/open-banking/v3.1/domestic-payments/${payment_id}`, null, consentHeaders(consent_token));
     return ok(data);
   }
 );
@@ -192,9 +194,9 @@ server.tool(
 server.tool(
   "get_loan_details",
   "Retrieve loan account details and full repayment schedule.",
-  { loan_id: z.string().describe("Loan identifier, e.g. LN-48291") },
-  async ({ loan_id }) => {
-    const data = await apiCall("GET", `/bian/consumer-loan/${loan_id}/retrieve`, null);
+  { loan_id: z.string().describe("Loan identifier, e.g. LN-48291"), consent_token: z.string().describe("FAPI consent token") },
+  async ({ loan_id, consent_token }) => {
+    const data = await apiCall("GET", `/bian/consumer-loan/${loan_id}/retrieve`, null, consentHeaders(consent_token));
     return ok(data);
   }
 );
@@ -208,15 +210,16 @@ server.tool(
     currency:     z.string().length(3).default("GBP").describe("ISO 4217 currency code (default: GBP)"),
     term_months:  z.number().int().min(1).max(360).describe("Loan term in months"),
     purpose:      z.string().describe("Loan purpose, e.g. HomeImprovement, CarPurchase, Consolidation"),
+    consent_token: z.string().describe("FAPI consent token"),
   },
-  async ({ party_id, amount, currency, term_months, purpose }) => {
+  async ({ party_id, amount, currency, term_months, purpose, consent_token }) => {
     const data = await apiCall("POST", "/bian/consumer-loan/initiate", {
       partyId: party_id,
       requestedAmount: amount,
       currency,
       termMonths: term_months,
       purpose,
-    });
+    }, consentHeaders(consent_token));
     return ok(data);
   }
 );
@@ -227,9 +230,9 @@ server.tool(
 server.tool(
   "get_card_details",
   "Retrieve card information including type, status, credit limit, and available credit.",
-  { card_id: z.string().describe("Card identifier, e.g. CRD-88421") },
-  async ({ card_id }) => {
-    const data = await apiCall("GET", `/bian/credit-card/${card_id}/retrieve`, null);
+  { card_id: z.string().describe("Card identifier, e.g. CRD-88421"), consent_token: z.string().describe("FAPI consent token") },
+  async ({ card_id, consent_token }) => {
+    const data = await apiCall("GET", `/bian/credit-card/${card_id}/retrieve`, null, consentHeaders(consent_token));
     return ok(data);
   }
 );
@@ -240,9 +243,10 @@ server.tool(
   {
     card_id: z.string().describe("Card identifier"),
     action:  z.enum(["block", "unblock"]).describe("The action to perform on the card"),
+    consent_token: z.string().describe("FAPI consent token"),
   },
-  async ({ card_id, action }) => {
-    const data = await apiCall("POST", `/bian/credit-card/${card_id}/request`, { action });
+  async ({ card_id, action, consent_token }) => {
+    const data = await apiCall("POST", `/bian/credit-card/${card_id}/request`, { action }, consentHeaders(consent_token));
     return ok(data);
   }
 );
@@ -253,9 +257,9 @@ server.tool(
 server.tool(
   "get_portfolio",
   "Retrieve investment portfolio holdings, total value, and year-to-date performance.",
-  { portfolio_id: z.string().describe("Portfolio identifier, e.g. PRT-29183") },
-  async ({ portfolio_id }) => {
-    const data = await apiCall("GET", `/bian/investment-portfolio/${portfolio_id}/retrieve`, null);
+  { portfolio_id: z.string().describe("Portfolio identifier, e.g. PRT-29183"), consent_token: z.string().describe("FAPI consent token") },
+  async ({ portfolio_id, consent_token }) => {
+    const data = await apiCall("GET", `/bian/investment-portfolio/${portfolio_id}/retrieve`, null, consentHeaders(consent_token));
     return ok(data);
   }
 );
@@ -268,11 +272,12 @@ server.tool(
     instrument:   z.string().describe("Instrument ticker or ISIN, e.g. AAPL or GB00B16GWD56"),
     quantity:     z.number().positive().describe("Number of units to buy or sell (fractional quantities supported)"),
     direction:    z.enum(["buy", "sell"]).describe("Order direction"),
+    consent_token: z.string().describe("FAPI consent token"),
   },
-  async ({ portfolio_id, instrument, quantity, direction }) => {
+  async ({ portfolio_id, instrument, quantity, direction, consent_token }) => {
     const data = await apiCall("POST", `/bian/investment-portfolio/${portfolio_id}/request`, {
       instrument, quantity, direction,
-    });
+    }, consentHeaders(consent_token));
     return ok(data);
   }
 );
@@ -286,12 +291,13 @@ server.tool(
   {
     subject_type: z.enum(["party", "transaction"]).describe("What is being screened"),
     subject_id:   z.string().describe("The party or transaction identifier to screen"),
+    consent_token: z.string().describe("FAPI consent token"),
   },
-  async ({ subject_type, subject_id }) => {
+  async ({ subject_type, subject_id, consent_token }) => {
     const data = await apiCall("POST", "/bian/aml-screening/evaluate", {
       subjectType: subject_type,
       subjectId:   subject_id,
-    });
+    }, consentHeaders(consent_token));
     return ok(data);
   }
 );
@@ -306,8 +312,9 @@ server.tool(
     party_id:    z.string().describe("Customer party identifier"),
     event_types: z.array(z.string()).describe("Event types to subscribe to, e.g. ['transaction.credit', 'balance.threshold']"),
     webhook_url: z.string().url().describe("HTTPS endpoint that will receive event payloads"),
+    consent_token: z.string().describe("FAPI consent token"),
   },
-  async ({ party_id, event_types, webhook_url }) => {
+  async ({ party_id, event_types, webhook_url, consent_token }) => {
     // FAPI webhook ownership verification: generate a challenge token and include
     // it in the subscription request. The server is expected to POST the challenge
     // to webhook_url and verify the echo before activating the subscription.
@@ -317,7 +324,7 @@ server.tool(
       eventTypes: event_types,
       webhookUrl: webhook_url,
       verificationToken,
-    });
+    }, consentHeaders(consent_token));
     return ok(data);
   }
 );
